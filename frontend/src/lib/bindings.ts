@@ -13,6 +13,7 @@ export type {
   CombatRow,
   LootView,
   LootEntry,
+  ItemSummary,
   PlayerSummary,
   PartyView,
   PartyMember,
@@ -27,7 +28,7 @@ export interface LootFilter {
 
 export interface CombatOptions {
   PartyOnly: boolean
-  PlayersOnly: boolean
+  PlayerTargetsOnly: boolean
 }
 
 const app = () => window.go.main.App

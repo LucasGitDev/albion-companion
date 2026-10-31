@@ -24,11 +24,20 @@ export interface LootEntry {
   looter: string
   looterGuild?: string
   lootedFrom: string
+  fromMob: boolean
   itemId: string
   itemName: string
+  isTrash: boolean
   quantity: number
   isSilver: boolean
   silver: number
+}
+
+export interface ItemSummary {
+  itemId: string
+  itemName: string
+  quantity: number
+  looters: Record<string, number>
 }
 
 export interface PlayerSummary {
@@ -38,11 +47,12 @@ export interface PlayerSummary {
   pickups: number
   silver: number
   inParty: boolean
+  lastLoot: string
 }
 
 export interface LootView {
   players: PlayerSummary[]
-  items: unknown[]
+  items: ItemSummary[]
   recent: LootEntry[]
   total: number
 }
@@ -87,7 +97,7 @@ declare global {
           ResetLoot(): Promise<void>
           ResetCombat(): Promise<void>
           SetLootFilter(f: { PartyOnly: boolean; Player: string; IncludeTrash: boolean }): Promise<void>
-          SetCombatOptions(o: { PartyOnly: boolean; PlayersOnly: boolean }): Promise<void>
+          SetCombatOptions(o: { PartyOnly: boolean; PlayerTargetsOnly: boolean }): Promise<void>
         }
       }
     }
