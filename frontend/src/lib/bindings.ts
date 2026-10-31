@@ -1,0 +1,51 @@
+// Typed wrappers over the Wails bindings (window.go.main.App) and the event
+// bridge (window.runtime). Components import from here, never window.* directly.
+import type {
+  CaptureStatus,
+  CombatView,
+  LootView,
+  PartyView,
+} from '@/wails.d'
+
+export type {
+  CaptureStatus,
+  CombatView,
+  CombatRow,
+  LootView,
+  LootEntry,
+  PlayerSummary,
+  PartyView,
+  PartyMember,
+  Stats,
+} from '@/wails.d'
+
+export interface LootFilter {
+  PartyOnly: boolean
+  Player: string
+  IncludeTrash: boolean
+}
+
+export interface CombatOptions {
+  PartyOnly: boolean
+  PlayersOnly: boolean
+}
+
+const app = () => window.go.main.App
+
+export const api = {
+  status: (): Promise<CaptureStatus> => app().Status(),
+  start: (): Promise<CaptureStatus> => app().StartCapture(),
+  stop: (): Promise<CaptureStatus> => app().StopCapture(),
+  lootView: (recent = 50): Promise<LootView> => app().LootView(recent),
+  combatView: (): Promise<CombatView> => app().CombatView(),
+  partyView: (): Promise<PartyView> => app().PartyView(),
+  resetLoot: (): Promise<void> => app().ResetLoot(),
+  resetCombat: (): Promise<void> => app().ResetCombat(),
+  setLootFilter: (f: LootFilter): Promise<void> => app().SetLootFilter(f),
+  setCombatOptions: (o: CombatOptions): Promise<void> => app().SetCombatOptions(o),
+}
+
+/** Subscribe to a Wails event; returns an unsubscribe fn. */
+export function on(event: string, cb: () => void): () => void {
+  return window.runtime.EventsOn(event, cb)
+}

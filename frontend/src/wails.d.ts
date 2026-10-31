@@ -86,6 +86,8 @@ declare global {
           PartyView(): Promise<PartyView>
           ResetLoot(): Promise<void>
           ResetCombat(): Promise<void>
+          SetLootFilter(f: { PartyOnly: boolean; Player: string; IncludeTrash: boolean }): Promise<void>
+          SetCombatOptions(o: { PartyOnly: boolean; PlayersOnly: boolean }): Promise<void>
         }
       }
     }

@@ -1,75 +1,35 @@
 import { useEffect, useState } from 'react'
-import type { CaptureStatus, LootEntry } from './wails.d'
-import './App.css'
+import { Sidebar, type Tab } from '@/components/Sidebar'
+import { TopBar } from '@/components/TopBar'
+import { Placeholder } from '@/tabs/Placeholder'
+import { api, type CaptureStatus } from '@/lib/bindings'
+import { useTopic } from '@/hooks/useTopic'
 
-// TASK-3 debug view: proves the Wails <-> engine wiring works. Subscribes to
-// capture:status and loot events, re-fetching the loot view on change. The real
-// tabbed UI arrives in TASK-4+.
 export default function App() {
-  const [status, setStatus] = useState<CaptureStatus | null>(null)
-  const [entries, setEntries] = useState<LootEntry[]>([])
+  const [tab, setTab] = useState<Tab>('loot')
+  const [partyMode, setPartyMode] = useState(true)
+  // Service emits capture:status on start/stop, so the top bar stays in sync.
+  const status = useTopic<CaptureStatus>(api.status, ['capture:status'])
 
-  const refresh = () => {
-    window.go.main.App.Status().then(setStatus)
-    window.go.main.App.LootView(50).then((v) => setEntries(v.recent ?? []))
-  }
-
+  // Party Mode is global: it drives both the loot filter and the combat meter.
   useEffect(() => {
-    refresh()
-    const offStatus = window.runtime.EventsOn('capture:status', () =>
-      window.go.main.App.Status().then(setStatus),
-    )
-    const offLoot = window.runtime.EventsOn('loot:changed', () =>
-      window.go.main.App.LootView(50).then((v) => setEntries(v.recent ?? [])),
-    )
-    const offNew = window.runtime.EventsOn('loot:new', () =>
-      window.go.main.App.LootView(50).then((v) => setEntries(v.recent ?? [])),
-    )
-    return () => {
-      offStatus()
-      offLoot()
-      offNew()
-    }
-  }, [])
-
-  const running = status?.running ?? false
+    api.setLootFilter({ PartyOnly: partyMode, Player: '', IncludeTrash: false })
+    api.setCombatOptions({ PartyOnly: partyMode, PlayersOnly: false })
+  }, [partyMode])
 
   return (
-    <main className="debug">
-      <header>
-        <span className={`dot ${running ? 'on' : 'off'}`} />
-        <h1>Albion Companion</h1>
-        <button onClick={() => (running ? window.go.main.App.StopCapture() : window.go.main.App.StartCapture()).then(refresh)}>
-          {running ? 'Stop' : 'Start'} capture
-        </button>
-      </header>
-
-      <section className="stats">
-        <code>
-          sources: {status?.sources?.join(', ') || '—'} · packets: {status?.stats.packets ?? 0} · msgs:{' '}
-          {status?.stats.messages ?? 0} · decodeErr: {status?.stats.decodeErrors ?? 0}
-          {status?.error ? ` · error: ${status.error}` : ''}
-        </code>
-      </section>
-
-      <section className="feed">
-        <h2>Loot feed ({entries.length})</h2>
-        <ul>
-          {entries.map((e, i) => (
-            <li key={i}>
-              <span className="who">{e.looter}</span>{' '}
-              {e.isSilver ? (
-                <span className="silver">+{Math.round(e.silver)} silver</span>
-              ) : (
-                <span>
-                  ×{e.quantity} {e.itemName || e.itemId}
-                </span>
-              )}{' '}
-              <span className="from">from {e.lootedFrom}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
-    </main>
+    <div className="flex h-screen w-screen overflow-hidden">
+      <Sidebar active={tab} onSelect={setTab} />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <TopBar status={status} partyMode={partyMode} onPartyModeChange={setPartyMode} />
+        <main className="min-h-0 flex-1 overflow-auto p-4">
+          {tab === 'loot' && <Placeholder title="Loot" note="Summary, top looters, items and live feed arrive in TASK-5." />}
+          {tab === 'dps' && <Placeholder title="DPS" note="Damage meter arrives in TASK-6." />}
+          {tab === 'party' && <Placeholder title="Party" note="Roster arrives in TASK-7." />}
+          {tab === 'history' && <Placeholder title="History" note="Session history needs persistence (TASK-13)." />}
+          {tab === 'settings' && <Placeholder title="Settings" note="Interface, codes, item DB, credits (TASK-7)." />}
+        </main>
+      </div>
+    </div>
   )
 }
