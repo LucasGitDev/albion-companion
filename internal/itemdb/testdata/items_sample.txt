@@ -1,0 +1,7 @@
+   1: UNIQUE_HIDEOUT                                                   : Hideout Construction Kit
+   2: T3_2H_TOOL_TRACKING                                              : Journeyman's Tracking Toolkit
+   3: T4_2H_TOOL_TRACKING                                              : Adept's Tracking Toolkit
+   4: T5_2H_TOOL_TRACKING                                              : Expert's Tracking Toolkit
+   5: T6_2H_TOOL_TRACKING                                              : Master's Tracking Toolkit
+2043: T1_TRASH                                                         : Trash
+2888: T4_BAG                                                           : Adept's Bag

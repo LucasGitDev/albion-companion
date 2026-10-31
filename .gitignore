@@ -1,0 +1,11 @@
+/bin/
+/build/bin/
+/refs/
+/frontend/node_modules/
+/frontend/dist/
+/frontend/wailsjs/
+*.aorec
+!testdata/*.aorec
+*.pcap
+*.pcapng
+.DS_Store
