@@ -3,6 +3,8 @@ import { Sidebar, type Tab } from '@/components/Sidebar'
 import { TopBar } from '@/components/TopBar'
 import { Loot } from '@/tabs/Loot'
 import { Dps } from '@/tabs/Dps'
+import { Party } from '@/tabs/Party'
+import { Settings } from '@/tabs/Settings'
 import { Placeholder } from '@/tabs/Placeholder'
 import { api, type CaptureStatus, type LootFilter } from '@/lib/bindings'
 import { useTopic } from '@/hooks/useTopic'
@@ -33,9 +35,9 @@ export default function App() {
               onPlayerTargetsOnly={setPlayerTargetsOnly}
             />
           )}
-          {tab === 'party' && <Placeholder title="Party" note="Roster arrives in TASK-7." />}
+          {tab === 'party' && <Party />}
           {tab === 'history' && <Placeholder title="History" note="Session history needs persistence (TASK-13)." />}
-          {tab === 'settings' && <Placeholder title="Settings" note="Interface, codes, item DB, credits (TASK-7)." />}
+          {tab === 'settings' && <Settings />}
         </main>
       </div>
     </div>

@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -20,9 +21,13 @@ import (
 // app.Service so the engine stays UI-agnostic; the struct holds only the Wails
 // context needed to emit events and run the flush loop.
 type App struct {
-	ctx  context.Context
-	svc  *app.Service
-	stop context.CancelFunc
+	ctx   context.Context
+	svc   *app.Service
+	stop  context.CancelFunc
+	codes *protocol.Codes
+
+	mu    sync.Mutex
+	items *itemdb.DB
 }
 
 func NewApp() *App { return &App{} }
@@ -32,8 +37,9 @@ func NewApp() *App { return &App{} }
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 
+	a.codes = protocol.DefaultCodes()
 	opts := app.Options{
-		Codes:         protocol.DefaultCodes(),
+		Codes:         a.codes,
 		Throttle:      250 * time.Millisecond,
 		PartyOnlyLoot: true,
 		Combat:        combat.Options{PartyOnly: true},
@@ -69,6 +75,9 @@ func (a *App) startup(ctx context.Context) {
 		db, err := itemdb.LoadCached(ctx, itemsCacheDir(), 24*time.Hour)
 		if err == nil {
 			a.svc.Engine().Loot().SetItems(db)
+			a.mu.Lock()
+			a.items = db
+			a.mu.Unlock()
 			runtime.EventsEmit(a.ctx, "loot:changed", nil)
 		}
 	}()
@@ -107,3 +116,45 @@ func (a *App) SetLootFilter(f loot.Filter)              { a.svc.SetLootFilter(f)
 func (a *App) SetCombatOptions(o combat.Options)        { a.svc.SetCombatOptions(o) }
 func (a *App) ResetLoot()                               { a.svc.ResetLoot() }
 func (a *App) ResetCombat()                             { a.svc.ResetCombat() }
+
+// Interfaces lists the physical capture interfaces for the Settings picker.
+func (a *App) Interfaces() ([]string, error) { return capture.Interfaces() }
+
+// CodesInfo describes the loaded event/operation code table.
+type CodesInfo struct {
+	Source     string `json:"source"`
+	Events     int    `json:"events"`
+	Operations int    `json:"operations"`
+}
+
+func (a *App) CodesInfo() CodesInfo {
+	return CodesInfo{Source: a.codes.Source, Events: len(a.codes.Events), Operations: len(a.codes.Operations)}
+}
+
+// ItemDBInfo reports how many items are loaded.
+type ItemDBInfo struct {
+	Count int `json:"count"`
+}
+
+func (a *App) ItemDBInfo() ItemDBInfo {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.items == nil {
+		return ItemDBInfo{}
+	}
+	return ItemDBInfo{Count: a.items.Len()}
+}
+
+// RefreshItemDB forces a fresh item index download (maxAge 0) and rebinds it.
+func (a *App) RefreshItemDB() (ItemDBInfo, error) {
+	db, err := itemdb.LoadCached(a.ctx, itemsCacheDir(), 0)
+	if err != nil {
+		return a.ItemDBInfo(), err
+	}
+	a.svc.Engine().Loot().SetItems(db)
+	a.mu.Lock()
+	a.items = db
+	a.mu.Unlock()
+	runtime.EventsEmit(a.ctx, "loot:changed", nil)
+	return ItemDBInfo{Count: db.Len()}, nil
+}

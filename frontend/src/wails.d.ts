@@ -86,6 +86,16 @@ export interface PartyView {
   members: PartyMember[]
 }
 
+export interface CodesInfo {
+  source: string
+  events: number
+  operations: number
+}
+
+export interface ItemDBInfo {
+  count: number
+}
+
 declare global {
   interface Window {
     go: {
@@ -101,6 +111,10 @@ declare global {
           ResetCombat(): Promise<void>
           SetLootFilter(f: { PartyOnly: boolean; Player: string; IncludeTrash: boolean }): Promise<void>
           SetCombatOptions(o: { PartyOnly: boolean; PlayerTargetsOnly: boolean }): Promise<void>
+          Interfaces(): Promise<string[]>
+          CodesInfo(): Promise<CodesInfo>
+          ItemDBInfo(): Promise<ItemDBInfo>
+          RefreshItemDB(): Promise<ItemDBInfo>
         }
       }
     }

@@ -17,6 +17,8 @@ export type {
   PlayerSummary,
   PartyView,
   PartyMember,
+  CodesInfo,
+  ItemDBInfo,
   Stats,
 } from '@/wails.d'
 
@@ -42,6 +44,10 @@ export const api = {
   partyView: (): Promise<PartyView> => app().PartyView(),
   resetLoot: (): Promise<void> => app().ResetLoot(),
   resetCombat: (): Promise<void> => app().ResetCombat(),
+  interfaces: () => app().Interfaces(),
+  codesInfo: () => app().CodesInfo(),
+  itemDBInfo: () => app().ItemDBInfo(),
+  refreshItemDB: () => app().RefreshItemDB(),
   setLootFilter: (f: LootFilter): Promise<void> => app().SetLootFilter(f),
   setCombatOptions: (o: CombatOptions): Promise<void> => app().SetCombatOptions(o),
 }

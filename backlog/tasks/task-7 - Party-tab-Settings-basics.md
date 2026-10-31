@@ -1,9 +1,11 @@
 ---
 id: TASK-7
 title: Party tab + Settings basics
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@devlucasteles'
 created_date: '2026-10-31T19:20:00Z'
+updated_date: '2026-10-31 23:23'
 labels:
   - ui
 dependencies:
