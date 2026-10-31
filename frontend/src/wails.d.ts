@@ -1,0 +1,99 @@
+// Ambient declarations for the Wails runtime bridge. Wails injects `window.go`
+// (bound Go methods) and `window.runtime` (events) at load time. We declare the
+// slice we use by hand so the frontend type-checks without the generated
+// `wailsjs/` folder (which is gitignored and produced at build time).
+
+export interface Stats {
+  packets: number
+  messages: number
+  unknown: number
+  decodeErrors: number
+  encrypted: number
+}
+
+export interface CaptureStatus {
+  running: boolean
+  sources: string[]
+  error?: string
+  hint?: string
+  stats: Stats
+}
+
+export interface LootEntry {
+  at: string
+  looter: string
+  looterGuild?: string
+  lootedFrom: string
+  itemId: string
+  itemName: string
+  quantity: number
+  isSilver: boolean
+  silver: number
+}
+
+export interface PlayerSummary {
+  name: string
+  guild: string
+  items: number
+  pickups: number
+  silver: number
+  inParty: boolean
+}
+
+export interface LootView {
+  players: PlayerSummary[]
+  items: unknown[]
+  recent: LootEntry[]
+  total: number
+}
+
+export interface CombatRow {
+  name: string
+  damage: number
+  dps: number
+  share: number
+  heal: number
+  hps: number
+  taken: number
+}
+
+export interface CombatView {
+  rows: CombatRow[]
+  totalDamage: number
+}
+
+export interface PartyMember {
+  GUID: string
+  Name: string
+}
+
+export interface PartyView {
+  me: string
+  location: string
+  members: PartyMember[]
+}
+
+declare global {
+  interface Window {
+    go: {
+      main: {
+        App: {
+          Status(): Promise<CaptureStatus>
+          StartCapture(): Promise<CaptureStatus>
+          StopCapture(): Promise<CaptureStatus>
+          LootView(recent: number): Promise<LootView>
+          CombatView(): Promise<CombatView>
+          PartyView(): Promise<PartyView>
+          ResetLoot(): Promise<void>
+          ResetCombat(): Promise<void>
+        }
+      }
+    }
+    runtime: {
+      EventsOn(event: string, cb: (...data: unknown[]) => void): () => void
+      EventsEmit(event: string, ...data: unknown[]): void
+    }
+  }
+}
+
+export {}
