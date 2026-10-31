@@ -112,6 +112,21 @@ func (p Params) GUIDs(k byte) ([]string, bool) {
 		for _, b := range v {
 			items = append(items, b)
 		}
+	case []byte:
+		// Flat concatenation of 16-byte GUIDs (SA: GetPartyUserGuidsFromBytes).
+		if len(v)%16 != 0 {
+			return nil, false
+		}
+		for i := 0; i < len(v); i += 16 {
+			items = append(items, v[i:i+16])
+		}
+	case []int8:
+		if len(v)%16 != 0 {
+			return nil, false
+		}
+		for i := 0; i < len(v); i += 16 {
+			items = append(items, v[i:i+16])
+		}
 	default:
 		return nil, false
 	}

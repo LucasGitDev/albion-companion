@@ -205,9 +205,9 @@ func DecodeHealthUpdate(p protocol.Params) (HealthUpdate, error) {
 	if r.AffectedID, ok = p.Int64(0); !ok {
 		return r, missing(EvHealthUpdate, "AffectedID", 0)
 	}
-	if r.Change, ok = p.Float64(2); !ok {
-		return r, missing(EvHealthUpdate, "Change", 2)
-	}
+	// Change (2) is optional: when the delta is zero the serializer omits it
+	// (health syncs, non-damaging effects). SA reads it via TryGetValue → 0.
+	r.Change, _ = p.Float64(2)
 	r.NewHealth, r.HasNewHealth = p.Float64(3)
 	if v, ok := p.Int64(4); ok {
 		r.EffectType = EffectType(v)
@@ -216,9 +216,9 @@ func DecodeHealthUpdate(p protocol.Params) (HealthUpdate, error) {
 	if v, ok := p.Int64(5); ok {
 		r.EffectOrigin = EffectOrigin(v)
 	}
-	if r.CauserID, ok = p.Int64(6); !ok {
-		return r, missing(EvHealthUpdate, "CauserID", 6)
-	}
+	// CauserID (6) is optional: server/environment damage (EffectOrigin
+	// ServerAuthority = 8) carries no causer. SA reads it via TryGetValue → 0.
+	r.CauserID, _ = p.Int64(6)
 	if v, ok := p.Int64(7); ok {
 		r.SpellIndex = int(v)
 	}
@@ -278,17 +278,24 @@ type PartyMember struct {
 type PartyJoined struct{ Members []PartyMember }
 
 func DecodePartyJoined(p protocol.Params) (PartyJoined, error) {
+	// SA returns an empty party when 8/9 are absent (no error). Param 8 is a
+	// flat concatenation of 16-byte GUIDs; param 9 the parallel name list.
+	if !p.Has(8) || !p.Has(9) {
+		return PartyJoined{}, nil
+	}
 	guids, ok := p.GUIDs(8)
 	if !ok {
 		return PartyJoined{}, missing(EvPartyJoined, "GUIDs", 8)
 	}
 	names, ok := p.Strings(9)
-	if !ok || len(names) != len(guids) {
+	if !ok {
 		return PartyJoined{}, missing(EvPartyJoined, "Names", 9)
 	}
-	r := PartyJoined{Members: make([]PartyMember, len(names))}
-	for i := range names {
-		r.Members[i] = PartyMember{GUID: guids[i], Name: names[i]}
+	// SA pairs by the shorter of the two (Math.Min).
+	n := min(len(guids), len(names))
+	r := PartyJoined{Members: make([]PartyMember, 0, n)}
+	for i := range n {
+		r.Members = append(r.Members, PartyMember{GUID: guids[i], Name: names[i]})
 	}
 	return r, nil
 }

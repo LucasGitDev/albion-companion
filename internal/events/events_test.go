@@ -60,6 +60,30 @@ func TestDecodeHealthUpdate(t *testing.T) {
 	}
 }
 
+// Real captures (refs/session-1.aorec): Change (2) is omitted on zero-delta
+// health syncs, and CauserID (6) is omitted on server/environment damage
+// (EffectOrigin ServerAuthority = 8). Both are optional per SA HealthUpdateEvent.
+func TestDecodeHealthUpdate_OptionalFields(t *testing.T) {
+	t.Run("missing Change", func(t *testing.T) {
+		got, err := DecodeHealthUpdate(protocol.Params{0: int32(53301), 3: int16(1880), 4: byte(1), 5: byte(1), 6: int32(53366)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.Change != 0 || got.IsDamage() || got.CauserID != 53366 || !got.HasNewHealth {
+			t.Fatalf("unexpected %+v", got)
+		}
+	})
+	t.Run("missing CauserID server damage", func(t *testing.T) {
+		got, err := DecodeHealthUpdate(protocol.Params{0: int32(53347), 2: int16(-341), 4: byte(0), 5: byte(8)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !got.IsDamage() || got.Amount() != 341 || got.CauserID != 0 || got.EffectOrigin != 8 {
+			t.Fatalf("unexpected %+v", got)
+		}
+	})
+}
+
 func TestDecodeHealthUpdates(t *testing.T) {
 	got, err := DecodeHealthUpdates(protocol.Params{
 		0: int32(10),
@@ -84,6 +108,31 @@ func TestDecodePartyJoined(t *testing.T) {
 	}
 	if len(got.Members) != 2 || got.Members[1].Name != "B" || got.Members[0].GUID == got.Members[1].GUID {
 		t.Fatalf("unexpected %+v", got)
+	}
+}
+
+// Real captures: PartyJoined param 8 arrives as a flat concatenation of
+// 16-byte GUIDs (not an array-of-arrays), param 9 as the parallel name list.
+func TestDecodePartyJoined_FlatGUIDs(t *testing.T) {
+	flat := make([]byte, 0, 48)
+	flat = append(flat, guid(1)...)
+	flat = append(flat, guid(2)...)
+	flat = append(flat, guid(3)...)
+	got, err := DecodePartyJoined(protocol.Params{8: flat, 9: []string{"A", "B", "C"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Members) != 3 || got.Members[2].Name != "C" ||
+		got.Members[0].GUID == got.Members[1].GUID || got.Members[1].GUID == got.Members[2].GUID {
+		t.Fatalf("unexpected %+v", got)
+	}
+}
+
+// SA returns an empty party (no error) when param 8 is absent.
+func TestDecodePartyJoined_Absent(t *testing.T) {
+	got, err := DecodePartyJoined(protocol.Params{0: int32(1), 2: byte(1)})
+	if err != nil || len(got.Members) != 0 {
+		t.Fatalf("want empty no-error, got %+v err=%v", got, err)
 	}
 }
 
