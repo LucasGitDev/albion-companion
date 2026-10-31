@@ -60,11 +60,14 @@ export interface LootView {
 export interface CombatRow {
   name: string
   damage: number
-  dps: number
-  share: number
   heal: number
-  hps: number
   taken: number
+  hits: number
+  firstAt: string
+  lastAt: string
+  dps: number
+  hps: number
+  share: number
 }
 
 export interface CombatView {
