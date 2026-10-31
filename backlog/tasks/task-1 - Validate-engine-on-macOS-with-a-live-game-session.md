@@ -52,3 +52,9 @@ Live capture refs/session-1.aorec: 80268 packets / 159938 msgs. Initial replay d
 4. Silver FixPoint /10000 CONFIRMED vs in-game: local player session total ~57652 matched user's in-game silver. Scale unchanged. (Raw param5 is fractional on wire, e.g. 1312000/10000=131.2; display rounds.)
 After fixes: replay decodeErr=0, unknown=0; DPS+loot tables populated for all 6 party members. Protocol spec (doc-2) updated.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Validated the engine on macOS against a live game session. go mod tidy generated go.sum; make check green (cgo/libpcap compiled clean, no platform fixes needed). Live capture (refs/session-1.aorec, 80268 pkts) initially had decodeErr=97 from three decoder divergences, all confirmed vs refs/StatisticsAnalysis and fixed with table tests: HealthUpdate Change(2) and CauserID(6) are optional; PartyJoined GUIDs(8) is a flat []byte of concatenated 16-byte GUIDs (fixing this also populated the party so party-only DPS/loot now lists all members). Silver FixPoint /10000 confirmed against the in-game total (~57652). Post-fix replay: decodeErr=0, unknown=0, DPS+loot tables populated. Protocol spec (doc-2) updated. Verified via go test -race (make check) and CLI replay summary. Commit c81a5d0.
+<!-- SECTION:FINAL_SUMMARY:END -->
