@@ -355,6 +355,26 @@ export function installMock() {
         ResetGather: async () => {
           emit('gather:changed')
         },
+        HistoryList: async () =>
+          devState === 'empty'
+            ? []
+            : [
+                { id: '20261101-101500', startedAt: '2026-11-01T10:15:00Z', endedAt: '2026-11-01T11:02:00Z', zone: 'Morgana Dungeon (T6)', me: 'L0rdCap', lootCount: 184, silver: 412000, fame: 1_240_000, damage: 3_200_000 },
+                { id: '20261031-203000', startedAt: '2026-10-31T20:30:00Z', endedAt: '2026-10-31T21:48:00Z', zone: 'Avalon · Roads', me: 'L0rdCap', lootCount: 96, silver: 180500, fame: 640_000, damage: 1_050_000 },
+                { id: '20261030-190000', startedAt: '2026-10-30T19:00:00Z', endedAt: '2026-10-30T19:22:00Z', zone: 'Lymhurst', me: 'L0rdCap', lootCount: 12, silver: 9800, fame: 40_000, damage: 0 },
+              ],
+        HistoryLoad: async (id: string) => ({
+          meta: { id, startedAt: '2026-11-01T10:15:00Z', endedAt: '2026-11-01T11:02:00Z', zone: 'Morgana Dungeon (T6)', me: 'L0rdCap', lootCount: 184, silver: 412000, fame: 1_240_000, damage: 3_200_000 },
+          loot: await window.go.main.App.LootView(1000),
+          combat: await window.go.main.App.CombatView(),
+          rates: await window.go.main.App.RatesView(),
+          gather: await window.go.main.App.GatherView(),
+          fame: await window.go.main.App.FameView(),
+        }),
+        DeleteSession: async () => {
+          emit('history:changed')
+        },
+        ExportSessionCSV: async (id: string) => `/Users/you/Downloads/albion-session-${id}.csv`,
         ExportLootCSV: async () => '/Users/you/Downloads/albion-loot-dev.csv',
         SetLootFilter: async () => {},
         SetCombatOptions: async () => {},

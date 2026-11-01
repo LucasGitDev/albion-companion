@@ -10,6 +10,8 @@ import type {
   TimelineView,
   DungeonView,
   GatherView,
+  SessionMeta,
+  SessionDetail,
   PriceRegion,
 } from '@/wails.d'
 
@@ -36,6 +38,8 @@ export type {
   DungeonType,
   GatherView,
   GatherItem,
+  SessionMeta,
+  SessionDetail,
   CodesInfo,
   ItemDBInfo,
   Stats,
@@ -76,6 +80,10 @@ export const api = {
   resetDungeons: (): Promise<void> => app().ResetDungeons(),
   gatherView: (): Promise<GatherView> => app().GatherView(),
   resetGather: (): Promise<void> => app().ResetGather(),
+  historyList: (): Promise<SessionMeta[] | null> => app().HistoryList(),
+  historyLoad: (id: string): Promise<SessionDetail> => app().HistoryLoad(id),
+  deleteSession: (id: string): Promise<void> => app().DeleteSession(id),
+  exportSessionCSV: (id: string): Promise<string> => app().ExportSessionCSV(id),
   interfaces: () => app().Interfaces(),
   priceRegions: (): Promise<PriceRegion[]> => app().PriceRegions(),
   setPriceRegion: (key: string): Promise<void> => app().SetPriceRegion(key),

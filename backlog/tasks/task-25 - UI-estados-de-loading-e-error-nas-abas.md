@@ -1,11 +1,11 @@
 ---
 id: TASK-25
 title: 'UI: estados de loading e error nas abas'
-status: In Review
+status: Done
 assignee:
   - '@lucas'
 created_date: '2026-11-01 02:40'
-updated_date: '2026-11-01 03:16'
+updated_date: '2026-11-01 20:30'
 labels:
   - ui
   - frontend

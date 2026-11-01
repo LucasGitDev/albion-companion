@@ -8,6 +8,7 @@ import { Party } from '@/tabs/Party'
 import { Dungeon } from '@/tabs/Dungeon'
 import { Gather } from '@/tabs/Gather'
 import { Timeline } from '@/tabs/Timeline'
+import { History } from '@/tabs/History'
 import { Settings } from '@/tabs/Settings'
 import { PermissionScreen } from '@/components/PermissionScreen'
 import { StartScreen } from '@/components/StartScreen'
@@ -44,7 +45,7 @@ export default function App() {
           </div>
         )}
         <main className="min-h-0 flex-1 overflow-auto p-4">
-          {firstRun && tab !== 'settings' ? (
+          {firstRun && tab !== 'settings' && tab !== 'history' ? (
             <StartScreen />
           ) : (
             <>
@@ -61,6 +62,7 @@ export default function App() {
               {tab === 'dungeon' && <Dungeon />}
               {tab === 'gather' && <Gather />}
               {tab === 'timeline' && <Timeline />}
+              {tab === 'history' && <History />}
               {tab === 'settings' && <Settings />}
             </>
           )}

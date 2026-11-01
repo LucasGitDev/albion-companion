@@ -5,13 +5,13 @@ status: To Do
 assignee:
   - '@devlucasteles'
 created_date: '2026-11-01 13:36'
-updated_date: '2026-11-01 13:55'
+updated_date: '2026-11-01 20:29'
 labels:
   - engine
   - ui
 dependencies: []
-priority: medium
-ordinal: 34000
+priority: high
+ordinal: 14100
 ---
 
 ## Description
