@@ -53,11 +53,33 @@ export interface PlayerSummary {
   lastLoot: string
 }
 
+export interface ValueView {
+  region: string
+  regionLabel: string
+  regionSource: 'default' | 'detected' | 'manual'
+  available: boolean
+  pending: boolean
+  total: number
+  silverPerHour: number
+  perPlayer: Record<string, number>
+  perItem: Record<string, number>
+  priced: number
+  missing: number
+}
+
 export interface LootView {
   players: PlayerSummary[]
   items: ItemSummary[]
   recent: LootEntry[]
   total: number
+  value: ValueView
+}
+
+export interface PriceRegion {
+  id: number
+  key: string
+  label: string
+  baseUrl: string
 }
 
 export interface SpellStat {
@@ -229,6 +251,9 @@ declare global {
           SetLootFilter(f: { PartyOnly: boolean; Player: string; IncludeTrash: boolean }): Promise<void>
           SetCombatOptions(o: { PartyOnly: boolean; PlayerTargetsOnly: boolean }): Promise<void>
           Interfaces(): Promise<string[]>
+          PriceRegions(): Promise<PriceRegion[]>
+          SetPriceRegion(key: string): Promise<void>
+          RefreshPrices(): Promise<void>
           CodesInfo(): Promise<CodesInfo>
           ItemDBInfo(): Promise<ItemDBInfo>
           RefreshItemDB(): Promise<ItemDBInfo>

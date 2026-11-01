@@ -2,18 +2,25 @@ import { useEffect, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { api, type CodesInfo, type ItemDBInfo } from '@/lib/bindings'
+import { api, type CodesInfo, type ItemDBInfo, type PriceRegion, type ValueView } from '@/lib/bindings'
 
 export function Settings() {
   const [ifaces, setIfaces] = useState<string[]>([])
   const [codes, setCodes] = useState<CodesInfo | null>(null)
   const [items, setItems] = useState<ItemDBInfo | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [regions, setRegions] = useState<PriceRegion[]>([])
+  const [priceState, setPriceState] = useState<ValueView | null>(null)
+  const [refreshingPrices, setRefreshingPrices] = useState(false)
+
+  const loadPriceState = () => api.lootView(0).then((v) => setPriceState(v.value)).catch(() => {})
 
   useEffect(() => {
     api.interfaces().then(setIfaces).catch(() => setIfaces([]))
     api.codesInfo().then(setCodes)
     api.itemDBInfo().then(setItems)
+    api.priceRegions().then(setRegions).catch(() => setRegions([]))
+    loadPriceState()
   }, [])
 
   const refresh = () => {
@@ -23,6 +30,20 @@ export function Settings() {
       .then(setItems)
       .finally(() => setRefreshing(false))
   }
+
+  const onRegion = (key: string) => {
+    api.setPriceRegion(key).then(loadPriceState).catch(() => {})
+  }
+  const refreshPrices = () => {
+    setRefreshingPrices(true)
+    api
+      .refreshPrices()
+      .then(loadPriceState)
+      .finally(() => setRefreshingPrices(false))
+  }
+  // Empty value = auto-detect from the game server; a detected region is the
+  // effective choice until the user overrides it.
+  const regionValue = priceState?.regionSource === 'manual' ? priceState.region : ''
 
   return (
     <div className="flex max-w-2xl flex-col gap-4">
@@ -66,6 +87,51 @@ export function Settings() {
           <Button size="sm" variant="outline" disabled={refreshing} onClick={refresh}>
             <RefreshCw className={refreshing ? 'animate-spin' : ''} /> Refresh
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Loot prices</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
+          <p>
+            Estimated values come from the{' '}
+            <b className="text-foreground">Albion Online Data</b> project — an external market API, used
+            only for value estimates. It never sends game packets and degrades gracefully when offline.
+          </p>
+          <div className="flex items-center justify-between gap-3">
+            <label htmlFor="price-region" className="shrink-0">
+              Market region
+            </label>
+            <select
+              id="price-region"
+              value={regionValue}
+              onChange={(e) => onRegion(e.target.value)}
+              className="min-w-44 rounded-md border border-input bg-elevated px-2.5 py-1.5 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <option value="">
+                Auto-detect{priceState?.regionSource === 'detected' ? ` (${priceState.regionLabel})` : ''}
+              </option>
+              {regions.map((r) => (
+                <option key={r.key} value={r.key}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <span>
+              {priceState?.available
+                ? `${priceState.priced} item${priceState.priced === 1 ? '' : 's'} priced · ${priceState.regionLabel}`
+                : priceState?.pending
+                  ? 'Fetching prices…'
+                  : 'No prices yet (offline, or session empty)'}
+            </span>
+            <Button size="sm" variant="outline" disabled={refreshingPrices} onClick={refreshPrices}>
+              <RefreshCw className={refreshingPrices ? 'animate-spin' : ''} /> Refresh prices
+            </Button>
+          </div>
         </CardContent>
       </Card>
 

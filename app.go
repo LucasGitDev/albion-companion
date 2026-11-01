@@ -15,6 +15,7 @@ import (
 	"github.com/LucasGitDev/albion-companion/internal/fame"
 	"github.com/LucasGitDev/albion-companion/internal/itemdb"
 	"github.com/LucasGitDev/albion-companion/internal/loot"
+	"github.com/LucasGitDev/albion-companion/internal/prices"
 	"github.com/LucasGitDev/albion-companion/internal/protocol"
 )
 
@@ -176,6 +177,15 @@ func (a *App) ExportLootCSV() (string, error) {
 
 // Interfaces lists the physical capture interfaces for the Settings picker.
 func (a *App) Interfaces() ([]string, error) { return capture.Interfaces() }
+
+// PriceRegions lists the selectable market regions for the Settings dropdown.
+func (a *App) PriceRegions() []prices.Region { return a.svc.PriceRegions() }
+
+// SetPriceRegion overrides the loot-value market region (empty = auto-detect).
+func (a *App) SetPriceRegion(key string) { a.svc.SetPriceRegion(key) }
+
+// RefreshPrices force-refreshes item prices for the current session.
+func (a *App) RefreshPrices() error { return a.svc.RefreshPrices() }
 
 // CodesInfo describes the loaded event/operation code table.
 type CodesInfo struct {

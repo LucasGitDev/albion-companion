@@ -9,6 +9,7 @@ import type {
   RatesView,
   TimelineView,
   DungeonView,
+  PriceRegion,
 } from '@/wails.d'
 
 export type {
@@ -16,6 +17,8 @@ export type {
   CombatView,
   CombatRow,
   LootView,
+  ValueView,
+  PriceRegion,
   LootEntry,
   ItemSummary,
   PlayerSummary,
@@ -69,6 +72,9 @@ export const api = {
   setDungeonTier: (id: number, tier: string): Promise<void> => app().SetDungeonTier(id, tier),
   resetDungeons: (): Promise<void> => app().ResetDungeons(),
   interfaces: () => app().Interfaces(),
+  priceRegions: (): Promise<PriceRegion[]> => app().PriceRegions(),
+  setPriceRegion: (key: string): Promise<void> => app().SetPriceRegion(key),
+  refreshPrices: (): Promise<void> => app().RefreshPrices(),
   codesInfo: () => app().CodesInfo(),
   itemDBInfo: () => app().ItemDBInfo(),
   refreshItemDB: () => app().RefreshItemDB(),

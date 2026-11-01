@@ -1,5 +1,5 @@
 import { type ReactNode, useState } from 'react'
-import { Package, Coins, Hand, Clock, RotateCcw, X, Download, Check, AlertTriangle } from 'lucide-react'
+import { Package, Coins, Hand, Clock, RotateCcw, X, Download, Check, AlertTriangle, TrendingUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Loading, ErrorState } from '@/components/ui/states'
 import { ItemIcon } from '@/components/ItemIcon'
@@ -42,6 +42,13 @@ export function Loot({ filter, setFilter }: { filter: LootFilter; setFilter: (f:
   const totalPickups = players.reduce((a, p) => a + p.pickups, 0)
   const maxItems = players.reduce((m, p) => Math.max(m, p.items), 0) || 1
 
+  const value = view?.value
+  const pricesOn = !!value?.available
+  // Estimated market value of a player's items (silver). "—" while prices are
+  // unavailable (offline or still loading) so the number is never misleading.
+  const playerValue = (name: string): string =>
+    pricesOn ? fmtSilver(value?.perPlayer?.[name] ?? 0) : '—'
+
   const selected = filter.Player
   const pick = (name: string) => setFilter({ ...filter, Player: selected === name ? '' : name })
 
@@ -53,6 +60,17 @@ export function Loot({ filter, setFilter }: { filter: LootFilter; setFilter: (f:
         <Ledger icon={Coins} label="Silver" value={fmtSilver(totalSilver)} gold title="Silver looted (matches the in-game amount)" />
         <Ledger icon={Hand} label="Pickups" value={String(totalPickups)} title="Number of loot events — how many times loot was grabbed" />
         <Ledger icon={Clock} label="Duration" value={sessionDuration(recent.map((e) => e.at))} />
+        <Ledger
+          icon={TrendingUp}
+          label="Est. value"
+          value={pricesOn ? fmtSilver(value?.total ?? 0) : '—'}
+          gold
+          title={
+            pricesOn
+              ? `Estimated market value (${value?.regionLabel}) · ~${fmtSilver(value?.silverPerHour ?? 0)}/h`
+              : 'Prices unavailable — offline or still loading. Refresh in Settings.'
+          }
+        />
       </div>
 
       {/* Top looters */}
@@ -105,6 +123,9 @@ export function Loot({ filter, setFilter }: { filter: LootFilter; setFilter: (f:
                 <th className="px-3 py-2 text-left font-medium">Guild</th>
                 <th className="px-3 py-2 text-right font-medium">Items</th>
                 <th className="px-3 py-2 text-right font-medium">Silver</th>
+                <th className="px-3 py-2 text-right font-medium" title="Estimated market value of this player's items">
+                  Est. value
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -141,11 +162,17 @@ export function Loot({ filter, setFilter }: { filter: LootFilter; setFilter: (f:
                   <td className="px-3 py-2.5 text-muted-foreground">{p.guild || '—'}</td>
                   <td className="px-3 py-2.5 text-right tnum font-medium">{fmt(p.items)}</td>
                   <td className="px-3 py-2.5 text-right tnum text-primary">{fmtSilver(p.silver)}</td>
+                  <td
+                    className={cn('px-3 py-2.5 text-right tnum', pricesOn ? 'text-foreground' : 'text-muted-foreground')}
+                    title={pricesOn ? undefined : 'Prices unavailable'}
+                  >
+                    {playerValue(p.name)}
+                  </td>
                 </tr>
               ))}
               {players.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-3 py-10 text-center text-sm text-muted-foreground">
+                  <td colSpan={6} className="px-3 py-10 text-center text-sm text-muted-foreground">
                     No loot recorded yet — start capture and kill something.
                   </td>
                 </tr>

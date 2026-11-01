@@ -25,6 +25,7 @@ import (
 	"github.com/LucasGitDev/albion-companion/internal/events"
 	"github.com/LucasGitDev/albion-companion/internal/fame"
 	"github.com/LucasGitDev/albion-companion/internal/loot"
+	"github.com/LucasGitDev/albion-companion/internal/prices"
 	"github.com/LucasGitDev/albion-companion/internal/protocol"
 	"github.com/LucasGitDev/albion-companion/internal/rates"
 	"github.com/LucasGitDev/albion-companion/internal/timeline"
@@ -44,6 +45,7 @@ type Options struct {
 	Emit          Emitter
 	PartyOnlyLoot bool
 	Combat        combat.Options
+	Prices        *prices.Client // optional: price client (nil = built with defaults)
 }
 
 type CaptureStatus struct {
@@ -59,12 +61,16 @@ type Service struct {
 	opts Options
 	eng  *engine.Engine
 
-	mu        sync.Mutex
-	cancel    context.CancelFunc
-	status    CaptureStatus
-	pending   map[engine.Topic]bool
-	lastFlush time.Time
-	lootOpts  loot.Filter
+	prices *prices.Client
+
+	mu           sync.Mutex
+	cancel       context.CancelFunc
+	status       CaptureStatus
+	pending      map[engine.Topic]bool
+	lastFlush    time.Time
+	lootOpts     loot.Filter
+	regionManual bool   // user explicitly chose the price region (stops auto-detect)
+	regionSource string // "default" | "detected" | "manual"
 }
 
 func NewService(opts Options) *Service {
@@ -77,7 +83,14 @@ func NewService(opts Options) *Service {
 	if opts.Sources == nil {
 		opts.Sources = func() ([]capture.Source, error) { return capture.LiveSources(0) }
 	}
-	s := &Service{opts: opts, pending: map[engine.Topic]bool{}, lootOpts: loot.Filter{PartyOnly: opts.PartyOnlyLoot}}
+	s := &Service{opts: opts, pending: map[engine.Topic]bool{}, lootOpts: loot.Filter{PartyOnly: opts.PartyOnlyLoot}, regionSource: "default"}
+	s.prices = opts.Prices
+	if s.prices == nil {
+		// Prices land asynchronously; nudge the UI to re-pull the loot view so
+		// values fill in without a user action. OnUpdate runs off a background
+		// goroutine, so this never blocks the engine.
+		s.prices = prices.New(prices.Options{OnUpdate: func() { s.opts.Emit("loot:changed", nil) }})
+	}
 	s.eng = engine.New(engine.Config{
 		Codes:    opts.Codes,
 		Items:    opts.Items,
@@ -177,6 +190,102 @@ type LootView struct {
 	Items   []loot.ItemSummary   `json:"items"`
 	Recent  []loot.Entry         `json:"recent"` // newest first, capped
 	Total   int                  `json:"total"`
+	Value   ValueView            `json:"value"`
+}
+
+// ValueView is the estimated market value of the (filtered) loot, from the
+// Albion Online Data project. It is best-effort and external: Available is
+// false when no price data has arrived (offline, or still fetching), in which
+// case the UI shows values as unknown. Nothing here affects the engine.
+type ValueView struct {
+	Region        string           `json:"region"`        // region key: "west"/"east"/"europe"
+	RegionLabel   string           `json:"regionLabel"`   // "Americas"/"Asia"/"Europe"
+	RegionSource  string           `json:"regionSource"`  // "default" | "detected" | "manual"
+	Available     bool             `json:"available"`     // at least one item has a price
+	Pending       bool             `json:"pending"`       // some prices are still being fetched
+	Total         int64            `json:"total"`         // estimated silver value of looted items
+	SilverPerHour float64          `json:"silverPerHour"` // (item value + looted silver) per session hour
+	PerPlayer     map[string]int64 `json:"perPlayer"`     // looter -> estimated item value
+	PerItem       map[string]int64 `json:"perItem"`       // itemId -> estimated unit price
+	Priced        int              `json:"priced"`        // distinct items with a price
+	Missing       int              `json:"missing"`       // distinct items without a price yet
+}
+
+// reconcileRegion keeps the price region in sync with the detected game server
+// unless the user has manually chosen one. Caller must not hold s.mu.
+func (s *Service) reconcileRegion() {
+	s.mu.Lock()
+	manual := s.regionManual
+	s.mu.Unlock()
+	if manual {
+		return
+	}
+	if r, ok := prices.RegionFromIP(s.eng.ServerIP()); ok {
+		if s.prices.Region().Key != r.Key {
+			s.prices.SetRegion(r)
+		}
+		s.mu.Lock()
+		s.regionSource = "detected"
+		s.mu.Unlock()
+	}
+}
+
+// valueView computes the estimated value of the given (already filtered)
+// entries. It reads prices from cache only and schedules missing ones in the
+// background; it never blocks on the network.
+func (s *Service) valueView(entries []loot.Entry) ValueView {
+	s.reconcileRegion()
+	region := s.prices.Region()
+	s.mu.Lock()
+	src := s.regionSource
+	s.mu.Unlock()
+
+	v := ValueView{
+		Region:       region.Key,
+		RegionLabel:  region.Label,
+		RegionSource: src,
+		PerPlayer:    map[string]int64{},
+		PerItem:      map[string]int64{},
+	}
+
+	ids := make([]string, 0, len(entries))
+	seen := map[string]bool{}
+	var lootedSilver float64
+	for _, e := range entries {
+		if e.IsSilver {
+			lootedSilver += e.Silver
+			continue
+		}
+		if e.ItemID == "" || seen[e.ItemID] {
+			continue
+		}
+		seen[e.ItemID] = true
+		ids = append(ids, e.ItemID)
+	}
+
+	priceByID, complete := s.prices.Lookup(ids)
+	v.PerItem = priceByID
+	v.Priced = len(priceByID)
+	v.Missing = len(ids) - len(priceByID)
+	v.Pending = !complete
+	v.Available = len(priceByID) > 0
+
+	for _, e := range entries {
+		if e.IsSilver {
+			continue
+		}
+		if p, ok := priceByID[e.ItemID]; ok {
+			val := p * e.Quantity
+			v.Total += val
+			v.PerPlayer[e.Looter] += val
+		}
+	}
+
+	// silver/hour equivalent = (estimated item value + looted silver) / hours.
+	if hours := time.Since(s.eng.Loot().StartedAt()).Hours(); hours > 0 {
+		v.SilverPerHour = (float64(v.Total) + lootedSilver) / hours
+	}
+	return v
 }
 
 func (s *Service) SetLootFilter(f loot.Filter) {
@@ -199,7 +308,57 @@ func (s *Service) LootView(recent int) LootView {
 	for i := len(all) - 1; i >= len(all)-recent; i-- {
 		rec = append(rec, all[i])
 	}
-	return LootView{Filter: f, Players: tr.ByPlayer(f), Items: tr.ByItem(f), Recent: rec, Total: len(all)}
+	return LootView{
+		Filter:  f,
+		Players: tr.ByPlayer(f),
+		Items:   tr.ByItem(f),
+		Recent:  rec,
+		Total:   len(all),
+		Value:   s.valueView(all),
+	}
+}
+
+// ---- prices (external, optional) ------------------------------------------
+
+// PriceRegions lists the selectable market regions for the Settings dropdown.
+func (s *Service) PriceRegions() []prices.Region { return prices.Regions }
+
+// SetPriceRegion overrides the market region and stops IP auto-detection. An
+// empty or unknown key re-enables auto-detection (back to the detected/default
+// region). Triggers a loot re-pull so values refresh against the new region.
+func (s *Service) SetPriceRegion(key string) {
+	if r, ok := prices.RegionByKey(key); ok {
+		s.prices.SetRegion(r)
+		s.mu.Lock()
+		s.regionManual = true
+		s.regionSource = "manual"
+		s.mu.Unlock()
+	} else {
+		s.mu.Lock()
+		s.regionManual = false
+		s.regionSource = "default"
+		s.mu.Unlock()
+	}
+	s.opts.Emit("loot:changed", nil)
+}
+
+// RefreshPrices force-fetches prices for every distinct item currently in the
+// (unfiltered) loot session, bypassing the cache TTL. It fails soft: a network
+// error is returned for logging, the UI simply keeps showing what it has. Runs
+// synchronously, so the Wails binding should call it off the UI thread (Wails
+// already dispatches bound calls on their own goroutine).
+func (s *Service) RefreshPrices() error {
+	s.reconcileRegion()
+	all := s.eng.Loot().Entries(loot.Filter{IncludeTrash: true})
+	ids := make([]string, 0, len(all))
+	for _, e := range all {
+		if !e.IsSilver && e.ItemID != "" {
+			ids = append(ids, e.ItemID)
+		}
+	}
+	err := s.prices.Refresh(context.Background(), ids)
+	s.opts.Emit("loot:changed", nil)
+	return err
 }
 
 type CombatRow struct {
