@@ -142,11 +142,11 @@ func TestDecodePartyJoined_Absent(t *testing.T) {
 func TestDecodeUpdateFame(t *testing.T) {
 	// Base 19087979/10000 = 1908.7979, premium account.
 	got, err := DecodeUpdateFame(protocol.Params{
-		0: int32(53329),
-		1: int64(10045618691011),
-		2: int32(19087979),
-		3: int32(2385000),
-		5: true,
+		0:  int32(53329),
+		1:  int64(10045618691011),
+		2:  int32(19087979),
+		3:  int32(2385000),
+		5:  true,
 		17: float32(0.14999998),
 	})
 	if err != nil {
