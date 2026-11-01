@@ -47,6 +47,7 @@ export function Timeline() {
             return (
               <button
                 key={k}
+                aria-pressed={on}
                 onClick={() => toggle(k)}
                 className={cn(
                   'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
@@ -97,7 +98,7 @@ function Row({ e }: { e: TimelineEvent }) {
         </span>
       )}
       <span className="min-w-0 flex-1 truncate">{describe(e)}</span>
-      {e.source && <span className="shrink-0 text-xs text-muted-foreground/80">{e.source.replace(/^@MOB_/, '')}</span>}
+      {e.source && <span className="shrink-0 text-xs text-muted-foreground">{e.source.replace(/^@MOB_/, '')}</span>}
     </div>
   )
 }

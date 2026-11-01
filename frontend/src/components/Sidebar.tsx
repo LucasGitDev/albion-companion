@@ -27,6 +27,7 @@ export function Sidebar({ active, onSelect }: { active: Tab; onSelect: (t: Tab) 
         return (
           <button
             key={id}
+            aria-current={on ? 'page' : undefined}
             onClick={() => onSelect(id)}
             className={cn(
               'group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',

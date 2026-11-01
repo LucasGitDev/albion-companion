@@ -16,7 +16,7 @@
 | `--elevated` | `222 15% 12%` | Linhas/chips elevados, hover de tabela |
 | `--card` / `--popover` | `222 17% 9%` / `222 16% 11%` | Cards e popovers |
 | `--foreground` | `40 12% 93%` | Texto principal (branco levemente quente) |
-| `--muted-foreground` | `220 9% 60%` | Texto secundário, labels, headers de tabela |
+| `--muted-foreground` | `220 10% 68%` | Texto secundário, labels, headers de tabela (≥4.5:1 sobre o fundo, WCAG AA) |
 | `--primary` (ouro) | `41 92% 55%` | **Loot / silver.** Ação primária, acento único por tela |
 | `--primary-foreground` | `36 45% 8%` | Texto sobre ouro |
 | `--ember` | `18 88% 57%` | **Dano** (DPS, erros de decode) |

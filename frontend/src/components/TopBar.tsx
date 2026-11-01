@@ -77,7 +77,7 @@ export function TopBar({
         </button>
         {diagOpen && (
           <>
-            <div className="fixed inset-0 z-10" onClick={() => setDiagOpen(false)} />
+            <div className="fixed inset-0 z-10" aria-hidden="true" onClick={() => setDiagOpen(false)} />
             <div className="absolute right-0 top-9 z-20 w-60 rounded-lg border border-border bg-popover p-3 text-xs shadow-xl shadow-black/40">
               <div className="mb-2 font-medium text-foreground">Capture diagnostics</div>
               <Row label="Sources" value={status?.sources?.join(', ') || '—'} />

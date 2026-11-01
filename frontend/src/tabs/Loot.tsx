@@ -111,7 +111,17 @@ export function Loot({ filter, setFilter }: { filter: LootFilter; setFilter: (f:
               {players.map((p, i) => (
                 <tr
                   key={p.name}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={selected === p.name}
+                  aria-label={`Filter loot by ${p.name}`}
                   onClick={() => pick(p.name)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      pick(p.name)
+                    }
+                  }}
                   className={cn(
                     'cursor-pointer border-t border-border/60 transition-colors',
                     selected === p.name ? 'bg-primary/10' : 'hover:bg-elevated/70',
@@ -121,7 +131,7 @@ export function Loot({ filter, setFilter }: { filter: LootFilter; setFilter: (f:
                   <td className="px-3 py-2.5">
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{p.name}</span>
-                      {!p.inParty && <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70">outsider</span>}
+                      {!p.inParty && <span className="text-[10px] uppercase tracking-wide text-muted-foreground">outsider</span>}
                     </div>
                     <div className="mt-1 h-1 w-28 overflow-hidden rounded-full bg-elevated">
                       <div className="h-full rounded-full bg-primary/55" style={{ width: `${(p.items / maxItems) * 100}%` }} />
@@ -194,7 +204,7 @@ export function Loot({ filter, setFilter }: { filter: LootFilter; setFilter: (f:
                     </span>
                   )}
                 </span>
-                <span className="shrink-0 text-xs text-muted-foreground/80">{e.lootedFrom.replace(/^@MOB_/, '')}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">{e.lootedFrom.replace(/^@MOB_/, '')}</span>
               </div>
             ))}
           </div>
