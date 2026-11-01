@@ -1,11 +1,11 @@
 ---
 id: TASK-40
 title: fame.Tracker.Reset panics (Unlock of unlocked RWMutex)
-status: In Progress
+status: In Review
 assignee:
   - '@devlucasteles'
 created_date: '2026-11-01 15:39'
-updated_date: '2026-11-01 15:39'
+updated_date: '2026-11-01 15:40'
 labels:
   - engine
   - bug
@@ -21,7 +21,19 @@ Clicking Reset on the fame/rates counter crashes the app: fame.Tracker.Reset (in
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Resetting fame does not panic; totals go to zero and the tracker stays usable afterwards
-- [ ] #2 Regression test calls Reset and then Add/Snapshot without panicking
-- [ ] #3 No other tracker Reset overwrites its struct while holding its lock
+- [x] #1 Resetting fame does not panic; totals go to zero and the tracker stays usable afterwards
+- [x] #2 Regression test calls Reset and then Add/Snapshot without panicking
+- [x] #3 No other tracker Reset overwrites its struct while holding its lock
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Fixed fame.Tracker.Reset to zero fields individually (never *t=Tracker{}). Added internal/fame/fame_test.go TestReset (reset must not panic, snapshot zeroed, tracker still usable after). Audited every other tracker Reset (chest/combat/dungeon/loot/rates/timeline/gather) — none overwrite their struct under lock. go test -race ./... 106 green, vet clean.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+fame.Tracker.Reset zeroed fields instead of overwriting the struct, eliminating the 'Unlock of unlocked RWMutex' crash on the GUI fame reset. Regression test added; all other tracker Resets audited clean.
+<!-- SECTION:FINAL_SUMMARY:END -->
