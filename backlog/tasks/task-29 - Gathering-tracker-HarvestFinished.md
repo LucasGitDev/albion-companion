@@ -1,11 +1,11 @@
 ---
 id: TASK-29
 title: Gathering tracker (HarvestFinished)
-status: In Progress
+status: In Review
 assignee:
   - '@devlucasteles'
 created_date: '2026-11-01 13:36'
-updated_date: '2026-11-01 15:23'
+updated_date: '2026-11-01 15:24'
 labels:
   - events
   - engine
