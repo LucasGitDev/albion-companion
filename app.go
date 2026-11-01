@@ -119,6 +119,8 @@ func (a *App) ResetLoot()                               { a.svc.ResetLoot() }
 func (a *App) ResetCombat()                             { a.svc.ResetCombat() }
 func (a *App) ResetFame()                               { a.svc.ResetFame() }
 func (a *App) FameView() fame.Snapshot                  { return a.svc.FameView() }
+func (a *App) TimelineView(recent int) app.TimelineView { return a.svc.TimelineView(recent) }
+func (a *App) ResetTimeline()                           { a.svc.ResetTimeline() }
 
 // Interfaces lists the physical capture interfaces for the Settings picker.
 func (a *App) Interfaces() ([]string, error) { return capture.Interfaces() }

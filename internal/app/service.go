@@ -25,6 +25,7 @@ import (
 	"github.com/LucasGitDev/albion-companion/internal/fame"
 	"github.com/LucasGitDev/albion-companion/internal/loot"
 	"github.com/LucasGitDev/albion-companion/internal/protocol"
+	"github.com/LucasGitDev/albion-companion/internal/timeline"
 )
 
 // Emitter pushes an event to the frontend (Wails: runtime.EventsEmit).
@@ -238,12 +239,25 @@ func (s *Service) PartyView() PartyView {
 
 // ---- actions --------------------------------------------------------------
 
-func (s *Service) ResetLoot()   { s.eng.Loot().Reset(); s.opts.Emit("loot:changed", nil) }
-func (s *Service) ResetCombat() { s.eng.Combat().Reset(); s.opts.Emit("combat:changed", nil) }
-func (s *Service) ResetFame()   { s.eng.Fame().Reset(); s.opts.Emit("fame:changed", nil) }
+func (s *Service) ResetLoot()     { s.eng.Loot().Reset(); s.opts.Emit("loot:changed", nil) }
+func (s *Service) ResetCombat()   { s.eng.Combat().Reset(); s.opts.Emit("combat:changed", nil) }
+func (s *Service) ResetFame()     { s.eng.Fame().Reset(); s.opts.Emit("fame:changed", nil) }
+func (s *Service) ResetTimeline() { s.eng.Timeline().Reset(); s.opts.Emit("timeline:changed", nil) }
 
 // FameView is the current session fame totals and rate.
 func (s *Service) FameView() fame.Snapshot { return s.eng.Fame().Snapshot() }
+
+// TimelineView is the merged chronological feed, newest first, capped at recent.
+type TimelineView struct {
+	Events []timeline.Event `json:"events"`
+	Total  int              `json:"total"`
+}
+
+// TimelineView returns the most recent timeline events (newest first).
+func (s *Service) TimelineView(recent int) TimelineView {
+	tl := s.eng.Timeline()
+	return TimelineView{Events: tl.Recent(recent), Total: tl.Len()}
+}
 
 // ExportLootCSV writes the current (filtered) loot in ao-loot-logger format.
 // main.go wraps it with a native save dialog.
