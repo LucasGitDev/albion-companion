@@ -1,5 +1,9 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
+// Fonts are bundled by Vite (offline-safe for the Wails desktop app, no CDN).
+import '@fontsource-variable/space-grotesk' // display — titles / big numbers
+import '@fontsource-variable/geist' // body / UI
+import '@fontsource-variable/jetbrains-mono' // mono
 import './style.css'
 import App from './App'
 

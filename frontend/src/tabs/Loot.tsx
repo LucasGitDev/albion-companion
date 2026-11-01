@@ -200,14 +200,14 @@ function Ledger({
       </div>
       <div>
         <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</div>
-        <div className={cn('text-xl font-semibold tnum leading-tight', gold && 'text-primary')}>{value}</div>
+        <div className={cn('font-display text-xl font-semibold tnum leading-tight', gold && 'text-primary')}>{value}</div>
       </div>
     </div>
   )
 }
 
 function SectionTitle({ children }: { children: ReactNode }) {
-  return <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{children}</h2>
+  return <h2 className="font-display text-xs font-semibold uppercase tracking-wider text-muted-foreground">{children}</h2>
 }
 
 function Empty({ children }: { children: ReactNode }) {

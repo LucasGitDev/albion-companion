@@ -42,7 +42,7 @@ export function Dps({
           </div>
           <div>
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Fame this session</div>
-            <div className="text-xl font-semibold tnum leading-tight text-primary">{fmt(fame?.total ?? 0)}</div>
+            <div className="font-display text-xl font-semibold tnum leading-tight text-primary">{fmt(fame?.total ?? 0)}</div>
           </div>
         </div>
         <FameStat label="Fame / hour" value={fmt(fame?.perHour ?? 0)} />
@@ -142,7 +142,7 @@ function FameStat({ label, value, accent }: { label: string; value: string; acce
   return (
     <div>
       <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className={cn('text-xl font-semibold tnum leading-tight', accent && 'text-primary')}>{value}</div>
+      <div className={cn('font-display text-xl font-semibold tnum leading-tight', accent && 'text-primary')}>{value}</div>
     </div>
   )
 }

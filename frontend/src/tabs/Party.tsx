@@ -18,7 +18,7 @@ export function Party() {
       <section className="flex flex-col gap-3">
         <div className="flex items-center gap-2">
           <Users className="size-4 text-muted-foreground" />
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <h2 className="font-display text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Party · {members.length}
           </h2>
         </div>

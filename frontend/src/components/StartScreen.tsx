@@ -14,7 +14,7 @@ export function StartScreen() {
           </svg>
         </div>
 
-        <h1 className="text-xl font-semibold tracking-tight">Ready to track your run</h1>
+        <h1 className="font-display text-2xl font-semibold tracking-tight">Ready to track your run</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Start capture, then play Albion Online. Loot, silver and damage are logged live from network packets — passive,
           nothing is sent to the game.

@@ -60,7 +60,7 @@ export function TopBar({
         title={`Fame this session · ${Math.round(fame?.perHour ?? 0).toLocaleString()}/h · premium bonus ${Math.round(fame?.premium ?? 0).toLocaleString()}`}
       >
         <Sparkles className="size-3.5" />
-        <span className="tnum">{fmt(fame?.total ?? 0)}</span>
+        <span className="font-display tnum">{fmt(fame?.total ?? 0)}</span>
         <span className="text-primary/60">fame</span>
       </span>
 
