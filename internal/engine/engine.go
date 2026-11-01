@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 
 	"github.com/LucasGitDev/albion-companion/internal/capture"
+	"github.com/LucasGitDev/albion-companion/internal/chest"
 	"github.com/LucasGitDev/albion-companion/internal/combat"
 	"github.com/LucasGitDev/albion-companion/internal/events"
 	"github.com/LucasGitDev/albion-companion/internal/fame"
@@ -61,6 +62,7 @@ type Engine struct {
 	loot   *loot.Tracker
 	combat *combat.Meter
 	fame   *fame.Tracker
+	chest  *chest.Tracker
 	tl     *timeline.Ring
 
 	packets, messages, unknown, decodeErrors atomic.Uint64
@@ -79,6 +81,7 @@ func New(cfg Config) *Engine {
 		loot:   loot.NewTracker(cfg.Items),
 		combat: combat.NewMeter(cfg.Combat),
 		fame:   fame.New(),
+		chest:  chest.New(),
 		tl:     timeline.NewRing(cfg.TimelineCap),
 	}
 	e.dec = protocol.NewDecoder(cfg.Codes, e.handle)
@@ -89,6 +92,7 @@ func (e *Engine) State() *game.State    { return e.state }
 func (e *Engine) Loot() *loot.Tracker   { return e.loot }
 func (e *Engine) Combat() *combat.Meter { return e.combat }
 func (e *Engine) Fame() *fame.Tracker   { return e.fame }
+func (e *Engine) Chest() *chest.Tracker { return e.chest }
 
 // Timeline is the merged chronological feed of session events.
 func (e *Engine) Timeline() *timeline.Ring { return e.tl }
@@ -180,6 +184,7 @@ func (e *Engine) handle(m protocol.Message) {
 				e.fail(m.Name, err)
 			} else {
 				e.state.ApplyJoin(j)
+				e.chest.Reset() // object ids are per-zone
 				e.changed(TopicZone)
 				e.pushTL(timeline.Event{At: m.At, Kind: timeline.KindZone, Zone: e.state.Location(), Player: j.Name})
 			}
@@ -288,5 +293,43 @@ func (e *Engine) handleEvent(m protocol.Message) {
 			e.changed(TopicFame)
 			e.pushTL(timeline.Event{At: m.At, Kind: timeline.KindFame, Player: local.Name, Fame: f.Gained()})
 		}
+
+	// --- Chest loot: stitched across four events (see internal/chest) ---
+	case events.EvNewLootChest:
+		if c, err := events.DecodeNewLootChest(m.Params); err == nil {
+			e.chest.NewChest(c)
+		}
+	case events.EvNewSimpleItem, events.EvNewEquipmentItem:
+		if it, err := events.DecodeItemObject(m.Name, m.Params); err == nil {
+			e.chest.NewItem(it)
+		}
+	case events.EvAttachItemContainer:
+		if c, err := events.DecodeAttachItemContainer(m.Params); err == nil {
+			e.chest.Attach(c)
+		}
+	case events.EvInventoryPutItem:
+		put, err := events.DecodeInventoryPutItem(m.Params)
+		if err != nil {
+			return
+		}
+		take, ok := e.chest.Take(put.ItemObjectID)
+		if !ok {
+			return
+		}
+		g := events.GrabbedLoot{
+			Looter:     e.state.LocalPlayer().Name,
+			LootedFrom: take.ChestName,
+			ItemIndex:  take.ItemIndex,
+			Quantity:   take.Quantity,
+		}
+		entry := e.loot.Record(g, m.At, e.state)
+		if e.cfg.OnLoot != nil {
+			e.cfg.OnLoot(entry)
+		}
+		e.changed(TopicLoot)
+		e.pushTL(timeline.Event{
+			At: entry.At, Kind: timeline.KindLoot, Player: entry.Looter,
+			Source: entry.LootedFrom, Item: entry.ItemName, ItemID: entry.ItemID, Quantity: entry.Quantity,
+		})
 	}
 }

@@ -3,7 +3,7 @@ id: doc-2
 title: Protocol spec
 type: specification
 created_date: '2026-10-31T19:20:00Z'
-updated_date: '2026-11-01 01:37'
+updated_date: '2026-11-01 02:03'
 ---
 # Protocol spec
 
@@ -41,6 +41,10 @@ SA commit recorded in the `source` field).
 | PartyPlayerJoined | event | 1 GUID, 2 Name | Events/PartyPlayerJoinedEvent.cs |
 | PartyPlayerLeft | event | 1 GUID | Events/PartyPlayerLeftEvent.cs |
 | PartyDisbanded | event | — | Events/PartyDisbandedEvent.cs |
+| NewLootChest | event | 0 ObjectID (per-zone), 3 UniqueName | Events/NewLootChestEvent.cs |
+| NewSimpleItem / NewEquipmentItem | event | 0 ObjectID, 1 ItemIndex (items.txt line), 2 Quantity | ao-loot-logger ev-new-simple-item / ev-new-equipment-item |
+| AttachItemContainer | event | 0 Container ObjectID, 3 Slots (array of item object ids; varied int widths) | Events/AttachItemContainerEvent.cs |
+| InventoryPutItem | event | 0 item ObjectID, 2 destination inventory GUID | Events/InventoryPutItemEvent.cs |
 | UpdateFame | event | 0 PlayerObjectID, 1 TotalPlayerFame, 2 Base (zone mult, no premium), 3 ZoneFame, 5 IsPremium, 10 SatchelFame, 17 BonusFactor(float). All FixPoint ÷10000. Premium(+50%)=0.5×Base; Gained=(Base+Premium+Satchel)×Bonus (Bonus resets to 1 when active, per SA) | Events/UpdateFameEvent.cs |
 
 ## Verified against live capture (TASK-1, 2026-10-31, `refs/session-1.aorec`)
@@ -70,6 +74,22 @@ Encrypted packets (`encrypted=12`) are expected and skipped, not errors.
 ## Fame (TASK-17)
 
 Verified against refs/session-1.aorec (114 UpdateFame events, decodeErr=0): session total 754,866 fame, premium bonus 251,622. Fame is tracked only for the local player (param 0 == Join ObjectID). The premium bonus is the +50% a premium account earns (half the base). NOTE: this is NOT the "yellow" Quick-Learner bonus fame (earned from a maxed 100/100 node, shown in the in-game combat log as "Fama bonus do Aprendizado Rapido"); that is a separate mechanic SA's UpdateFameEvent does not decode and is not yet tracked here. `fame/hour` = total ÷ elapsed. SA resets the param-17 bonus factor to 1 when it is positive, so it does not scale the gained total.
+
+
+## Chest loot (dungeon loot chests)
+
+Taking an item from a dungeon/treasure chest is NOT an OtherGrabbedLoot event; it
+is reconstructed by stitching four events by object id (internal/chest):
+NewLootChest (chest object + name) → NewSimpleItem/NewEquipmentItem (item object →
+index + qty) → AttachItemContainer (a container's slots hold those item objects)
+→ InventoryPutItem (an item object enters the local inventory = the take). Gate on
+chest membership: only a container whose objectId was announced by NewLootChest is
+a chest (AttachItemContainer also fires for the player's own inventory/equipment).
+Attribution: InventoryPutItem is client-local, and its destination GUID == the
+local player's Join param 54 (inventory GUID). Object ids are per-zone → reset on
+Join. SA's InventoryPutItemEventHandler is a no-op and ao-loot-logger's
+EvInventoryPutItem is commented out, so this implements the dormant-but-correct
+path. Verified on refs/session-1.aorec (TREASURE_COFFER_SOLO, Morgana camp chests).
 
 ## Damage meter rules (SA CombatController.AddDamage)
 
