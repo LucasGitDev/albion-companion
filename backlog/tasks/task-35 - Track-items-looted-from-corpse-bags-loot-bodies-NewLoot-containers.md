@@ -1,11 +1,11 @@
 ---
 id: TASK-35
 title: Track items looted from corpse bags / loot bodies (NewLoot containers)
-status: In Progress
+status: In Review
 assignee:
   - '@devlucasteles'
 created_date: '2026-11-01 14:05'
-updated_date: '2026-11-01 14:47'
+updated_date: '2026-11-01 14:50'
 labels:
   - loot
   - engine
@@ -25,7 +25,19 @@ Taking items from a corpse "bag" (own death bag, or any loot body opened via its
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Taking an item from a NewLoot corpse bag/body via its inventory is recorded as loot with lootedFrom = the body name
-- [ ] #2 No double-count between the container path and OtherGrabbedLoot; distinction documented
-- [ ] #3 Table/engine test covers a NewLoot-container take; replay of refs/session-1.aorec stays decodeErr=0
+- [x] #1 Taking an item from a NewLoot corpse bag/body via its inventory is recorded as loot with lootedFrom = the body name
+- [x] #2 No double-count between the container path and OtherGrabbedLoot; distinction documented
+- [x] #3 Table/engine test covers a NewLoot-container take; replay of refs/session-1.aorec stays decodeErr=0
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implemented: chest.NewChest -> NewContainer (generic); engine registers NewLoot (event 98) bodies/bags as loot containers alongside NewLootChest, so InventoryPutItem of a bag item records loot with lootedFrom=body name. No double-count: quick-grab (OtherGrabbedLoot) vs open-bag (container) are per-action exclusive; validated on session-1 (local player had 0 OtherGrabbedLoot items -> the +28 are genuine bag pickups). Also fixed MightAndFavor param1 optional (regression -> decodeErr 1->0). 39 tests + engine corpse-bag test pass; make check green.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Corpse-bag/loot-body items are now tracked: NewLoot containers feed the same container-loot path as chests, recorded with lootedFrom=body name, no double-count with OtherGrabbedLoot. Fixes the user's 'open my death bag, take the log → nothing logged' bug. Also fixed a MightAndFavor decode regression (param1 optional). Engine test + make check green. Commit 64dfe06.
+<!-- SECTION:FINAL_SUMMARY:END -->
