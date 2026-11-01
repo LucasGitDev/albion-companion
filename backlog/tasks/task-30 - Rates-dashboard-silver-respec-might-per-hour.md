@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@devlucasteles'
 created_date: '2026-11-01 13:36'
-updated_date: '2026-11-01 14:06'
+updated_date: '2026-11-01 14:40'
 labels:
   - engine
   - ui
@@ -44,4 +44,6 @@ Extend the per-hour view beyond fame/hour: add silver/hour, respec/hour (UpdateR
 
 <!-- SECTION:NOTES:BEGIN -->
 Decoders: UpdateReSpecPoints (param2 Gained, param3 PaidSilver, param0 array[1] CurrentTotal) and MightAndFavorReceivedEvent (param1 Might, param4 Favor + bonus/premium), cited from SA UpdateReSpecPointsEvent.cs / MightAndFavorReceivedEvent.cs; table tests cover byte/int16/int32/int64 + int32[]/int64[]. New internal/rates tracker (silver/respec/might, total+perHour) mirrors internal/fame; engine wires respec/might (local-only) and local-player silver, emits 'rates' topic. app.RatesView combines fame+silver+respec+might; ResetRates added. UI: DPS tab fame strip replaced by a 4-tile rates row with Session/Per-hour toggle, loading skeleton + ErrorState + per-tile empty state. Could not validate decoders against a real capture: refs/session-1.aorec is absent and neither testdata/party-dungeon.aorec nor synthetic.aorec contains these events; verified via SA source + unit tests. make check GREEN (wails native build skipped: wails CLI not installed, like golangci-lint).
+
+VALIDATED on main vs refs/session-1.aorec: UpdateReSpecPoints (34 events) and MightAndFavorReceivedEvent (119) are present and decode with decodeErr=0. Rates (fame/silver/respec/might) wired without regressions.
 <!-- SECTION:NOTES:END -->

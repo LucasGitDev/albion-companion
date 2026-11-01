@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@devlucasteles'
 created_date: '2026-11-01 13:36'
-updated_date: '2026-11-01 14:06'
+updated_date: '2026-11-01 14:40'
 labels:
   - engine
   - ui
@@ -45,6 +45,8 @@ Segment the session by dungeon enter/exit (zone change into a dungeon cluster) a
 
 <!-- SECTION:NOTES:BEGIN -->
 internal/dungeon.Tracker segments the session on Join zone changes; engine feeds fame/silver/loot (local player only)/chests and snapshots combat at close. app.Service exposes DungeonView (newest-first, durationSec, open) + RenameDungeon/SetDungeonTier/ResetDungeons, bound thinly in app.go. UI: new Dungeons tab (Sidebar + Castle icon) with newest-first cards, inline rename, tier select, type-filter chips; useTopic + Loading/Error/empty states. Verified: go test ./internal/dungeon (6) + TestEngine_DungeonSegmentation assert open/close/segment ordering, fame/chest accumulation, combat snapshot, rename/tier; make check GREEN (exit 0), frontend tsc+vite build clean. Enter/exit rule: Classify(Location) by cluster markers; numeric map ids = non-dungeon. UNVERIFIED: no real dungeon capture available (refs/session-1.aorec absent; only testdata/party-dungeon.aorec, a single HIDEOUT Join). Detection assumes Join param 8 carries the descriptive @...@ cluster id for instanced dungeons; if param 8 is only the numeric map id in the field, exposing the cluster URI will need an SA-cited field add.
+
+VALIDATED on main vs refs/session-1.aorec: Join param 8 DOES carry the @RANDOMDUNGEON@... cluster for instanced dungeons (alongside numeric ids 0349/0358/4333/4349 for static zones), so dungeon.Classify segments correctly on real data — resolves the agent's 'param 8 might be numeric-only' caveat. decodeErr=0 with the tracker wired.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
