@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { RotateCcw, Timer, Swords, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Loading, ErrorState } from '@/components/ui/states'
 import { api, type CombatRow, type FameView } from '@/lib/bindings'
 import { useCombat } from '@/hooks/useCombat'
 import { useTopic } from '@/hooks/useTopic'
@@ -26,8 +27,12 @@ export function Dps({
   onPlayerTargetsOnly: (v: boolean) => void
 }) {
   const [sort, setSort] = useState<SortKey>('damage')
-  const fame = useTopic<FameView>(api.fameView, ['fame:changed', 'zone:changed'])
-  const view = useCombat({ PartyOnly: partyOnly, PlayerTargetsOnly: playerTargetsOnly })
+  const { data: fame } = useTopic<FameView>(api.fameView, ['fame:changed', 'zone:changed'])
+  const { data: view, status, retry } = useCombat({ PartyOnly: partyOnly, PlayerTargetsOnly: playerTargetsOnly })
+
+  if (status === 'loading') return <Loading rows={6} />
+  if (status === 'error') return <ErrorState message="Couldn't load the damage meter." onRetry={retry} />
+
   const rows = [...(view?.rows ?? [])].sort((a, b) => b[sort] - a[sort])
   const max = rows.reduce((m, r) => Math.max(m, r[sort]), 0) || 1
   const isHeal = sort === 'heal'

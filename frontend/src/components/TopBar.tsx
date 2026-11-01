@@ -14,8 +14,8 @@ export function TopBar({
   onPartyModeChange: (v: boolean) => void
 }) {
   const [diagOpen, setDiagOpen] = useState(false)
-  const party = useTopic<PartyView>(api.partyView, ['zone:changed', 'party:changed', 'capture:status'])
-  const fame = useTopic<FameView>(api.fameView, ['fame:changed', 'zone:changed'])
+  const { data: party } = useTopic<PartyView>(api.partyView, ['zone:changed', 'party:changed', 'capture:status'])
+  const { data: fame } = useTopic<FameView>(api.fameView, ['fame:changed', 'zone:changed'])
 
   const running = status?.running ?? false
   const stats = status?.stats

@@ -1,22 +1,38 @@
 import { type ReactNode, useState } from 'react'
-import { Package, Coins, Hand, Clock, RotateCcw, X, Download, Check } from 'lucide-react'
+import { Package, Coins, Hand, Clock, RotateCcw, X, Download, Check, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Loading, ErrorState } from '@/components/ui/states'
 import { ItemIcon } from '@/components/ItemIcon'
 import { api, type LootFilter } from '@/lib/bindings'
 import { useLoot } from '@/hooks/useLoot'
 import { fmt, fmtSilver, cn } from '@/lib/utils'
 
+type Flash = 'idle' | 'ok' | 'failed'
+
 export function Loot({ filter, setFilter }: { filter: LootFilter; setFilter: (f: LootFilter) => void }) {
-  const view = useLoot(filter)
-  const [saved, setSaved] = useState(false)
+  const { data: view, status, retry } = useLoot(filter)
+  const [csv, setCsv] = useState<Flash>('idle')
+  const [reset, setReset] = useState<Flash>('idle')
+
   const exportCsv = () => {
-    api.exportLootCSV().then((path) => {
-      if (path) {
-        setSaved(true)
-        setTimeout(() => setSaved(false), 2500)
-      }
+    api
+      .exportLootCSV()
+      .then((path) => flash(setCsv, path ? 'ok' : 'failed'))
+      .catch((err) => {
+        console.error('exportLootCSV failed', err)
+        flash(setCsv, 'failed')
+      })
+  }
+  const resetLoot = () => {
+    api.resetLoot().catch((err) => {
+      console.error('resetLoot failed', err)
+      flash(setReset, 'failed')
     })
   }
+
+  if (status === 'loading') return <Loading rows={6} />
+  if (status === 'error') return <ErrorState message="Couldn't load loot." onRetry={retry} />
+
   const players = view?.players ?? []
   const items = view?.items ?? []
   const recent = view?.recent ?? []
@@ -64,10 +80,18 @@ export function Loot({ filter, setFilter }: { filter: LootFilter; setFilter: (f:
               Include trash
             </label>
             <Button size="sm" variant="outline" onClick={exportCsv}>
-              {saved ? <Check className="text-heal" /> : <Download />} {saved ? 'Saved' : 'Export CSV'}
+              {csv === 'ok' ? (
+                <Check className="text-heal" />
+              ) : csv === 'failed' ? (
+                <AlertTriangle className="text-destructive" />
+              ) : (
+                <Download />
+              )}{' '}
+              {csv === 'ok' ? 'Saved' : csv === 'failed' ? 'Failed' : 'Export CSV'}
             </Button>
-            <Button size="sm" variant="outline" onClick={() => api.resetLoot()}>
-              <RotateCcw /> Reset
+            <Button size="sm" variant="outline" onClick={resetLoot}>
+              {reset === 'failed' ? <AlertTriangle className="text-destructive" /> : <RotateCcw />}{' '}
+              {reset === 'failed' ? 'Failed' : 'Reset'}
             </Button>
           </div>
         </div>
@@ -204,6 +228,12 @@ function Ledger({
       </div>
     </div>
   )
+}
+
+/** Show a transient status on an action button, then fall back to idle. */
+function flash(set: (f: Flash) => void, value: Exclude<Flash, 'idle'>) {
+  set(value)
+  setTimeout(() => set('idle'), 2500)
 }
 
 function SectionTitle({ children }: { children: ReactNode }) {

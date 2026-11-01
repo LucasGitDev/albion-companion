@@ -1,10 +1,24 @@
 import { MapPin, Users } from 'lucide-react'
 import { api, type PartyView } from '@/lib/bindings'
 import { useTopic } from '@/hooks/useTopic'
+import { Loading, ErrorState } from '@/components/ui/states'
 import { cn } from '@/lib/utils'
 
 export function Party() {
-  const view = useTopic<PartyView>(api.partyView, ['party:changed', 'zone:changed', 'capture:status'])
+  const { data: view, status, retry } = useTopic<PartyView>(api.partyView, [
+    'party:changed',
+    'zone:changed',
+    'capture:status',
+  ])
+
+  if (status === 'loading') return <Loading rows={4} className="max-w-2xl" />
+  if (status === 'error')
+    return (
+      <div className="max-w-2xl">
+        <ErrorState message="Couldn't load party." onRetry={retry} />
+      </div>
+    )
+
   const members = view?.members ?? []
 
   return (
