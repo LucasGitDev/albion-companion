@@ -354,6 +354,16 @@ type FameUpdate struct {
 	IsPremium       bool    // param 5: premium bonus active
 	Satchel         float64 // param 10: satchel (bag insight) fame
 	BonusFactor     float64 // derived from param 17 (SA resets to 1 when active)
+
+	// Yellow is the "Quick-Learner" bonus fame (combat-log: "Fama bônus do
+	// Aprendizado Rápido"), earned from a maxed 100/100 node for a Learning-Points
+	// cost. It appears in the gathering shape of UpdateFame as param 12 (SA does
+	// not decode it). Empirically param12 ≈ 6.9×Base (node-specific) and the cost
+	// (param 14) equals −UpdateLearningPoints(83) param 5 at the same timestamp.
+	// We treat param 12 as the bonus alone, additive to Base (the combat log shows
+	// the two as separate "+Fama" lines).
+	Yellow float64 // param 12
+	LPCost float64 // param 14: Learning Points spent on the yellow bonus
 }
 
 // Premium is the extra fame from the premium account bonus: a premium account
@@ -367,9 +377,10 @@ func (f FameUpdate) Premium() float64 {
 	return 0
 }
 
-// Gained is the total fame credited by this event (SA: TotalGainedFame).
+// Gained is the total fame credited by this event: the SA TotalGainedFame
+// (base + premium + satchel) plus the Quick-Learner yellow bonus.
 func (f FameUpdate) Gained() float64 {
-	return (f.Base + f.Premium() + f.Satchel) * f.BonusFactor
+	return (f.Base+f.Premium()+f.Satchel)*f.BonusFactor + f.Yellow
 }
 
 func DecodeUpdateFame(p protocol.Params) (FameUpdate, error) {
@@ -391,6 +402,12 @@ func DecodeUpdateFame(p protocol.Params) (FameUpdate, error) {
 	r.IsPremium, _ = p.Bool(5)
 	if v, ok := p.Int64(10); ok {
 		r.Satchel = fixPoint(v)
+	}
+	if v, ok := p.Int64(12); ok { // Quick-Learner yellow bonus (gathering shape)
+		r.Yellow = fixPoint(v)
+	}
+	if v, ok := p.Int64(14); ok {
+		r.LPCost = fixPoint(v)
 	}
 
 	// param 17 is an informational bonus factor. SA computes 1+param17 but resets

@@ -92,6 +92,7 @@ export interface FameView {
   total: number
   base: number
   premium: number
+  yellow: number
   satchel: number
   perHour: number
   count: number

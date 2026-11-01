@@ -3,7 +3,7 @@ id: doc-2
 title: Protocol spec
 type: specification
 created_date: '2026-10-31T19:20:00Z'
-updated_date: '2026-11-01 02:03'
+updated_date: '2026-11-01 02:10'
 ---
 # Protocol spec
 
@@ -73,7 +73,7 @@ Encrypted packets (`encrypted=12`) are expected and skipped, not errors.
 
 ## Fame (TASK-17)
 
-Verified against refs/session-1.aorec (114 UpdateFame events, decodeErr=0): session total 754,866 fame, premium bonus 251,622. Fame is tracked only for the local player (param 0 == Join ObjectID). The premium bonus is the +50% a premium account earns (half the base). NOTE: this is NOT the "yellow" Quick-Learner bonus fame (earned from a maxed 100/100 node, shown in the in-game combat log as "Fama bonus do Aprendizado Rapido"); that is a separate mechanic SA's UpdateFameEvent does not decode and is not yet tracked here. `fame/hour` = total ÷ elapsed. SA resets the param-17 bonus factor to 1 when it is positive, so it does not scale the gained total.
+Verified against refs/session-1.aorec (114 UpdateFame events, decodeErr=0): session total 754,866 fame, premium bonus 251,622. Fame is tracked only for the local player (param 0 == Join ObjectID). The premium bonus is the +50% a premium account earns (half the base). The "yellow" Quick-Learner bonus fame (earned from a maxed 100/100 node, combat log "Fama bonus do Aprendizado Rapido") is now decoded from UpdateFame param 12 (gathering shape, absent in the combat shape), with its Learning-Points cost in param 14 (cross-validated: == -UpdateLearningPoints(code 83) param 5 at the same timestamp). SA does not decode these; assumption (pending in-game confirmation): param 12 is the yellow bonus alone, additive to the base. Gained fame = base + premium + satchel + yellow. `fame/hour` = total ÷ elapsed. SA resets the param-17 bonus factor to 1 when it is positive, so it does not scale the gained total.
 
 
 ## Chest loot (dungeon loot chests)

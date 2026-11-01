@@ -1,11 +1,11 @@
 ---
 id: TASK-20
 title: Yellow (Quick-Learner) bonus fame tracking
-status: To Do
+status: In Progress
 assignee:
   - '@devlucasteles'
 created_date: '2026-11-01 01:38'
-updated_date: '2026-11-01 01:47'
+updated_date: '2026-11-01 02:07'
 labels:
   - events
   - engine
