@@ -1,10 +1,11 @@
 ---
 id: TASK-21
 title: Track items looted from dungeon loot chests
-status: In Progress
+status: In Review
 assignee:
   - '@devlucasteles'
 created_date: '2026-11-01 02:03'
+updated_date: '2026-11-01 02:03'
 labels:
   - loot
   - events
@@ -24,10 +25,10 @@ Items taken from a dungeon/treasure loot chest were not counted by the logger (o
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Items taken from a dungeon loot chest are recorded as loot for the local player with lootedFrom = the chest unique name
-- [ ] #2 Non-chest inventory inserts (crafting/buying/own inventory) are NOT logged as chest loot
-- [ ] #3 Chest item names resolve via itemdb and appear in loot views and the timeline
-- [ ] #4 Decoders have table tests (incl. AttachItemContainer slot array in byte/int16/int32/int64 widths); replay of refs/session-1.aorec stays decodeErr=0
+- [x] #1 Items taken from a dungeon loot chest are recorded as loot for the local player with lootedFrom = the chest unique name
+- [x] #2 Non-chest inventory inserts (crafting/buying/own inventory) are NOT logged as chest loot
+- [x] #3 Chest item names resolve via itemdb and appear in loot views and the timeline
+- [x] #4 Decoders have table tests (incl. AttachItemContainer slot array in byte/int16/int32/int64 widths); replay of refs/session-1.aorec stays decodeErr=0
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -38,3 +39,15 @@ Items taken from a dungeon/treasure loot chest were not counted by the logger (o
 3. engine: wire the 4 events; on a chest Take build a GrabbedLoot (looter=local, lootedFrom=chest name) -> loot.Record + OnLoot + TopicLoot + timeline. Reset chest on Join.
 4. Validate on refs/session-1.aorec; make check.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implemented: internal/chest.Tracker + 4 event decoders (NewLootChest, DecodeItemObject, AttachItemContainer, InventoryPutItem) + Join InventoryGUID(param54); engine stitches and on a chest Take records a GrabbedLoot(looter=local, lootedFrom=chest name) -> loot views + CSV + timeline. Gate on NewLootChest membership; reset on Join. Validated on refs/session-1.aorec: L0rdCap items 0 -> 25 incl 'Expert's Soul from TREASURE_COFFER_SOLO', 'Smuggler's Coin from MORGANA_DYNAMIC_CAMP_PERSONAL_MEDIUM_LC'; decodeErr=0. Tests: events table tests (slots byte/i16/i32/i64), chest unit tests (stitch/gate/reset/consume), engine TestEngine_ChestLoot. make check green.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Dungeon loot-chest items are now tracked. Stitches NewLootChest+NewSimpleItem/Equip+AttachItemContainer+InventoryPutItem by object id (internal/chest), gated on chest membership, attributed to the local player via the Join param-54 inventory GUID, recorded as loot so they appear in loot views, CSV and the timeline with localized names. Decoders cite SA/ao-loot-logger with table tests; verified on refs/session-1.aorec (decodeErr=0). Commit 8505d21.
+<!-- SECTION:FINAL_SUMMARY:END -->
