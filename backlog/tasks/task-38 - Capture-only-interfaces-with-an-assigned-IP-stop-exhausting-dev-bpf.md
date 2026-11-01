@@ -1,7 +1,7 @@
 ---
 id: TASK-38
 title: Capture only interfaces with an assigned IP (stop exhausting /dev/bpf*)
-status: In Review
+status: Done
 assignee:
   - '@devlucasteles'
 created_date: '2026-11-01 15:25'
