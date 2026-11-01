@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -23,10 +24,11 @@ import (
 // app.Service so the engine stays UI-agnostic; the struct holds only the Wails
 // context needed to emit events and run the flush loop.
 type App struct {
-	ctx   context.Context
-	svc   *app.Service
-	stop  context.CancelFunc
-	codes *protocol.Codes
+	ctx      context.Context
+	svc      *app.Service
+	stop     context.CancelFunc
+	codes    *protocol.Codes
+	recorder *capture.Recorder
 
 	mu    sync.Mutex
 	items *itemdb.DB
@@ -56,6 +58,20 @@ func (a *App) startup(ctx context.Context) {
 		PartyOnlyLoot: true,
 		Combat:        combat.Options{PartyOnly: true},
 		Emit:          func(event string, payload any) { runtime.EventsEmit(a.ctx, event, payload) },
+	}
+	// ALBION_COMPANION_RECORD=<path|dir> records every captured packet to a
+	// timestamped .aorec so a live test session can be replayed and correlated
+	// with wall-clock notes. A directory (or a value not ending in .aorec) gets a
+	// generated albion-YYYYMMDD-HHMMSS.aorec inside it.
+	if rec := os.Getenv("ALBION_COMPANION_RECORD"); rec != "" {
+		path := recordPath(rec)
+		if r, err := capture.NewRecorder(path); err != nil {
+			runtime.LogWarningf(ctx, "record: cannot write %s: %v", path, err)
+		} else {
+			a.recorder = r
+			opts.Recorder = r
+			runtime.LogInfof(ctx, "record: writing capture to %s", path)
+		}
 	}
 	// Dev without the game: ALBION_COMPANION_REPLAY=<file> replays a recording
 	// at real time instead of capturing live (see UI spec).
@@ -107,6 +123,18 @@ func (a *App) shutdown(context.Context) {
 	if a.svc != nil {
 		a.svc.StopCapture()
 	}
+	if a.recorder != nil {
+		a.recorder.Close() // flush the .aorec
+	}
+}
+
+// recordPath resolves ALBION_COMPANION_RECORD: an explicit *.aorec path is used
+// as-is; anything else is treated as a directory to drop a timestamped file in.
+func recordPath(v string) string {
+	if strings.HasSuffix(v, ".aorec") {
+		return v
+	}
+	return filepath.Join(v, "albion-"+time.Now().Format("20060102-150405")+".aorec")
 }
 
 // codesOverridePath is the optional user file that overrides the embedded codes

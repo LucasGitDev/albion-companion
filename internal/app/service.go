@@ -45,7 +45,8 @@ type Options struct {
 	Emit          Emitter
 	PartyOnlyLoot bool
 	Combat        combat.Options
-	Prices        *prices.Client // optional: price client (nil = built with defaults)
+	Prices        *prices.Client    // optional: price client (nil = built with defaults)
+	Recorder      *capture.Recorder // optional: record every captured packet to an .aorec
 }
 
 type CaptureStatus struct {
@@ -95,6 +96,7 @@ func NewService(opts Options) *Service {
 		Codes:    opts.Codes,
 		Items:    opts.Items,
 		Combat:   opts.Combat,
+		Recorder: opts.Recorder,
 		OnChange: s.onChange,
 		OnLoot:   func(e loot.Entry) { s.opts.Emit("loot:new", e) },
 	})
