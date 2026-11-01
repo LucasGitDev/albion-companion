@@ -113,7 +113,18 @@ function combatView(): CombatView {
   return { rows, totalDamage: total }
 }
 
+const devState = new URLSearchParams(location.search).get('state')
+
 function status(): CaptureStatus {
+  if (devState === 'permission') {
+    return {
+      running: false,
+      sources: [],
+      hint: 'permission',
+      error: 'pcap: en0: Operation not permitted (need read access to /dev/bpf*)',
+      stats: { packets: 0, messages: 0, unknown: 0, decodeErrors: 0, encrypted: 0 },
+    }
+  }
   return { running, sources: ['en0'], stats }
 }
 
@@ -161,6 +172,12 @@ export function installMock() {
       return () => listeners[event]?.delete(cb)
     },
     EventsEmit: () => {},
+  }
+  // 'empty' and 'permission' preview states start with no data and no ticking.
+  if (devState === 'empty' || devState === 'permission') {
+    running = false
+    stats.packets = 0
+    return
   }
   // Seed a few entries, then tick a live feed.
   for (let i = 0; i < 8; i++) pushLoot()
