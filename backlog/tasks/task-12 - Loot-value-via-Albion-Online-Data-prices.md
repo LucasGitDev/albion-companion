@@ -4,6 +4,7 @@ title: Loot value via Albion Online Data prices
 status: To Do
 assignee: []
 created_date: '2026-10-31T19:20:00Z'
+updated_date: '2026-11-01 02:23'
 labels:
   - loot
 dependencies:
@@ -21,3 +22,9 @@ Fetch prices for looted items (west/east/europe by server, detected from game se
 <!-- AC:BEGIN -->
 - [ ] #1 Loot tab shows estimated value per player
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+SPIKE: copy SA/albiondata-client approach — detect server region from the capture source IP (our fork lineage already has this), batch-fetch from Albion Online Data project, cache with TTL. This is the one legitimately EXTERNAL-API feature (NOT passive game data) — must degrade gracefully offline. Enables value per entry/player + silver/hour.
+<!-- SECTION:NOTES:END -->

@@ -1,11 +1,11 @@
 ---
 id: TASK-24
 title: 'UI: design tokens + DESIGN.md/PRODUCT.md (drop Inter default)'
-status: In Review
+status: Done
 assignee:
   - '@lucas'
 created_date: '2026-11-01 02:40'
-updated_date: '2026-11-01 02:56'
+updated_date: '2026-11-01 03:16'
 labels:
   - ui
   - design

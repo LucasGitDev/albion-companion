@@ -1,11 +1,11 @@
 ---
 id: TASK-26
 title: 'UI: passe de acessibilidade (teclado + contraste AA)'
-status: In Review
+status: Done
 assignee:
   - '@lucas'
 created_date: '2026-11-01 02:40'
-updated_date: '2026-11-01 03:12'
+updated_date: '2026-11-01 03:16'
 labels:
   - ui
   - a11y

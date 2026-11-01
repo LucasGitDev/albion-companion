@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@lucas'
 created_date: '2026-11-01 02:40'
-updated_date: '2026-11-01 02:56'
+updated_date: '2026-11-01 03:16'
 labels:
   - ui
   - frontend
@@ -37,6 +37,8 @@ Revisão de UI: chamadas de api.* (useLoot/useCombat/useStatus, exportLootCSV, r
 
 <!-- SECTION:NOTES:BEGIN -->
 Padrão Async<T>{data,status,retry} em useTopic; useLoot/useCombat delegam. states.tsx (Skeleton/Loading/ErrorState+retry). Loot/DPS/Party/Timeline gated. Export/Reset flasham falha. AC1-3 são comportamentais: código presente e make check verde (exit 0), mas verificação visual/interativa (loading vs empty, erro+retry) pendente de app Wails rodando + ui-reviewer — não disponível nesta sessão.
+
+Merged em main (12b5e47) junto com 24/26. AC1-3 seguem abertas: loading/error não validados visualmente (mock entrega dados prontos). Validar com app Wails rodando antes de fechar como Done.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
