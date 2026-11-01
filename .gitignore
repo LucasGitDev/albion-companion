@@ -9,3 +9,8 @@
 *.pcap
 *.pcapng
 .DS_Store
+# Design skills are copied in locally; restore with `npx skills experimental_install`.
+/.claude/skills/
+.playwright-mcp/
+*-before.png
+*-after*.png
