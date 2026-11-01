@@ -7,6 +7,7 @@ import type {
   PartyView,
   FameView,
   TimelineView,
+  DungeonView,
 } from '@/wails.d'
 
 export type {
@@ -23,6 +24,9 @@ export type {
   TimelineView,
   TimelineEvent,
   TimelineKind,
+  DungeonView,
+  DungeonRecord,
+  DungeonType,
   CodesInfo,
   ItemDBInfo,
   Stats,
@@ -55,6 +59,10 @@ export const api = {
   exportLootCSV: (): Promise<string> => app().ExportLootCSV(),
   timelineView: (recent = 200): Promise<TimelineView> => app().TimelineView(recent),
   resetTimeline: (): Promise<void> => app().ResetTimeline(),
+  dungeonView: (): Promise<DungeonView> => app().DungeonView(),
+  renameDungeon: (id: number, name: string): Promise<void> => app().RenameDungeon(id, name),
+  setDungeonTier: (id: number, tier: string): Promise<void> => app().SetDungeonTier(id, tier),
+  resetDungeons: (): Promise<void> => app().ResetDungeons(),
   interfaces: () => app().Interfaces(),
   codesInfo: () => app().CodesInfo(),
   itemDBInfo: () => app().ItemDBInfo(),
