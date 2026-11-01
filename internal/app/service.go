@@ -25,6 +25,7 @@ import (
 	"github.com/LucasGitDev/albion-companion/internal/fame"
 	"github.com/LucasGitDev/albion-companion/internal/loot"
 	"github.com/LucasGitDev/albion-companion/internal/protocol"
+	"github.com/LucasGitDev/albion-companion/internal/rates"
 	"github.com/LucasGitDev/albion-companion/internal/timeline"
 )
 
@@ -258,8 +259,34 @@ func (s *Service) ResetCombat()   { s.eng.Combat().Reset(); s.opts.Emit("combat:
 func (s *Service) ResetFame()     { s.eng.Fame().Reset(); s.opts.Emit("fame:changed", nil) }
 func (s *Service) ResetTimeline() { s.eng.Timeline().Reset(); s.opts.Emit("timeline:changed", nil) }
 
+// ResetRates clears the silver/respec/might accumulators (fame is reset
+// separately via ResetFame, which the rates dashboard also shows).
+func (s *Service) ResetRates() { s.eng.Rates().Reset(); s.opts.Emit("rates:changed", nil) }
+
 // FameView is the current session fame totals and rate.
 func (s *Service) FameView() fame.Snapshot { return s.eng.Fame().Snapshot() }
+
+// RatesView is the full dashboard: fame, silver, respec and might as session
+// totals plus per-hour rates. Fame comes from the fame tracker (already split
+// into base/premium/yellow), the rest from the rates tracker. The frontend
+// picks total vs per-hour with a session/hour toggle.
+type RatesView struct {
+	Fame   rates.Metric `json:"fame"`
+	Silver rates.Metric `json:"silver"`
+	Respec rates.Metric `json:"respec"`
+	Might  rates.Metric `json:"might"`
+}
+
+func (s *Service) RatesView() RatesView {
+	f := s.eng.Fame().Snapshot()
+	r := s.eng.Rates().Snapshot()
+	return RatesView{
+		Fame:   rates.Metric{Total: f.Total, PerHour: f.PerHour, Count: f.Count, Since: f.Since},
+		Silver: r.Silver,
+		Respec: r.Respec,
+		Might:  r.Might,
+	}
+}
 
 // TimelineView is the merged chronological feed, newest first, capped at recent.
 type TimelineView struct {
