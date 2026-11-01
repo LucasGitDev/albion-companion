@@ -104,3 +104,55 @@ func TestEngine_EndToEnd(t *testing.T) {
 		}
 	}
 }
+
+// TestEngine_ChestLoot drives the four-event chest chain (NewLootChest →
+// NewSimpleItem → AttachItemContainer → InventoryPutItem) and asserts the taken
+// item is recorded as loot from the chest for the local player. Items in a
+// non-chest container (the player's own inventory) must not be logged.
+func TestEngine_ChestLoot(t *testing.T) {
+	codes := protocol.DefaultCodes()
+	code := func(name string) uint16 {
+		c, ok := codes.EventCode(name)
+		if !ok {
+			t.Fatalf("missing event %s", name)
+		}
+		return c
+	}
+	join, _ := codes.OperationCode("Join")
+
+	var looted []loot.Entry
+	e := New(Config{
+		Codes:  codes,
+		Items:  items{2014: {Index: 2014, UniqueName: "T5_SOUL", Name: "Expert's Soul"}},
+		OnLoot: func(en loot.Entry) { looted = append(looted, en) },
+		OnDecodeError: func(name string, err error) {
+			t.Errorf("decode error %s: %v", name, err)
+		},
+	})
+
+	t0 := time.Unix(2000, 0)
+	feed := func(payload []byte, dt time.Duration) {
+		e.Feed(capture.Packet{At: t0.Add(dt), Payload: payload})
+	}
+
+	feed(photontest.Response(join, map[byte]any{0: int32(1), 2: "Me", 8: "9", 54: guid(9)}), 0)
+	feed(photontest.Event(code("NewLootChest"), map[byte]any{0: int32(500), 3: "TREASURE_COFFER_SOLO"}), time.Second)
+	feed(photontest.Event(code("NewSimpleItem"), map[byte]any{0: int32(900), 1: int16(2014), 2: int16(1)}), time.Second)
+	// An item that lands in the player's own inventory (container 5), not a chest.
+	feed(photontest.Event(code("NewSimpleItem"), map[byte]any{0: int32(901), 1: int16(2014), 2: int16(1)}), time.Second)
+	feed(photontest.Event(code("AttachItemContainer"), map[byte]any{0: int32(500), 3: []int32{900}, 5: int16(1)}), time.Second)
+	feed(photontest.Event(code("AttachItemContainer"), map[byte]any{0: int32(5), 3: []int32{901}, 5: int16(1)}), time.Second)
+	feed(photontest.Event(code("InventoryPutItem"), map[byte]any{0: int32(901), 2: guid(9)}), 2*time.Second) // inventory item: ignored
+	feed(photontest.Event(code("InventoryPutItem"), map[byte]any{0: int32(900), 2: guid(9)}), 3*time.Second) // chest item: logged
+
+	if st := e.Stats(); st.DecodeErrors != 0 {
+		t.Fatalf("decode errors = %d", st.DecodeErrors)
+	}
+	if len(looted) != 1 {
+		t.Fatalf("expected exactly 1 chest loot entry, got %d: %+v", len(looted), looted)
+	}
+	got := looted[0]
+	if got.Looter != "Me" || got.LootedFrom != "TREASURE_COFFER_SOLO" || got.ItemID != "T5_SOUL" || got.Quantity != 1 {
+		t.Fatalf("unexpected chest loot: %+v", got)
+	}
+}

@@ -193,13 +193,83 @@ func abs(f float64) float64 {
 	return f
 }
 
+// Chest-loot decoders. Params verified against refs/session-1.aorec.
+func TestDecodeNewLootChest(t *testing.T) {
+	got, err := DecodeNewLootChest(protocol.Params{0: int32(46753), 3: "TREASURE_COFFER_SOLO"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ObjectID != 46753 || got.UniqueName != "TREASURE_COFFER_SOLO" {
+		t.Fatalf("unexpected %+v", got)
+	}
+	if _, err := DecodeNewLootChest(protocol.Params{3: "x"}); err == nil {
+		t.Fatal("want missing ObjectID error")
+	}
+}
+
+func TestDecodeItemObject(t *testing.T) {
+	got, err := DecodeItemObject(EvNewSimpleItem, protocol.Params{0: int32(54194), 1: int16(2014), 2: byte(1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ObjectID != 54194 || got.ItemIndex != 2014 || got.Quantity != 1 {
+		t.Fatalf("unexpected %+v", got)
+	}
+	// Quantity defaults to 1 when absent.
+	q, _ := DecodeItemObject(EvNewEquipmentItem, protocol.Params{0: int64(1), 1: int32(5)})
+	if q.Quantity != 1 {
+		t.Fatalf("quantity default = %d", q.Quantity)
+	}
+	if _, err := DecodeItemObject(EvNewSimpleItem, protocol.Params{0: int32(1)}); err == nil {
+		t.Fatal("want missing ItemIndex error")
+	}
+}
+
+func TestDecodeAttachItemContainer(t *testing.T) {
+	// Slot array arrives in varied int widths; Int64s normalizes all of them.
+	for _, slots := range []any{
+		[]byte{0, 10, 0},
+		[]int16{0, 10, 0},
+		[]int32{0, 10, 0},
+		[]int64{0, 10, 0},
+		[]any{int32(0), int16(10), byte(0)},
+	} {
+		got, err := DecodeAttachItemContainer(protocol.Params{0: int32(46753), 3: slots, 5: byte(3)})
+		if err != nil {
+			t.Fatalf("slots %T: %v", slots, err)
+		}
+		if got.ObjectID != 46753 || len(got.Slots) != 3 || got.Slots[1] != 10 {
+			t.Fatalf("slots %T -> %+v", slots, got)
+		}
+	}
+	if _, err := DecodeAttachItemContainer(protocol.Params{0: int32(1)}); err == nil {
+		t.Fatal("want missing Slots error")
+	}
+}
+
+func TestDecodeInventoryPutItem(t *testing.T) {
+	got, err := DecodeInventoryPutItem(protocol.Params{0: int32(54194), 2: guid(7)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ItemObjectID != 54194 || got.InventoryGUID == "" {
+		t.Fatalf("unexpected %+v", got)
+	}
+	if _, err := DecodeInventoryPutItem(protocol.Params{2: guid(1)}); err == nil {
+		t.Fatal("want missing ItemObjectID error")
+	}
+}
+
 func TestDecodeJoinResponse(t *testing.T) {
-	got, err := DecodeJoinResponse(protocol.Params{0: int64(99), 1: guid(9), 2: "Me", 8: "3008", 58: "Guild"})
+	got, err := DecodeJoinResponse(protocol.Params{0: int64(99), 1: guid(9), 2: "Me", 8: "3008", 58: "Guild", 54: guid(3)})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got.ObjectID != 99 || got.Name != "Me" || got.Location != "3008" || got.Guild != "Guild" || got.GUID == "" {
 		t.Fatalf("unexpected %+v", got)
+	}
+	if got.InventoryGUID == "" {
+		t.Fatal("InventoryGUID (param 54) not decoded")
 	}
 }
 

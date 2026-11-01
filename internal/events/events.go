@@ -28,6 +28,12 @@ const (
 	EvPartyPlayerLeft   = "PartyPlayerLeft"
 	EvPartyDisbanded    = "PartyDisbanded"
 	EvUpdateFame        = "UpdateFame"
+
+	EvNewLootChest        = "NewLootChest"
+	EvNewSimpleItem       = "NewSimpleItem"
+	EvNewEquipmentItem    = "NewEquipmentItem"
+	EvAttachItemContainer = "AttachItemContainer"
+	EvInventoryPutItem    = "InventoryPutItem"
 )
 
 // fixPoint converts Albion's FixPoint internal integer to its real value
@@ -55,12 +61,13 @@ func missing(ev, field string, key byte) error {
 // SA: Network/Operations/Responses/JoinResponse.cs
 
 type JoinResponse struct {
-	ObjectID int64
-	GUID     string
-	Name     string
-	Location string // map index / cluster id
-	Guild    string
-	Alliance string
+	ObjectID      int64
+	GUID          string
+	Name          string
+	Location      string // map index / cluster id
+	Guild         string
+	Alliance      string
+	InventoryGUID string // param 54: the local player's inventory container GUID
 }
 
 func DecodeJoinResponse(p protocol.Params) (JoinResponse, error) {
@@ -76,6 +83,7 @@ func DecodeJoinResponse(p protocol.Params) (JoinResponse, error) {
 	r.Location, _ = p.String(8)
 	r.Guild, _ = p.String(58)
 	r.Alliance, _ = p.String(79)
+	r.InventoryGUID, _ = p.GUID(54)
 	return r, nil
 }
 
@@ -391,4 +399,94 @@ func DecodeUpdateFame(p protocol.Params) (FameUpdate, error) {
 	// at 1 unconditionally — the gained total is Base + Premium + Satchel.
 	r.BonusFactor = 1
 	return r, nil
+}
+
+// ---------------------------------------------------------------------------
+// Chest loot. Taking an item from a dungeon/treasure chest is NOT an
+// OtherGrabbedLoot event; it is reconstructed by stitching four events by
+// object id (verified against a real capture, cross-read with SA and
+// ao-loot-logger since both leave the InventoryPutItem path dormant):
+//
+//   NewLootChest        → a chest object + its unique name
+//   NewSimpleItem/Equip → each item object → item index + quantity
+//   AttachItemContainer → a container's slots hold those item objects
+//   InventoryPutItem    → an item object enters the local inventory (the take)
+//
+// SA: Network/Events/{NewLootChestEvent,AttachItemContainerEvent,
+//     InventoryPutItemEvent}.cs; items: ao-loot-logger ev-new-simple-item /
+//     ev-new-equipment-item. Object ids are per-zone (reset on Join).
+
+// LootChest is a lootable chest becoming visible (SA: NewLootChestEvent.cs).
+type LootChest struct {
+	ObjectID   int64  // param 0 (per-zone)
+	UniqueName string // param 3, e.g. "TREASURE_COFFER_SOLO"
+}
+
+func DecodeNewLootChest(p protocol.Params) (LootChest, error) {
+	id, ok := p.Int64(0)
+	if !ok {
+		return LootChest{}, missing(EvNewLootChest, "ObjectID", 0)
+	}
+	name, _ := p.String(3)
+	return LootChest{ObjectID: id, UniqueName: name}, nil
+}
+
+// ItemObject declares an item instance (NewSimpleItem / NewEquipmentItem).
+// ao-loot-logger ev-new-simple-item / ev-new-equipment-item: 0 objectId,
+// 1 itemNumId (items.txt line index), 2 quantity.
+type ItemObject struct {
+	ObjectID  int64
+	ItemIndex int
+	Quantity  int64
+}
+
+func DecodeItemObject(ev string, p protocol.Params) (ItemObject, error) {
+	id, ok := p.Int64(0)
+	if !ok {
+		return ItemObject{}, missing(ev, "ObjectID", 0)
+	}
+	idx, ok := p.Int64(1)
+	if !ok {
+		return ItemObject{}, missing(ev, "ItemIndex", 1)
+	}
+	qty, ok := p.Int64(2)
+	if !ok {
+		qty = 1
+	}
+	return ItemObject{ObjectID: id, ItemIndex: int(idx), Quantity: qty}, nil
+}
+
+// ItemContainer links a container to the item objects in its slots
+// (SA: AttachItemContainerEvent.cs: 0 objectId, 3 slot array of item object ids).
+type ItemContainer struct {
+	ObjectID int64
+	Slots    []int64 // item object ids; 0 = empty slot
+}
+
+func DecodeAttachItemContainer(p protocol.Params) (ItemContainer, error) {
+	id, ok := p.Int64(0)
+	if !ok {
+		return ItemContainer{}, missing(EvAttachItemContainer, "ObjectID", 0)
+	}
+	slots, ok := p.Int64s(3)
+	if !ok {
+		return ItemContainer{}, missing(EvAttachItemContainer, "Slots", 3)
+	}
+	return ItemContainer{ObjectID: id, Slots: slots}, nil
+}
+
+// InventoryPut is an item entering an inventory (SA: InventoryPutItemEvent.cs:
+// 0 item objectId, 2 destination inventory GUID). It is a client-local event.
+type InventoryPut struct {
+	ItemObjectID  int64
+	InventoryGUID string // param 2; matches JoinResponse.InventoryGUID for the local player
+}
+
+func DecodeInventoryPutItem(p protocol.Params) (InventoryPut, error) {
+	id, ok := p.Int64(0)
+	if !ok {
+		return InventoryPut{}, missing(EvInventoryPutItem, "ItemObjectID", 0)
+	}
+	guid, _ := p.GUID(2)
+	return InventoryPut{ItemObjectID: id, InventoryGUID: guid}, nil
 }
