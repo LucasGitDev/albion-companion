@@ -1,10 +1,11 @@
 ---
 id: TASK-23
 title: Killfeed (nearby kills and deaths)
-status: To Do
+status: In Progress
 assignee:
   - '@devlucasteles'
 created_date: '2026-11-01 02:23'
+updated_date: '2026-11-01 13:44'
 labels:
   - events
   - engine

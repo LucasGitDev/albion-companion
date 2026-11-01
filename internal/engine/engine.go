@@ -331,5 +331,19 @@ func (e *Engine) handleEvent(m protocol.Message) {
 			At: entry.At, Kind: timeline.KindLoot, Player: entry.Looter,
 			Source: entry.LootedFrom, Item: entry.ItemName, ItemID: entry.ItemID, Quantity: entry.Quantity,
 		})
+
+	// --- Killfeed: nearby deaths (broadcast). KilledPlayer (local-kill credit)
+	// is decoded too but the feed is driven by the richer Died event. ---
+	case events.EvDied:
+		d, err := events.DecodeDied(m.Params)
+		if err != nil {
+			e.fail(m.Name, err)
+			return
+		}
+		e.pushTL(timeline.Event{
+			At: m.At, Kind: timeline.KindKill,
+			Player: d.Victim, Guild: d.VictimGuild,
+			Killer: d.Killer, KillerGuild: d.KillerGuild, Lethal: d.Lethal,
+		})
 	}
 }

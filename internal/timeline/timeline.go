@@ -21,6 +21,7 @@ const (
 	KindZone        Kind = "zone"         // entered a new zone (Join)
 	KindPartyJoined Kind = "party_joined" // a player joined the party
 	KindPartyLeft   Kind = "party_left"   // a player left the party
+	KindKill        Kind = "kill"         // a nearby player died (Died event)
 )
 
 // Event is one entry in the feed. It is a flat, JSON-friendly projection of the
@@ -38,6 +39,12 @@ type Event struct {
 	Fame     float64   `json:"fame,omitempty"`     // fame gained in this event
 	Zone     string    `json:"zone,omitempty"`     // destination zone / location
 	Source   string    `json:"source,omitempty"`   // loot source (body/chest/mob)
+
+	// Killfeed (KindKill): Player is the victim; Guild the victim's guild.
+	Killer      string `json:"killer,omitempty"`
+	KillerGuild string `json:"killerGuild,omitempty"`
+	Guild       string `json:"guild,omitempty"`
+	Lethal      bool   `json:"lethal,omitempty"`
 }
 
 // Ring is a bounded, ordered buffer of events. Newest events are appended; when

@@ -232,5 +232,18 @@ export function installMock() {
     emit('fame:changed')
     pushTL({ at: new Date().toISOString(), kind: 'fame', player: 'L0rdCap', fame: gain })
     pushLoot()
+    if (Math.random() < 0.3) {
+      const victim = members[Math.floor(Math.random() * members.length)]
+      const killer = members[Math.floor(Math.random() * members.length)]
+      pushTL({
+        at: new Date().toISOString(),
+        kind: 'kill',
+        player: victim.Name,
+        guild: 'Enemy Clan',
+        killer: killer.Name,
+        killerGuild: 'Arroz Clan',
+        lethal: true,
+      })
+    }
   }, 1500)
 }
