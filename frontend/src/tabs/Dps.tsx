@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { RotateCcw, Timer, Swords, Sparkles } from 'lucide-react'
+import { RotateCcw, Timer, Swords, Sparkles, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Loading, ErrorState } from '@/components/ui/states'
 import { api, type CombatRow, type FameView } from '@/lib/bindings'
@@ -27,6 +27,13 @@ export function Dps({
   onPlayerTargetsOnly: (v: boolean) => void
 }) {
   const [sort, setSort] = useState<SortKey>('damage')
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const toggle = (name: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      next.has(name) ? next.delete(name) : next.add(name)
+      return next
+    })
   const { data: fame } = useTopic<FameView>(api.fameView, ['fame:changed', 'zone:changed'])
   const { data: view, status, retry } = useCombat({ PartyOnly: partyOnly, PlayerTargetsOnly: playerTargetsOnly })
 
@@ -117,25 +124,74 @@ export function Dps({
         )}
         {rows.map((r, i) => {
           const metric = r[sort]
+          const spells = r.spells ?? []
+          const canExpand = spells.length > 0
+          const open = expanded.has(r.name)
           return (
-            <div key={r.name} className="relative overflow-hidden rounded-lg border border-border bg-card">
-              <div
-                className={cn('absolute inset-y-0 left-0', isHeal ? 'bg-heal/15' : 'bg-ember/12')}
-                style={{ width: `${(metric / max) * 100}%` }}
-              />
-              <div className="relative flex items-center gap-3 px-3.5 py-2.5">
-                <span className="w-5 shrink-0 tnum text-xs text-muted-foreground">{i + 1}</span>
-                <span className="min-w-0 flex-1 truncate font-medium">{r.name}</span>
-                <span className="w-24 text-right tnum font-semibold">{fmt(r.damage)}</span>
-                <span className="w-16 text-right tnum text-xs text-muted-foreground">{fmt(r.dps)}/s</span>
-                <span className="w-12 text-right tnum text-xs text-muted-foreground">{r.share.toFixed(0)}%</span>
-                <span className="w-20 text-right tnum text-xs">
-                  {r.heal > 0 ? <span className="text-heal">+{fmt(r.heal)}</span> : <span className="text-muted-foreground/40">—</span>}
-                </span>
-                <span className="w-20 text-right tnum text-xs">
-                  {r.taken > 0 ? <span className="text-taken">−{fmt(r.taken)}</span> : <span className="text-muted-foreground/40">—</span>}
-                </span>
+            <div key={r.name} className="overflow-hidden rounded-lg border border-border bg-card">
+              <div className="relative">
+                <div
+                  className={cn('absolute inset-y-0 left-0', isHeal ? 'bg-heal/15' : 'bg-ember/12')}
+                  style={{ width: `${(metric / max) * 100}%` }}
+                />
+                <button
+                  type="button"
+                  disabled={!canExpand}
+                  aria-expanded={canExpand ? open : undefined}
+                  onClick={() => canExpand && toggle(r.name)}
+                  className={cn(
+                    'relative flex w-full items-center gap-3 px-3.5 py-2.5 text-left',
+                    canExpand ? 'cursor-pointer hover:bg-accent/40' : 'cursor-default',
+                  )}
+                >
+                  <span className="flex w-5 shrink-0 items-center gap-0.5 tnum text-xs text-muted-foreground">
+                    {canExpand ? (
+                      <ChevronRight className={cn('size-3.5 text-foreground/60 transition-transform', open && 'rotate-90')} />
+                    ) : (
+                      <span className="size-3.5" />
+                    )}
+                    {i + 1}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate font-medium">{r.name}</span>
+                  <span className="w-24 text-right tnum font-semibold">{fmt(r.damage)}</span>
+                  <span className="w-16 text-right tnum text-xs text-muted-foreground">{fmt(r.dps)}/s</span>
+                  <span className="w-12 text-right tnum text-xs text-muted-foreground">{r.share.toFixed(0)}%</span>
+                  <span className="w-20 text-right tnum text-xs">
+                    {r.heal > 0 ? <span className="text-heal">+{fmt(r.heal)}</span> : <span className="text-muted-foreground/40">—</span>}
+                  </span>
+                  <span className="w-20 text-right tnum text-xs">
+                    {r.taken > 0 ? <span className="text-taken">−{fmt(r.taken)}</span> : <span className="text-muted-foreground/40">—</span>}
+                  </span>
+                </button>
               </div>
+              {canExpand && open && (
+                <div className="border-t border-border/60 bg-background/40 py-1.5 pr-3.5">
+                  {/* Indent + 1px guide marks these as the player's abilities; the
+                      per-spell % is of the player's own damage, shown inline in
+                      the Damage column so it never reads as the party Share. */}
+                  <div className="ml-7 border-l border-border/60 pl-3">
+                    {spells.map((sp) => {
+                      const pct = r.damage > 0 ? (sp.damage / r.damage) * 100 : 0
+                      return (
+                        <div key={sp.spellIndex} className="flex items-center gap-3 py-1 text-xs">
+                          <span className="min-w-0 flex-1 truncate text-muted-foreground">
+                            {sp.spellIndex < 0 ? 'Auto / passive' : `Spell #${sp.spellIndex}`}
+                            <span className="ml-1.5 text-muted-foreground/80">×{sp.hits}</span>
+                          </span>
+                          <span className="w-28 text-right tnum">
+                            {fmt(sp.damage)} <span className="text-muted-foreground">· {pct.toFixed(0)}%</span>
+                          </span>
+                          <span className="w-12 text-right" />
+                          <span className="w-20 text-right tnum">
+                            {sp.heal > 0 ? <span className="text-heal">+{fmt(sp.heal)}</span> : null}
+                          </span>
+                          <span className="w-20 text-right" />
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )
         })}
