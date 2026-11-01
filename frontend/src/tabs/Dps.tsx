@@ -46,7 +46,8 @@ export function Dps({
           </div>
         </div>
         <FameStat label="Fame / hour" value={fmt(fame?.perHour ?? 0)} />
-        <FameStat label="Premium bonus" value={fmt(fame?.premium ?? 0)} accent />
+        <FameStat label="Yellow (Quick-Learner)" value={fmt(fame?.yellow ?? 0)} accent />
+        <FameStat label="Premium bonus" value={fmt(fame?.premium ?? 0)} />
         <FameStat label="Events" value={String(fame?.count ?? 0)} />
       </div>
 

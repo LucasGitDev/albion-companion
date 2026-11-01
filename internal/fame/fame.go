@@ -17,6 +17,7 @@ type Tracker struct {
 	base    float64
 	premium float64
 	satchel float64
+	yellow  float64
 	count   int
 	latest  float64 // last seen lifetime TotalPlayerFame
 	first   time.Time
@@ -33,6 +34,7 @@ func (t *Tracker) Add(f events.FameUpdate, at time.Time) {
 	t.base += f.Base * f.BonusFactor
 	t.premium += f.Premium() * f.BonusFactor
 	t.satchel += f.Satchel * f.BonusFactor
+	t.yellow += f.Yellow
 	t.count++
 	if f.TotalPlayerFame > 0 {
 		t.latest = f.TotalPlayerFame
@@ -47,7 +49,8 @@ func (t *Tracker) Add(f events.FameUpdate, at time.Time) {
 type Snapshot struct {
 	Total           float64   `json:"total"`           // fame gained this session
 	Base            float64   `json:"base"`            // base fame (no premium)
-	Premium         float64   `json:"premium"`         // premium account bonus fame (+50%), not Quick-Learner yellow fame
+	Premium         float64   `json:"premium"`         // premium account bonus fame (+50%)
+	Yellow          float64   `json:"yellow"`          // Quick-Learner "yellow" bonus fame (maxed node)
 	Satchel         float64   `json:"satchel"`         // satchel / bag insight fame
 	PerHour         float64   `json:"perHour"`         // actual rate: total ÷ elapsed
 	Count           int       `json:"count"`           // number of fame events
@@ -62,6 +65,7 @@ func (t *Tracker) Snapshot() Snapshot {
 		Total:           t.total,
 		Base:            t.base,
 		Premium:         t.premium,
+		Yellow:          t.yellow,
 		Satchel:         t.satchel,
 		PerHour:         perHour(t.total, t.first, t.last),
 		Count:           t.count,

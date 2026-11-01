@@ -185,8 +185,9 @@ export function installMock() {
         },
         FameView: async () => ({
           total: fameTotal,
-          base: fameTotal * 0.667,
-          premium: fameTotal * 0.333,
+          base: fameTotal * 0.5,
+          premium: fameTotal * 0.3,
+          yellow: fameTotal * 0.2,
           satchel: 0,
           perHour: fameTotal * 12,
           count: Math.floor(fameTotal / 1800),

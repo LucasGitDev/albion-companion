@@ -186,6 +186,41 @@ func TestDecodeUpdateFame(t *testing.T) {
 	}
 }
 
+// Gathering-shape UpdateFame (real params from refs/session-1.aorec) carries the
+// Quick-Learner yellow bonus in param 12 and its LP cost in param 14.
+func TestDecodeUpdateFame_Yellow(t *testing.T) {
+	got, err := DecodeUpdateFame(protocol.Params{
+		0:  int32(54998),
+		1:  int64(10048733241009),
+		2:  int32(1228500), // base 122.85
+		3:  int32(270000),
+		5:  true,
+		12: int32(8476648), // yellow 847.6648
+		13: int32(8476648),
+		14: int16(6207), // LP cost 0.6207
+		17: float32(0.14999998),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if abs(got.Yellow-847.6648) > 1e-3 {
+		t.Fatalf("yellow = %v", got.Yellow)
+	}
+	if abs(got.LPCost-0.6207) > 1e-4 {
+		t.Fatalf("lp cost = %v", got.LPCost)
+	}
+	// Gained = base + premium + satchel + yellow. Premium account: premium = base/2.
+	want := got.Base + got.Base*0.5 + got.Yellow
+	if abs(got.Gained()-want) > 1e-6 {
+		t.Fatalf("gained = %v, want %v", got.Gained(), want)
+	}
+	// A combat-shape event (no param 12) has zero yellow.
+	np, _ := DecodeUpdateFame(protocol.Params{1: int64(5000), 2: int16(1000)})
+	if np.Yellow != 0 {
+		t.Fatalf("combat shape yellow = %v", np.Yellow)
+	}
+}
+
 func abs(f float64) float64 {
 	if f < 0 {
 		return -f
