@@ -23,7 +23,8 @@ const (
 type Item struct {
 	Index      int
 	UniqueName string // e.g. T6_ARMOR_CLOTH_KEEPER@1
-	Name       string // e.g. Master's Druid Robe
+	Name       string // English display name from items.txt, e.g. Master's Druid Robe
+	LocalName  string // localized display name: PT-BR -> EN-US -> humanized id
 }
 
 // IconURL returns the official render URL for the item icon.
@@ -55,7 +56,7 @@ func Parse(r io.Reader) (*DB, error) {
 		if name == "" {
 			name = unique
 		}
-		db.items[idx] = Item{Index: idx, UniqueName: unique, Name: name}
+		db.items[idx] = Item{Index: idx, UniqueName: unique, Name: name, LocalName: LocalizedName(unique)}
 	}
 	if len(db.items) == 0 {
 		return nil, fmt.Errorf("itemdb: no items parsed")

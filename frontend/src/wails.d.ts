@@ -27,6 +27,7 @@ export interface LootEntry {
   fromMob: boolean
   itemId: string
   itemName: string
+  itemLocalName: string
   isTrash: boolean
   quantity: number
   isSilver: boolean
@@ -36,6 +37,7 @@ export interface LootEntry {
 export interface ItemSummary {
   itemId: string
   itemName: string
+  itemLocalName: string
   quantity: number
   looters: Record<string, number>
 }

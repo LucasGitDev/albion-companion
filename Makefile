@@ -39,6 +39,10 @@ codes: refs
 	git -C refs/StatisticsAnalysis pull --ff-only
 	go run ./tools/gencodes -sa refs/StatisticsAnalysis -out internal/protocol/codes.json
 
+## itemnames: regenerate internal/itemdb/localized.tsv from ao-bin-dumps items.json (after a game patch)
+itemnames:
+	go run ./tools/genlocalized -out internal/itemdb/localized.tsv
+
 tidy:
 	go mod tidy
 

@@ -25,12 +25,12 @@ const members = [
 ]
 
 const itemPool = [
-  { itemId: 'T6_ARMOR_CLOTH_KEEPER@2', itemName: "Master's Druid Robe" },
-  { itemId: 'T4_BAG', itemName: "Adept's Bag" },
-  { itemId: 'T5_ARTEFACT_ARMOR_LEATHER_AVALON', itemName: "Expert's Augured Sash" },
-  { itemId: 'T6_SOUL', itemName: "Master's Soul" },
-  { itemId: 'T7_RUNE', itemName: "Grandmaster's Rune" },
-  { itemId: 'T6_ARTEFACT_2H_HALBERD_MORGANA', itemName: "Master's Morgana Halberd Head" },
+  { itemId: 'T6_ARMOR_CLOTH_KEEPER@2', itemName: "Master's Druid Robe", itemLocalName: 'Robe de Druida do Mestre' },
+  { itemId: 'T4_BAG', itemName: "Adept's Bag", itemLocalName: 'Bolsa do Adepto' },
+  { itemId: 'T5_ARTEFACT_ARMOR_LEATHER_AVALON', itemName: "Expert's Augured Sash", itemLocalName: 'Faixa Augúrea do Perito' },
+  { itemId: 'T6_SOUL', itemName: "Master's Soul", itemLocalName: 'Alma do Mestre' },
+  { itemId: 'T7_RUNE', itemName: "Grandmaster's Rune", itemLocalName: 'Runa do Grão-Mestre' },
+  { itemId: 'T6_ARTEFACT_2H_HALBERD_MORGANA', itemName: "Master's Morgana Halberd Head", itemLocalName: 'Cabeça de Alabarda Morgana do Mestre' },
 ]
 
 const feed: LootView['recent'] = []
@@ -48,6 +48,7 @@ function pushLoot() {
       fromMob: true,
       itemId: 'SILVER',
       itemName: 'Silver',
+      itemLocalName: 'Silver',
       isTrash: false,
       quantity: 1,
       isSilver: true,
@@ -62,6 +63,7 @@ function pushLoot() {
       fromMob: false,
       itemId: it.itemId,
       itemName: it.itemName,
+      itemLocalName: it.itemLocalName,
       isTrash: false,
       quantity: Math.floor(Math.random() * 3) + 1,
       isSilver: false,
