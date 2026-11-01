@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { AlertTriangle } from 'lucide-react'
 import { Sidebar, type Tab } from '@/components/Sidebar'
 import { TopBar } from '@/components/TopBar'
 import { Loot } from '@/tabs/Loot'
@@ -34,6 +35,12 @@ export default function App() {
           partyMode={filter.PartyOnly}
           onPartyModeChange={(v) => setFilter((f) => ({ ...f, PartyOnly: v }))}
         />
+        {status?.codesOutdated && (
+          <div className="flex items-center gap-2 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-xs text-amber-400">
+            <AlertTriangle className="size-3.5 shrink-0" />
+            Many unrecognized packets — codes.json may be outdated after a game patch. Run <code className="rounded bg-background/60 px-1 font-mono">make codes</code> or drop an updated codes.json in the config folder.
+          </div>
+        )}
         <main className="min-h-0 flex-1 overflow-auto p-4">
           {firstRun && tab !== 'settings' ? (
             <StartScreen />

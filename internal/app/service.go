@@ -45,11 +45,12 @@ type Options struct {
 }
 
 type CaptureStatus struct {
-	Running bool         `json:"running"`
-	Sources []string     `json:"sources"`
-	Error   string       `json:"error,omitempty"`
-	Hint    string       `json:"hint,omitempty"` // e.g. permission instructions
-	Stats   engine.Stats `json:"stats"`
+	Running       bool         `json:"running"`
+	Sources       []string     `json:"sources"`
+	Error         string       `json:"error,omitempty"`
+	Hint          string       `json:"hint,omitempty"` // e.g. permission instructions
+	Stats         engine.Stats `json:"stats"`
+	CodesOutdated bool         `json:"codesOutdated"` // too many unknown codes → codes.json likely stale after a patch
 }
 
 type Service struct {
@@ -150,7 +151,20 @@ func (s *Service) Status() CaptureStatus {
 func (s *Service) statusLocked() CaptureStatus {
 	st := s.status
 	st.Stats = s.eng.Stats()
+	st.CodesOutdated = codesOutdated(st.Stats)
 	return st
+}
+
+// codesOutdated flags a likely patch break: with a matching codes.json the
+// unknown-code ratio is ~0, so once a session has warmed up a sustained spike
+// means the event/operation codes moved and codes.json needs regenerating.
+func codesOutdated(st engine.Stats) bool {
+	const warmup = 300
+	const thresholdPct = 5
+	if st.Messages < warmup {
+		return false
+	}
+	return st.Unknown*100/st.Messages >= thresholdPct
 }
 
 // ---- views (pull) ---------------------------------------------------------
