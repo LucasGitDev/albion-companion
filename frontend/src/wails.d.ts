@@ -86,6 +86,17 @@ export interface PartyView {
   members: PartyMember[]
 }
 
+export interface FameView {
+  total: number
+  base: number
+  premium: number
+  satchel: number
+  perHour: number
+  count: number
+  latestTotalFame: number
+  since: string
+}
+
 export interface CodesInfo {
   source: string
   events: number
@@ -109,6 +120,8 @@ declare global {
           PartyView(): Promise<PartyView>
           ResetLoot(): Promise<void>
           ResetCombat(): Promise<void>
+          ResetFame(): Promise<void>
+          FameView(): Promise<FameView>
           SetLootFilter(f: { PartyOnly: boolean; Player: string; IncludeTrash: boolean }): Promise<void>
           SetCombatOptions(o: { PartyOnly: boolean; PlayerTargetsOnly: boolean }): Promise<void>
           Interfaces(): Promise<string[]>

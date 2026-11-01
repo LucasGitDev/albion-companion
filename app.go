@@ -12,6 +12,7 @@ import (
 	"github.com/LucasGitDev/albion-companion/internal/app"
 	"github.com/LucasGitDev/albion-companion/internal/capture"
 	"github.com/LucasGitDev/albion-companion/internal/combat"
+	"github.com/LucasGitDev/albion-companion/internal/fame"
 	"github.com/LucasGitDev/albion-companion/internal/itemdb"
 	"github.com/LucasGitDev/albion-companion/internal/loot"
 	"github.com/LucasGitDev/albion-companion/internal/protocol"
@@ -116,6 +117,8 @@ func (a *App) SetLootFilter(f loot.Filter)              { a.svc.SetLootFilter(f)
 func (a *App) SetCombatOptions(o combat.Options)        { a.svc.SetCombatOptions(o) }
 func (a *App) ResetLoot()                               { a.svc.ResetLoot() }
 func (a *App) ResetCombat()                             { a.svc.ResetCombat() }
+func (a *App) ResetFame()                               { a.svc.ResetFame() }
+func (a *App) FameView() fame.Snapshot                  { return a.svc.FameView() }
 
 // Interfaces lists the physical capture interfaces for the Settings picker.
 func (a *App) Interfaces() ([]string, error) { return capture.Interfaces() }

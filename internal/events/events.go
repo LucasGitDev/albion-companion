@@ -27,7 +27,12 @@ const (
 	EvPartyPlayerJoined = "PartyPlayerJoined"
 	EvPartyPlayerLeft   = "PartyPlayerLeft"
 	EvPartyDisbanded    = "PartyDisbanded"
+	EvUpdateFame        = "UpdateFame"
 )
+
+// fixPoint converts Albion's FixPoint internal integer to its real value
+// (SA: FixPoint.DoubleValue = InternalValue / 10000).
+func fixPoint(internal int64) float64 { return float64(internal) / 10000 }
 
 // MissingFieldError means a required parameter was absent or had an unexpected
 // type — usually a sign that a patch changed the event layout.
@@ -320,4 +325,70 @@ func DecodePartyPlayerLeft(p protocol.Params) (PartyPlayerLeft, error) {
 		return PartyPlayerLeft{}, missing(EvPartyPlayerLeft, "GUID", 1)
 	}
 	return PartyPlayerLeft{GUID: g}, nil
+}
+
+// ---------------------------------------------------------------------------
+// UpdateFame — fame gained (progression). Albion revolves around fame, so this
+// is a first-class metric alongside loot and damage.
+// SA: Network/Events/UpdateFameEvent.cs
+//   map[0:ObjectId 1:TotalPlayerFame 2:fameWithZoneMultiplier 3:ZoneFame
+//       5:IsPremiumBonus 10:SatchelFame 17:bonusFactor(float)]
+// All fame params are FixPoint (÷10000).
+
+type FameUpdate struct {
+	PlayerObjectID  int64   // param 0: subject of the fame gain
+	TotalPlayerFame float64 // param 1: lifetime player fame
+	Base            float64 // param 2: fame with zone multiplier, without premium
+	Zone            float64 // param 3: zone fame
+	IsPremium       bool    // param 5: premium bonus active
+	Satchel         float64 // param 10: satchel (bag insight) fame
+	BonusFactor     float64 // derived from param 17 (SA resets to 1 when active)
+}
+
+// Premium is the extra "yellow" fame from the premium bonus (SA: a premium
+// account earns 1.5× the base, so the bonus is half the base).
+func (f FameUpdate) Premium() float64 {
+	if f.IsPremium {
+		return f.Base * 0.5
+	}
+	return 0
+}
+
+// Gained is the total fame credited by this event (SA: TotalGainedFame).
+func (f FameUpdate) Gained() float64 {
+	return (f.Base + f.Premium() + f.Satchel) * f.BonusFactor
+}
+
+func DecodeUpdateFame(p protocol.Params) (FameUpdate, error) {
+	var r FameUpdate
+	r.PlayerObjectID, _ = p.Int64(0)
+
+	total, ok := p.Int64(1)
+	if !ok {
+		return r, missing(EvUpdateFame, "TotalPlayerFame", 1)
+	}
+	r.TotalPlayerFame = fixPoint(total)
+
+	if v, ok := p.Int64(2); ok {
+		r.Base = fixPoint(v)
+	}
+	if v, ok := p.Int64(3); ok {
+		r.Zone = fixPoint(v)
+	}
+	r.IsPremium, _ = p.Bool(5)
+	if v, ok := p.Int64(10); ok {
+		r.Satchel = fixPoint(v)
+	}
+
+	// SA: BonusFactor = 1 + param17, but it is reset to 1 whenever that bonus is
+	// positive (the factor is informational, not applied to the gained total).
+	r.BonusFactor = 1
+	if v, ok := p.Float64(17); ok {
+		if 1+v > 1 {
+			r.BonusFactor = 1
+		} else {
+			r.BonusFactor = 1 + v
+		}
+	}
+	return r, nil
 }

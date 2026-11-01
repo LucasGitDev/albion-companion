@@ -136,6 +136,63 @@ func TestDecodePartyJoined_Absent(t *testing.T) {
 	}
 }
 
+// Real capture (refs/session-1.aorec): fame params are FixPoint (÷10000) and
+// arrive in mixed int widths. Premium (yellow) fame is half the base; the bonus
+// factor (param 17) is informational and does not scale the gained total (SA).
+func TestDecodeUpdateFame(t *testing.T) {
+	// Base 19087979/10000 = 1908.7979, premium account.
+	got, err := DecodeUpdateFame(protocol.Params{
+		0: int32(53329),
+		1: int64(10045618691011),
+		2: int32(19087979),
+		3: int32(2385000),
+		5: true,
+		17: float32(0.14999998),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.PlayerObjectID != 53329 {
+		t.Fatalf("object id = %d", got.PlayerObjectID)
+	}
+	if abs(got.Base-1908.7979) > 1e-3 {
+		t.Fatalf("base = %v", got.Base)
+	}
+	if abs(got.Premium()-954.39895) > 1e-3 {
+		t.Fatalf("premium = %v", got.Premium())
+	}
+	// BonusFactor resets to 1, so gained = base + premium.
+	if got.BonusFactor != 1 || abs(got.Gained()-(got.Base+got.Premium())) > 1e-6 {
+		t.Fatalf("gained = %v (bonus %v)", got.Gained(), got.BonusFactor)
+	}
+	if abs(got.TotalPlayerFame-1004561869.1011) > 1e-2 {
+		t.Fatalf("total player fame = %v", got.TotalPlayerFame)
+	}
+
+	// Non-premium, varied widths; satchel adds to the total.
+	np, err := DecodeUpdateFame(protocol.Params{1: int64(5000), 2: int16(1000), 10: byte(50)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if np.Premium() != 0 || np.IsPremium {
+		t.Fatalf("expected no premium: %+v", np)
+	}
+	if abs(np.Gained()-(0.1+0.005)) > 1e-9 { // (1000 + 0 + 50)/10000
+		t.Fatalf("gained = %v", np.Gained())
+	}
+
+	if _, err := DecodeUpdateFame(protocol.Params{0: int32(1)}); err == nil {
+		t.Fatal("expected missing TotalPlayerFame error")
+	}
+}
+
+func abs(f float64) float64 {
+	if f < 0 {
+		return -f
+	}
+	return f
+}
+
 func TestDecodeJoinResponse(t *testing.T) {
 	got, err := DecodeJoinResponse(protocol.Params{0: int64(99), 1: guid(9), 2: "Me", 8: "3008", 58: "Guild"})
 	if err != nil {

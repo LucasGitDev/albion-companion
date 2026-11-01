@@ -14,6 +14,7 @@ import (
 	"github.com/LucasGitDev/albion-companion/internal/capture"
 	"github.com/LucasGitDev/albion-companion/internal/combat"
 	"github.com/LucasGitDev/albion-companion/internal/events"
+	"github.com/LucasGitDev/albion-companion/internal/fame"
 	"github.com/LucasGitDev/albion-companion/internal/game"
 	"github.com/LucasGitDev/albion-companion/internal/loot"
 	"github.com/LucasGitDev/albion-companion/internal/protocol"
@@ -27,6 +28,7 @@ const (
 	TopicCombat Topic = "combat"
 	TopicParty  Topic = "party"
 	TopicZone   Topic = "zone"
+	TopicFame   Topic = "fame"
 )
 
 type Config struct {
@@ -55,6 +57,7 @@ type Engine struct {
 	state  *game.State
 	loot   *loot.Tracker
 	combat *combat.Meter
+	fame   *fame.Tracker
 
 	packets, messages, unknown, decodeErrors atomic.Uint64
 
@@ -71,6 +74,7 @@ func New(cfg Config) *Engine {
 		state:  game.NewState(),
 		loot:   loot.NewTracker(cfg.Items),
 		combat: combat.NewMeter(cfg.Combat),
+		fame:   fame.New(),
 	}
 	e.dec = protocol.NewDecoder(cfg.Codes, e.handle)
 	return e
@@ -79,6 +83,7 @@ func New(cfg Config) *Engine {
 func (e *Engine) State() *game.State    { return e.state }
 func (e *Engine) Loot() *loot.Tracker   { return e.loot }
 func (e *Engine) Combat() *combat.Meter { return e.combat }
+func (e *Engine) Fame() *fame.Tracker   { return e.fame }
 
 func (e *Engine) Stats() Stats {
 	return Stats{
@@ -232,5 +237,16 @@ func (e *Engine) handleEvent(m protocol.Message) {
 	case events.EvPartyDisbanded:
 		e.state.ApplyPartyDisbanded()
 		e.changed(TopicParty)
+	case events.EvUpdateFame:
+		f, err := events.DecodeUpdateFame(m.Params)
+		if err != nil {
+			e.fail(m.Name, err)
+			return
+		}
+		// Only the local player's fame (the event also fires for others nearby).
+		if local := e.state.LocalPlayer(); f.PlayerObjectID == 0 || f.PlayerObjectID == local.ObjectID {
+			e.fame.Add(f, m.At)
+			e.changed(TopicFame)
+		}
 	}
 }

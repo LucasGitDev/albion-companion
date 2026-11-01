@@ -176,6 +176,11 @@ func printSummary(eng *engine.Engine, partyOnly bool) {
 		fmt.Fprintf(w, "\t%s\t%d\t%.0f\t%d\t\n", p.Name, p.Items, p.Silver, p.Pickups)
 	}
 	w.Flush()
+
+	f := eng.Fame().Snapshot()
+	if f.Count > 0 {
+		fmt.Printf("FAME  total=%.0f (yellow=%.0f) %.0f/h over %d events\n", f.Total, f.Premium, f.PerHour, f.Count)
+	}
 }
 
 func formatParams(p protocol.Params) string {

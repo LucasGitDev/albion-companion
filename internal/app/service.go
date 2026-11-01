@@ -22,6 +22,7 @@ import (
 	"github.com/LucasGitDev/albion-companion/internal/combat"
 	"github.com/LucasGitDev/albion-companion/internal/engine"
 	"github.com/LucasGitDev/albion-companion/internal/events"
+	"github.com/LucasGitDev/albion-companion/internal/fame"
 	"github.com/LucasGitDev/albion-companion/internal/loot"
 	"github.com/LucasGitDev/albion-companion/internal/protocol"
 )
@@ -239,6 +240,10 @@ func (s *Service) PartyView() PartyView {
 
 func (s *Service) ResetLoot()   { s.eng.Loot().Reset(); s.opts.Emit("loot:changed", nil) }
 func (s *Service) ResetCombat() { s.eng.Combat().Reset(); s.opts.Emit("combat:changed", nil) }
+func (s *Service) ResetFame()   { s.eng.Fame().Reset(); s.opts.Emit("fame:changed", nil) }
+
+// FameView is the current session fame totals and rate.
+func (s *Service) FameView() fame.Snapshot { return s.eng.Fame().Snapshot() }
 
 // ExportLootCSV writes the current (filtered) loot in ao-loot-logger format.
 // main.go wraps it with a native save dialog.

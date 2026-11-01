@@ -35,6 +35,7 @@ const itemPool = [
 
 const feed: LootView['recent'] = []
 let running = true
+let fameTotal = 42000
 const stats = { packets: 80268, messages: 159938, unknown: 0, decodeErrors: 0, encrypted: 12 }
 
 function pushLoot() {
@@ -157,6 +158,20 @@ export function installMock() {
         ResetCombat: async () => {
           emit('combat:changed')
         },
+        ResetFame: async () => {
+          fameTotal = 0
+          emit('fame:changed')
+        },
+        FameView: async () => ({
+          total: fameTotal,
+          base: fameTotal * 0.667,
+          premium: fameTotal * 0.333,
+          satchel: 0,
+          perHour: fameTotal * 12,
+          count: Math.floor(fameTotal / 1800),
+          latestTotalFame: 1_004_561_869,
+          since: new Date(Date.now() - 300_000).toISOString(),
+        }),
         SetLootFilter: async () => {},
         SetCombatOptions: async () => {},
         Interfaces: async () => ['en0', 'en1', 'bridge0'],
@@ -185,6 +200,8 @@ export function installMock() {
     if (!running) return
     stats.packets += Math.floor(Math.random() * 400) + 200
     stats.messages += Math.floor(Math.random() * 600) + 300
+    fameTotal += Math.floor(Math.random() * 2500) + 500
+    emit('fame:changed')
     pushLoot()
   }, 1500)
 }

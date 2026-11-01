@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { RotateCcw, Timer, Swords } from 'lucide-react'
+import { RotateCcw, Timer, Swords, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { api, type CombatRow } from '@/lib/bindings'
+import { api, type CombatRow, type FameView } from '@/lib/bindings'
 import { useCombat } from '@/hooks/useCombat'
+import { useTopic } from '@/hooks/useTopic'
 import { fmt, cn } from '@/lib/utils'
 
 type SortKey = 'damage' | 'dps' | 'heal' | 'taken'
@@ -25,6 +26,7 @@ export function Dps({
   onPlayerTargetsOnly: (v: boolean) => void
 }) {
   const [sort, setSort] = useState<SortKey>('damage')
+  const fame = useTopic<FameView>(api.fameView, ['fame:changed', 'zone:changed'])
   const view = useCombat({ PartyOnly: partyOnly, PlayerTargetsOnly: playerTargetsOnly })
   const rows = [...(view?.rows ?? [])].sort((a, b) => b[sort] - a[sort])
   const max = rows.reduce((m, r) => Math.max(m, r[sort]), 0) || 1
@@ -32,6 +34,22 @@ export function Dps({
 
   return (
     <div className="flex flex-col gap-5">
+      {/* Fame — Albion's core progression metric. */}
+      <div className="flex flex-wrap items-center gap-x-8 gap-y-3 rounded-xl border border-border bg-surface/60 px-5 py-4">
+        <div className="flex items-center gap-3">
+          <div className="grid size-9 place-items-center rounded-lg bg-primary/15 text-primary">
+            <Sparkles className="size-4" />
+          </div>
+          <div>
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Fame this session</div>
+            <div className="text-xl font-semibold tnum leading-tight text-primary">{fmt(fame?.total ?? 0)}</div>
+          </div>
+        </div>
+        <FameStat label="Fame / hour" value={fmt(fame?.perHour ?? 0)} />
+        <FameStat label="Yellow (premium)" value={fmt(fame?.premium ?? 0)} accent />
+        <FameStat label="Events" value={String(fame?.count ?? 0)} />
+      </div>
+
       <div className="flex flex-wrap items-center gap-4 rounded-xl border border-border bg-surface/60 px-5 py-3">
         <div className="flex items-center gap-2 text-sm">
           <Timer className="size-4 text-muted-foreground" />
@@ -45,7 +63,14 @@ export function Dps({
         <div className="ml-auto flex items-center gap-4">
           <Check label="Party only" checked={partyOnly} onChange={onPartyOnly} />
           <Check label="Players-only targets" checked={playerTargetsOnly} onChange={onPlayerTargetsOnly} />
-          <Button size="sm" variant="outline" onClick={() => api.resetCombat()}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              void api.resetCombat()
+              void api.resetFame()
+            }}
+          >
             <RotateCcw /> Reset
           </Button>
         </div>
@@ -108,6 +133,15 @@ export function Dps({
           )
         })}
       </div>
+    </div>
+  )
+}
+
+function FameStat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div>
+      <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className={cn('text-xl font-semibold tnum leading-tight', accent && 'text-primary')}>{value}</div>
     </div>
   )
 }

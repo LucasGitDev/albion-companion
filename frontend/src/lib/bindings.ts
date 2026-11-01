@@ -5,6 +5,7 @@ import type {
   CombatView,
   LootView,
   PartyView,
+  FameView,
 } from '@/wails.d'
 
 export type {
@@ -17,6 +18,7 @@ export type {
   PlayerSummary,
   PartyView,
   PartyMember,
+  FameView,
   CodesInfo,
   ItemDBInfo,
   Stats,
@@ -44,6 +46,8 @@ export const api = {
   partyView: (): Promise<PartyView> => app().PartyView(),
   resetLoot: (): Promise<void> => app().ResetLoot(),
   resetCombat: (): Promise<void> => app().ResetCombat(),
+  resetFame: (): Promise<void> => app().ResetFame(),
+  fameView: (): Promise<FameView> => app().FameView(),
   interfaces: () => app().Interfaces(),
   codesInfo: () => app().CodesInfo(),
   itemDBInfo: () => app().ItemDBInfo(),

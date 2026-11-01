@@ -1,10 +1,11 @@
 ---
 id: TASK-17
 title: 'Fame tracking (total, fame/hour, yellow fame)'
-status: To Do
+status: In Progress
 assignee:
   - '@devlucasteles'
 created_date: '2026-11-01 01:19'
+updated_date: '2026-11-01 01:22'
 labels:
   - events
   - engine
@@ -32,3 +33,15 @@ Albion progression is driven by Fame, not XP, so the tool should track it. Decod
 - [ ] #7 Table test covers the fame decoder with byte/int16/int32/int64 param widths
 - [ ] #8 Protocol spec doc updated with the fame event layout and SA source
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. events.DecodeUpdateFame: param1 TotalPlayerFame, 2 FameWithZoneMultiplier(base), 3 ZoneFame, 5 IsPremiumBonus, 10 SatchelFame, 17 BonusFactor(float, +1); derive PremiumFame (0.5xbase if premium) and Gained=(base+premium+satchel)*bonus. FixPoint /10000. Cite UpdateFameEvent.cs. Table test varied widths.
+2. internal/fame.Tracker: Add(update,at) only for local player; Snapshot{Total,Base,Premium,Satchel,Count,First,Last}; FamePerHour (actual + projection); Reset.
+3. engine: wire UpdateFame -> fame tracker (filter param0==local player id), Fame() accessor, reset includes fame.
+4. app.Service.FameView + ResetFame + emit fame:changed.
+5. CLI summary prints fame total / per hour / yellow.
+6. App.FameView binding + DPS-tab fame strip (total, fame/h, yellow) in UI.
+7. Update Protocol spec doc. make check.
+<!-- SECTION:PLAN:END -->
