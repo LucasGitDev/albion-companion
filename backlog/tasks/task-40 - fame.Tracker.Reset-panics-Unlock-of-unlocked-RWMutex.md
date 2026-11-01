@@ -1,7 +1,7 @@
 ---
 id: TASK-40
 title: fame.Tracker.Reset panics (Unlock of unlocked RWMutex)
-status: In Review
+status: Done
 assignee:
   - '@devlucasteles'
 created_date: '2026-11-01 15:39'
