@@ -32,7 +32,8 @@ type Entry struct {
 	Silver         float64   `json:"silver"`
 	ItemIndex      int       `json:"itemIndex"`
 	ItemID         string    `json:"itemId"`
-	ItemName       string    `json:"itemName"`
+	ItemName       string    `json:"itemName"`      // English name (items.txt), used for CSV export
+	ItemLocalName  string    `json:"itemLocalName"` // localized display name (PT-BR -> EN-US -> humanized)
 	IsTrash        bool      `json:"isTrash"`
 	Quantity       int64     `json:"quantity"`
 	Location       string    `json:"location"`
@@ -93,7 +94,7 @@ func (t *Tracker) Record(ev events.GrabbedLoot, at time.Time, st *game.State) En
 	}
 	if ev.IsSilver {
 		e.Silver = ev.SilverAmount()
-		e.ItemID, e.ItemName = "SILVER", "Silver"
+		e.ItemID, e.ItemName, e.ItemLocalName = "SILVER", "Silver", "Silver"
 	}
 	if p, ok := st.EntityByName(ev.Looter); ok {
 		e.LooterGuild, e.LooterAlliance = p.Guild, p.Alliance
@@ -107,11 +108,18 @@ func (t *Tracker) Record(ev events.GrabbedLoot, at time.Time, st *game.State) En
 	if !ev.IsSilver && t.items != nil {
 		if it, ok := t.items.Resolve(ev.ItemIndex); ok {
 			e.ItemID, e.ItemName, e.IsTrash = it.UniqueName, it.Name, it.IsTrash()
+			e.ItemLocalName = it.LocalName
+			if e.ItemLocalName == "" {
+				e.ItemLocalName = itemdb.LocalizedName(it.UniqueName)
+			}
 		}
 	}
 	if e.ItemID == "" {
 		e.ItemID = "#" + strconv.Itoa(ev.ItemIndex)
 		e.ItemName = e.ItemID
+	}
+	if e.ItemLocalName == "" {
+		e.ItemLocalName = e.ItemName
 	}
 	t.entries = append(t.entries, e)
 	return e
@@ -180,10 +188,11 @@ func (t *Tracker) ByPlayer(f Filter) []PlayerSummary {
 }
 
 type ItemSummary struct {
-	ItemID   string           `json:"itemId"`
-	ItemName string           `json:"itemName"`
-	Quantity int64            `json:"quantity"`
-	Looters  map[string]int64 `json:"looters"`
+	ItemID        string           `json:"itemId"`
+	ItemName      string           `json:"itemName"`
+	ItemLocalName string           `json:"itemLocalName"`
+	Quantity      int64            `json:"quantity"`
+	Looters       map[string]int64 `json:"looters"`
 }
 
 // ByItem returns non-silver items sorted by quantity (desc).
@@ -195,7 +204,7 @@ func (t *Tracker) ByItem(f Filter) []ItemSummary {
 		}
 		s := m[e.ItemID]
 		if s == nil {
-			s = &ItemSummary{ItemID: e.ItemID, ItemName: e.ItemName, Looters: map[string]int64{}}
+			s = &ItemSummary{ItemID: e.ItemID, ItemName: e.ItemName, ItemLocalName: e.ItemLocalName, Looters: map[string]int64{}}
 			m[e.ItemID] = s
 		}
 		s.Quantity += e.Quantity

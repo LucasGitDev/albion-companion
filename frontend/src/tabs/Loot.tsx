@@ -117,7 +117,9 @@ export function Loot({ filter, setFilter }: { filter: LootFilter; setFilter: (f:
               <div key={it.itemId} className="flex items-center gap-3 px-3 py-2.5">
                 <ItemIcon itemId={it.itemId} />
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium">{it.itemName || it.itemId}</div>
+                  <div className="truncate text-sm font-medium" title={it.itemId}>
+                    {it.itemLocalName || it.itemName || it.itemId}
+                  </div>
                   <div className="mt-1 flex flex-wrap gap-1">
                     {Object.keys(it.looters).map((n) => (
                       <span key={n} className="rounded bg-elevated px-1.5 py-0.5 text-[11px] text-muted-foreground">
@@ -151,8 +153,8 @@ export function Loot({ filter, setFilter }: { filter: LootFilter; setFilter: (f:
                   {e.isSilver ? (
                     <span className="tnum text-primary">+{fmtSilver(e.silver)}</span>
                   ) : (
-                    <span className="text-muted-foreground">
-                      <span className="tnum text-foreground">×{e.quantity}</span> {e.itemName || e.itemId}
+                    <span className="text-muted-foreground" title={e.itemId}>
+                      <span className="tnum text-foreground">×{e.quantity}</span> {e.itemLocalName || e.itemName || e.itemId}
                     </span>
                   )}
                 </span>
