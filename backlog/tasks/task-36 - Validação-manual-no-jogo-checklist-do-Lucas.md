@@ -5,6 +5,7 @@ status: To Do
 assignee:
   - '@devlucasteles'
 created_date: '2026-11-01 14:53'
+updated_date: '2026-11-01 14:58'
 labels:
   - testing
 dependencies: []
@@ -37,3 +38,9 @@ Checklist de aceitação das features já implementadas (cobertas por teste/mock
 - [ ] #15 PARTY: entre/saia de grupo -> roster atualiza; toggle Party only filtra loot/DPS pros membros
 - [ ] #16 ESTABILIDADE: app não trava durante captura normal; se travar, anote o que estava fazendo (aba, tráfego, VPN)
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+DEBUG LOOP: rode com 'make run-record' (grava ~/albion-<timestamp>.aorec enquanto a GUI funciona normal). Narre as ações por horário (ex. '14:32 abri a sacolinha'), me mande o .aorec + as notas, e eu replico com -dump pra cruzar por [HH:MM:SS] e achar o que divergir.
+<!-- SECTION:NOTES:END -->
