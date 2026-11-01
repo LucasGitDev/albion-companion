@@ -1,10 +1,10 @@
 ---
 id: TASK-8
 title: Export loot CSV with native save dialog
-status: In Review
+status: Done
 assignee: []
 created_date: '2026-10-31T19:20:00Z'
-updated_date: '2026-11-01 02:13'
+updated_date: '2026-11-01 20:30'
 labels:
   - ui
   - loot

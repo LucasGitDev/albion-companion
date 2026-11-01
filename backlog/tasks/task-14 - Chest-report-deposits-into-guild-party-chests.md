@@ -1,30 +1,29 @@
 ---
 id: TASK-14
-title: Chest report (deposits into guild/party chests)
+title: Personal chest deposit/withdrawal log (local player)
 status: To Do
 assignee: []
 created_date: '2026-10-31T19:20:00Z'
-updated_date: '2026-11-01 13:55'
+updated_date: '2026-11-01 20:30'
 labels:
   - loot
 dependencies: []
-priority: medium
+priority: high
 ordinal: 14000
 ---
 
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-Guild loot-event audit: map EVERY item movement during an event/session to answer "who looted what, and who did not deposit it" — to catch members stealing or failing to deposit loot obtained during a guild event. Not only chests: every acquisition source counts — mob/player BODIES on a kill (OtherGrabbedLoot), dungeon loot chests and island/treasure chests (TASK-21 decoders), world drops, and transfers between players. Plus the DEPOSIT side: items placed into guild/party chests. Per player over the event window, compute looted vs deposited and flag the gap. Reuse TASK-21 chest decoders (NewLootChest/NewSimpleItem/AttachItemContainer/InventoryPutItem) and add the deposit path (DetachItemContainer, InventoryMoveItem request to a guild/party container). Note the hard limit: InventoryPutItem/container contents are client-local, so full per-OTHER-member deposit visibility may be constrained to what the local client sees — investigate and document what is actually observable for party/guild members vs only the local player. Spec the event set in the Protocol spec doc first.
+Log the LOCAL player's own deposits into and withdrawals from guild/party/personal chests and containers, as a personal activity log. Per decision-7, third-party chest movements are NOT passively observable: chest put/take events are client-local to the acting player, so we can only see the local client's own container operations. The only item movement visible for ALL nearby members is body loot via OtherGrabbedLoot (already covered elsewhere); we CANNOT audit whether other guild/party members deposited what they looted. This task is therefore scoped to the local player only and must stay honest about that limit. Reuse the existing container stitching in internal/chest (NewLoot/chest container events) and add the local deposit/withdrawal path. Frame the output as 'my chest activity', never as a cross-member deposit audit. Reference: decision-7 (Cross-member deposit/chest audit is not passively observable).
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Report lists looted vs deposited per player
-- [ ] #2 Every item acquisition is attributed to a player and a source type (body, dungeon chest, island/treasure chest, world, transfer)
-- [ ] #3 Deposits into guild/party chests are tracked per player (to the extent the protocol exposes them to the local client; documented)
-- [ ] #4 Per-player looted-vs-deposited is reported over a session/event window, flagging members who looted but did not deposit
-- [ ] #5 Observability limits for other members (client-local events) are investigated and documented in the Protocol spec
+- [ ] #1 Local player's own chest/container deposits and withdrawals are logged with item, quantity, container, and timestamp
+- [ ] #2 Output is framed as a personal (local-player) deposit/withdrawal log, not a cross-member audit
+- [ ] #3 Reuses internal/chest container stitching rather than reimplementing it
+- [ ] #4 The limitation (other members' chest movements are not passively observable, per decision-7) is documented in the task output / Protocol spec
 <!-- AC:END -->
 
 ## Implementation Notes

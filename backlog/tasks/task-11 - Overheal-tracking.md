@@ -9,7 +9,7 @@ labels:
   - combat
 dependencies: []
 priority: low
-ordinal: 11000
+ordinal: 14950
 ---
 
 ## Description
