@@ -4,8 +4,8 @@ import { TopBar } from '@/components/TopBar'
 import { Loot } from '@/tabs/Loot'
 import { Dps } from '@/tabs/Dps'
 import { Party } from '@/tabs/Party'
+import { Timeline } from '@/tabs/Timeline'
 import { Settings } from '@/tabs/Settings'
-import { Placeholder } from '@/tabs/Placeholder'
 import { PermissionScreen } from '@/components/PermissionScreen'
 import { StartScreen } from '@/components/StartScreen'
 import { api, type LootFilter } from '@/lib/bindings'
@@ -49,7 +49,7 @@ export default function App() {
                 />
               )}
               {tab === 'party' && <Party />}
-              {tab === 'history' && <Placeholder title="History" note="Session history needs persistence (TASK-13)." />}
+              {tab === 'timeline' && <Timeline />}
               {tab === 'settings' && <Settings />}
             </>
           )}

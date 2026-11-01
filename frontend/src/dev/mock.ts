@@ -7,6 +7,8 @@ import type {
   CombatView,
   LootView,
   PartyView,
+  TimelineEvent,
+  TimelineView,
 } from '@/wails.d'
 
 type Listener = () => void
@@ -34,6 +36,12 @@ const itemPool = [
 ]
 
 const feed: LootView['recent'] = []
+const timeline: TimelineEvent[] = []
+function pushTL(e: TimelineEvent) {
+  timeline.unshift(e)
+  timeline.splice(300)
+  emit('timeline:changed')
+}
 let running = true
 let fameTotal = 42000
 const stats = { packets: 80268, messages: 159938, unknown: 0, decodeErrors: 0, encrypted: 12 }
@@ -53,6 +61,7 @@ function pushLoot() {
       isSilver: true,
       silver: Math.floor(Math.random() * 4000) + 100,
     })
+    pushTL({ at: feed[0].at, kind: 'silver', player: who, silver: feed[0].silver, source: feed[0].lootedFrom })
   } else {
     const it = itemPool[Math.floor(Math.random() * itemPool.length)]
     feed.unshift({
@@ -67,6 +76,7 @@ function pushLoot() {
       isSilver: false,
       silver: 0,
     })
+    pushTL({ at: feed[0].at, kind: 'loot', player: who, item: it.itemName, itemId: it.itemId, quantity: feed[0].quantity, source: feed[0].lootedFrom })
   }
   feed.splice(120)
   emit('loot:new')
@@ -89,6 +99,10 @@ function lootView(recent: number): LootView {
     looters: { slug88: 12 - i, L0rdCap: 8, ThalisDON: 20 - i },
   }))
   return { players, items, recent: feed.slice(0, recent), total: feed.length }
+}
+
+function timelineView(recent: number): TimelineView {
+  return { events: timeline.slice(0, recent), total: timeline.length }
 }
 
 function combatView(): CombatView {
@@ -162,6 +176,11 @@ export function installMock() {
           fameTotal = 0
           emit('fame:changed')
         },
+        TimelineView: async (recent: number) => timelineView(recent),
+        ResetTimeline: async () => {
+          timeline.length = 0
+          emit('timeline:changed')
+        },
         FameView: async () => ({
           total: fameTotal,
           base: fameTotal * 0.667,
@@ -194,14 +213,19 @@ export function installMock() {
     stats.packets = 0
     return
   }
-  // Seed a few entries, then tick a live feed and advance the packet counters.
+  // Seed the run start — a zone change and the party assembling — then a few
+  // loot entries, so the Timeline tab fills with every event kind.
+  pushTL({ at: new Date().toISOString(), kind: 'zone', player: 'L0rdCap', zone: 'Morgana Dungeon (T6)' })
+  members.forEach((m) => pushTL({ at: new Date().toISOString(), kind: 'party_joined', player: m.Name }))
   for (let i = 0; i < 8; i++) pushLoot()
   setInterval(() => {
     if (!running) return
     stats.packets += Math.floor(Math.random() * 400) + 200
     stats.messages += Math.floor(Math.random() * 600) + 300
-    fameTotal += Math.floor(Math.random() * 2500) + 500
+    const gain = Math.floor(Math.random() * 2500) + 500
+    fameTotal += gain
     emit('fame:changed')
+    pushTL({ at: new Date().toISOString(), kind: 'fame', player: 'L0rdCap', fame: gain })
     pushLoot()
   }, 1500)
 }
