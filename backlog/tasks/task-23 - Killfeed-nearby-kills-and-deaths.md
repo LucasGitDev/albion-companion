@@ -1,7 +1,7 @@
 ---
 id: TASK-23
 title: Killfeed (nearby kills and deaths)
-status: In Review
+status: Done
 assignee:
   - '@devlucasteles'
 created_date: '2026-11-01 02:23'
