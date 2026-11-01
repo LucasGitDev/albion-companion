@@ -1,7 +1,7 @@
 ---
 id: TASK-22
 title: Per-skill damage breakdown in the DPS meter
-status: In Review
+status: Done
 assignee:
   - '@devlucasteles'
 created_date: '2026-11-01 02:23'
