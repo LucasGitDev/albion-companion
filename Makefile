@@ -1,4 +1,4 @@
-.PHONY: check test race cli run-live run-replay fixture codes refs tidy dev build run run-dev run-replay-app grant-capture
+.PHONY: check test race cli run-live run-replay fixture codes refs tidy dev build run run-record run-dev run-replay-app grant-capture
 
 # Resolve the wails CLI whether or not GOPATH/bin is on PATH.
 WAILS := $(shell command -v wails 2>/dev/null || echo "$(shell go env GOPATH)/bin/wails")
@@ -62,6 +62,12 @@ grant-capture:
 run: build
 	@echo "Launching Albion Companion. If it shows the permission screen, run 'make grant-capture' and retry."
 	$(APP_BIN)
+
+## run-record: like run, but also save the live capture to a timestamped .aorec
+## in your home dir — send that file + wall-clock notes and we can replay/correlate.
+run-record: build
+	@echo "Recording to ~/albion-<timestamp>.aorec — the GUI works normally; send the file after testing."
+	ALBION_COMPANION_RECORD="$$HOME" $(APP_BIN)
 
 ## run-dev: app with hot-reload (frontend edits live). Also needs capture permission.
 run-dev:
