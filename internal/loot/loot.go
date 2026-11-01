@@ -137,6 +137,14 @@ func (t *Tracker) Entries(f Filter) []Entry {
 	return out
 }
 
+// StartedAt is when the current session began (set on New and reset by Reset).
+// It backs the silver/hour rate so the rate is reset-safe.
+func (t *Tracker) StartedAt() time.Time {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return t.startedAt
+}
+
 func (t *Tracker) Reset() {
 	t.mu.Lock()
 	t.entries = nil

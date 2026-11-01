@@ -7,6 +7,7 @@ import type {
   PartyView,
   FameView,
   TimelineView,
+  PriceRegion,
 } from '@/wails.d'
 
 export type {
@@ -14,6 +15,8 @@ export type {
   CombatView,
   CombatRow,
   LootView,
+  ValueView,
+  PriceRegion,
   LootEntry,
   ItemSummary,
   PlayerSummary,
@@ -56,6 +59,9 @@ export const api = {
   timelineView: (recent = 200): Promise<TimelineView> => app().TimelineView(recent),
   resetTimeline: (): Promise<void> => app().ResetTimeline(),
   interfaces: () => app().Interfaces(),
+  priceRegions: (): Promise<PriceRegion[]> => app().PriceRegions(),
+  setPriceRegion: (key: string): Promise<void> => app().SetPriceRegion(key),
+  refreshPrices: (): Promise<void> => app().RefreshPrices(),
   codesInfo: () => app().CodesInfo(),
   itemDBInfo: () => app().ItemDBInfo(),
   refreshItemDB: () => app().RefreshItemDB(),

@@ -27,13 +27,18 @@ const members = [
 ]
 
 const itemPool = [
-  { itemId: 'T6_ARMOR_CLOTH_KEEPER@2', itemName: "Master's Druid Robe", itemLocalName: 'Robe de Druida do Mestre' },
-  { itemId: 'T4_BAG', itemName: "Adept's Bag", itemLocalName: 'Bolsa do Adepto' },
-  { itemId: 'T5_ARTEFACT_ARMOR_LEATHER_AVALON', itemName: "Expert's Augured Sash", itemLocalName: 'Faixa Augúrea do Perito' },
-  { itemId: 'T6_SOUL', itemName: "Master's Soul", itemLocalName: 'Alma do Mestre' },
-  { itemId: 'T7_RUNE', itemName: "Grandmaster's Rune", itemLocalName: 'Runa do Grão-Mestre' },
-  { itemId: 'T6_ARTEFACT_2H_HALBERD_MORGANA', itemName: "Master's Morgana Halberd Head", itemLocalName: 'Cabeça de Alabarda Morgana do Mestre' },
+  { itemId: 'T6_ARMOR_CLOTH_KEEPER@2', itemName: "Master's Druid Robe", itemLocalName: 'Robe de Druida do Mestre', price: 128_400 },
+  { itemId: 'T4_BAG', itemName: "Adept's Bag", itemLocalName: 'Bolsa do Adepto', price: 1_900 },
+  { itemId: 'T5_ARTEFACT_ARMOR_LEATHER_AVALON', itemName: "Expert's Augured Sash", itemLocalName: 'Faixa Augúrea do Perito', price: 42_000 },
+  { itemId: 'T6_SOUL', itemName: "Master's Soul", itemLocalName: 'Alma do Mestre', price: 9_400 },
+  { itemId: 'T7_RUNE', itemName: "Grandmaster's Rune", itemLocalName: 'Runa do Grão-Mestre', price: 3_200 },
+  { itemId: 'T6_ARTEFACT_2H_HALBERD_MORGANA', itemName: "Master's Morgana Halberd Head", itemLocalName: 'Cabeça de Alabarda Morgana do Mestre', price: 86_500 },
 ]
+
+let priceRegion = 'west'
+let priceRegionSource: 'default' | 'detected' | 'manual' = 'detected'
+let pricesAvailable = true // toggle via ?state=noprices to preview the offline value state
+const regionLabels: Record<string, string> = { west: 'Americas', east: 'Asia', europe: 'Europe' }
 
 const feed: LootView['recent'] = []
 const timeline: TimelineEvent[] = []
@@ -96,11 +101,39 @@ function lootView(recent: number): LootView {
     lastLoot: new Date().toISOString(),
   }))
   const items = itemPool.map((it, i) => ({
-    ...it,
+    itemId: it.itemId,
+    itemName: it.itemName,
+    itemLocalName: it.itemLocalName,
     quantity: 40 - i * 5,
     looters: { slug88: 12 - i, L0rdCap: 8, ThalisDON: 20 - i },
   }))
-  return { players, items, recent: feed.slice(0, recent), total: feed.length }
+
+  const perItem: Record<string, number> = {}
+  if (pricesAvailable) itemPool.forEach((it) => (perItem[it.itemId] = it.price))
+  const perPlayer: Record<string, number> = {}
+  let total = 0
+  for (const it of items) {
+    const p = perItem[it.itemId]
+    if (!p) continue
+    for (const [who, qty] of Object.entries(it.looters)) {
+      perPlayer[who] = (perPlayer[who] ?? 0) + p * qty
+      total += p * qty
+    }
+  }
+  const value: LootView['value'] = {
+    region: priceRegion,
+    regionLabel: regionLabels[priceRegion] ?? priceRegion,
+    regionSource: priceRegionSource,
+    available: pricesAvailable && total > 0,
+    pending: false,
+    total,
+    silverPerHour: total * 13.2,
+    perPlayer,
+    perItem,
+    priced: pricesAvailable ? itemPool.length : 0,
+    missing: pricesAvailable ? 0 : itemPool.length,
+  }
+  return { players, items, recent: feed.slice(0, recent), total: feed.length, value }
 }
 
 function timelineView(recent: number): TimelineView {
@@ -141,6 +174,7 @@ function combatView(): CombatView {
 }
 
 const devState = new URLSearchParams(location.search).get('state')
+if (devState === 'noprices') pricesAvailable = false
 
 function status(): CaptureStatus {
   if (devState === 'permission') {
@@ -209,6 +243,24 @@ export function installMock() {
         SetLootFilter: async () => {},
         SetCombatOptions: async () => {},
         Interfaces: async () => ['en0', 'en1', 'bridge0'],
+        PriceRegions: async () => [
+          { id: 1, key: 'west', label: 'Americas', baseUrl: 'https://west.albion-online-data.com' },
+          { id: 2, key: 'east', label: 'Asia', baseUrl: 'https://east.albion-online-data.com' },
+          { id: 3, key: 'europe', label: 'Europe', baseUrl: 'https://europe.albion-online-data.com' },
+        ],
+        SetPriceRegion: async (key: string) => {
+          if (key) {
+            priceRegion = key
+            priceRegionSource = 'manual'
+          } else {
+            priceRegionSource = 'detected'
+          }
+          emit('loot:changed')
+        },
+        RefreshPrices: async () => {
+          pricesAvailable = true
+          emit('loot:changed')
+        },
         CodesInfo: async () => ({ source: 'Triky313/AlbionOnline-StatisticsAnalysis@8ad2067', events: 312, operations: 180 }),
         ItemDBInfo: async () => ({ count: 12237 }),
         RefreshItemDB: async () => ({ count: 12237 }),

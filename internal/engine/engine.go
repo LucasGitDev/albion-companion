@@ -18,6 +18,7 @@ import (
 	"github.com/LucasGitDev/albion-companion/internal/fame"
 	"github.com/LucasGitDev/albion-companion/internal/game"
 	"github.com/LucasGitDev/albion-companion/internal/loot"
+	"github.com/LucasGitDev/albion-companion/internal/prices"
 	"github.com/LucasGitDev/albion-companion/internal/protocol"
 	"github.com/LucasGitDev/albion-companion/internal/timeline"
 )
@@ -66,6 +67,7 @@ type Engine struct {
 	tl     *timeline.Ring
 
 	packets, messages, unknown, decodeErrors atomic.Uint64
+	serverIP                                 atomic.Value // string: last game-server IP seen (for region detection)
 
 	mu      sync.Mutex
 	running bool
@@ -138,9 +140,22 @@ func (e *Engine) Run(ctx context.Context, sources ...capture.Source) error {
 	return <-errCh
 }
 
+// ServerIP returns the source IP of the last packet that came from a known
+// Albion game server (empty until one is seen). It drives the price region
+// auto-detection; it is never used to send anything.
+func (e *Engine) ServerIP() string {
+	if v, ok := e.serverIP.Load().(string); ok {
+		return v
+	}
+	return ""
+}
+
 // Feed processes one packet. Exposed for tests; must not be called concurrently with Run.
 func (e *Engine) Feed(p capture.Packet) {
 	e.packets.Add(1)
+	if _, ok := prices.RegionFromIP(p.SrcIP); ok {
+		e.serverIP.Store(p.SrcIP)
+	}
 	if e.cfg.Recorder != nil {
 		_ = e.cfg.Recorder.Write(p)
 	}
