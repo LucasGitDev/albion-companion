@@ -1,12 +1,10 @@
 import type { ReactNode } from 'react'
-import { RotateCcw } from 'lucide-react'
+import { Package, Coins, Hand, Clock, RotateCcw, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { ItemIcon } from '@/components/ItemIcon'
 import { api, type LootFilter } from '@/lib/bindings'
 import { useLoot } from '@/hooks/useLoot'
-import { fmt } from '@/lib/utils'
+import { fmt, cn } from '@/lib/utils'
 
 export function Loot({ filter, setFilter }: { filter: LootFilter; setFilter: (f: LootFilter) => void }) {
   const view = useLoot(filter)
@@ -17,172 +15,177 @@ export function Loot({ filter, setFilter }: { filter: LootFilter; setFilter: (f:
   const totalItems = players.reduce((a, p) => a + p.items, 0)
   const totalSilver = players.reduce((a, p) => a + p.silver, 0)
   const totalPickups = players.reduce((a, p) => a + p.pickups, 0)
-  const duration = sessionDuration(recent.map((e) => e.at))
+  const maxItems = players.reduce((m, p) => Math.max(m, p.items), 0) || 1
 
   const selected = filter.Player
   const pick = (name: string) => setFilter({ ...filter, Player: selected === name ? '' : name })
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label="Items" value={fmt(totalItems)} />
-        <Stat label="Silver" value={fmt(totalSilver)} />
-        <Stat label="Pickups" value={String(totalPickups)} />
-        <Stat label="Duration" value={duration} />
+    <div className="flex flex-col gap-5">
+      {/* Session ledger — one strip, not four cards. */}
+      <div className="flex flex-wrap items-stretch gap-x-8 gap-y-3 rounded-xl border border-border bg-surface/60 px-5 py-4">
+        <Ledger icon={Package} label="Items" value={fmt(totalItems)} />
+        <Ledger icon={Coins} label="Silver" value={fmt(totalSilver)} gold />
+        <Ledger icon={Hand} label="Pickups" value={String(totalPickups)} />
+        <Ledger icon={Clock} label="Duration" value={sessionDuration(recent.map((e) => e.at))} />
       </div>
 
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h2 className="text-sm font-semibold">Top looters</h2>
-          {selected && (
-            <Badge variant="default" className="cursor-pointer" onClick={() => setFilter({ ...filter, Player: '' })}>
-              filtered: {selected} ✕
-            </Badge>
-          )}
+      {/* Top looters */}
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <SectionTitle>Top looters</SectionTitle>
+            {selected && (
+              <button
+                onClick={() => setFilter({ ...filter, Player: '' })}
+                className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/25"
+              >
+                {selected}
+                <X className="size-3" />
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <label className="flex cursor-pointer select-none items-center gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={filter.IncludeTrash}
+                onChange={(e) => setFilter({ ...filter, IncludeTrash: e.target.checked })}
+              />
+              Include trash
+            </label>
+            <Button size="sm" variant="outline" onClick={() => api.resetLoot()}>
+              <RotateCcw /> Reset
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
-            <input
-              type="checkbox"
-              checked={filter.IncludeTrash}
-              onChange={(e) => setFilter({ ...filter, IncludeTrash: e.target.checked })}
-            />
-            Include trash
-          </label>
-          <Button size="sm" variant="outline" onClick={() => api.resetLoot()}>
-            <RotateCcw /> Reset
-          </Button>
-        </div>
-      </div>
 
-      <Card>
-        <CardContent className="p-0">
+        <div className="overflow-hidden rounded-xl border border-border">
           <table className="w-full text-sm">
-            <thead className="text-xs text-muted-foreground">
-              <tr className="border-b border-border">
-                <Th>Player</Th>
-                <Th>Guild</Th>
-                <Th right>Items</Th>
-                <Th right>Silver</Th>
+            <thead>
+              <tr className="bg-surface/60 text-[11px] uppercase tracking-wider text-muted-foreground">
+                <th className="w-10 px-3 py-2 text-left font-medium">#</th>
+                <th className="px-3 py-2 text-left font-medium">Player</th>
+                <th className="px-3 py-2 text-left font-medium">Guild</th>
+                <th className="px-3 py-2 text-right font-medium">Items</th>
+                <th className="px-3 py-2 text-right font-medium">Silver</th>
               </tr>
             </thead>
             <tbody>
-              {players.map((p) => (
+              {players.map((p, i) => (
                 <tr
                   key={p.name}
                   onClick={() => pick(p.name)}
-                  className={`cursor-pointer border-b border-border/50 hover:bg-accent ${
-                    selected === p.name ? 'bg-accent' : ''
-                  }`}
+                  className={cn(
+                    'cursor-pointer border-t border-border/60 transition-colors',
+                    selected === p.name ? 'bg-primary/10' : 'hover:bg-elevated/70',
+                  )}
                 >
-                  <Td>
-                    {p.name}
-                    {p.inParty && <span className="ml-2 text-xs text-primary">party</span>}
-                  </Td>
-                  <Td className="text-muted-foreground">{p.guild || '—'}</Td>
-                  <Td right>{fmt(p.items)}</Td>
-                  <Td right>{fmt(p.silver)}</Td>
+                  <td className="px-3 py-2.5 tnum text-muted-foreground">{i + 1}</td>
+                  <td className="px-3 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{p.name}</span>
+                      {!p.inParty && <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70">outsider</span>}
+                    </div>
+                    <div className="mt-1 h-1 w-28 overflow-hidden rounded-full bg-elevated">
+                      <div className="h-full rounded-full bg-primary/55" style={{ width: `${(p.items / maxItems) * 100}%` }} />
+                    </div>
+                  </td>
+                  <td className="px-3 py-2.5 text-muted-foreground">{p.guild || '—'}</td>
+                  <td className="px-3 py-2.5 text-right tnum font-medium">{fmt(p.items)}</td>
+                  <td className="px-3 py-2.5 text-right tnum text-primary">{fmt(p.silver)}</td>
                 </tr>
               ))}
               {players.length === 0 && (
                 <tr>
-                  <Td className="py-6 text-center text-muted-foreground" colSpan={4}>
-                    No loot yet.
-                  </Td>
+                  <td colSpan={5} className="px-3 py-10 text-center text-sm text-muted-foreground">
+                    No loot recorded yet — start capture and kill something.
+                  </td>
                 </tr>
               )}
             </tbody>
           </table>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <section>
-          <h2 className="mb-2 text-sm font-semibold">Items</h2>
-          <Card>
-            <CardContent className="flex flex-col gap-2 p-3">
-              {items.length === 0 && <div className="text-sm text-muted-foreground">No items.</div>}
-              {items.map((it) => (
-                <div key={it.itemId} className="flex items-center gap-3">
-                  <ItemIcon itemId={it.itemId} />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm">{it.itemName || it.itemId}</div>
-                    <div className="flex flex-wrap gap-1 pt-0.5">
-                      {Object.keys(it.looters).map((n) => (
-                        <Badge key={n} variant="outline">
-                          {n} ×{it.looters[n]}
-                        </Badge>
-                      ))}
-                    </div>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <section className="flex flex-col gap-3">
+          <SectionTitle>Items</SectionTitle>
+          <div className="flex flex-col divide-y divide-border/60 overflow-hidden rounded-xl border border-border">
+            {items.length === 0 && <Empty>No items.</Empty>}
+            {items.map((it) => (
+              <div key={it.itemId} className="flex items-center gap-3 px-3 py-2.5">
+                <ItemIcon itemId={it.itemId} />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-medium">{it.itemName || it.itemId}</div>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {Object.keys(it.looters).map((n) => (
+                      <span key={n} className="rounded bg-elevated px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                        {n} <span className="tnum text-foreground/80">×{it.looters[n]}</span>
+                      </span>
+                    ))}
                   </div>
-                  <div className="text-sm font-medium">×{it.quantity}</div>
                 </div>
-              ))}
-            </CardContent>
-          </Card>
+                <div className="tnum text-sm font-semibold">×{it.quantity}</div>
+              </div>
+            ))}
+          </div>
         </section>
 
-        <section>
-          <h2 className="mb-2 text-sm font-semibold">Live feed</h2>
-          <Card>
-            <CardContent className="flex flex-col gap-1 p-3 text-sm">
-              {recent.length === 0 && <div className="text-muted-foreground">Waiting for loot…</div>}
-              {recent.map((e, i) => (
-                <div key={i} className="flex items-center gap-2 border-b border-border/40 py-1 last:border-0">
-                  <span className="w-16 shrink-0 text-xs text-muted-foreground">{time(e.at)}</span>
-                  {!e.isSilver && <ItemIcon itemId={e.itemId} size={22} />}
-                  <span className="min-w-0 flex-1 truncate">
-                    <span className="font-medium">{e.looter}</span>{' '}
-                    {e.isSilver ? (
-                      <span className="text-amber-400">+{fmt(e.silver)} silver</span>
-                    ) : (
-                      <>
-                        ×{e.quantity} {e.itemName || e.itemId}
-                      </>
-                    )}
+        <section className="flex flex-col gap-3">
+          <SectionTitle>Live feed</SectionTitle>
+          <div className="flex max-h-[26rem] flex-col divide-y divide-border/50 overflow-y-auto rounded-xl border border-border">
+            {recent.length === 0 && <Empty>Waiting for loot…</Empty>}
+            {recent.map((e, i) => (
+              <div key={i} className="flex items-center gap-2.5 px-3 py-2 text-sm">
+                <span className="w-14 shrink-0 tnum text-xs text-muted-foreground">{time(e.at)}</span>
+                {e.isSilver ? (
+                  <span className="grid size-[22px] shrink-0 place-items-center rounded bg-primary/15">
+                    <Coins className="size-3.5 text-primary" />
                   </span>
-                  <span className="shrink-0 text-xs text-muted-foreground">{e.lootedFrom}</span>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+                ) : (
+                  <ItemIcon itemId={e.itemId} size={22} />
+                )}
+                <span className="min-w-0 flex-1 truncate">
+                  <span className="font-medium">{e.looter}</span>{' '}
+                  {e.isSilver ? (
+                    <span className="tnum text-primary">+{fmt(e.silver)}</span>
+                  ) : (
+                    <span className="text-muted-foreground">
+                      <span className="tnum text-foreground">×{e.quantity}</span> {e.itemName || e.itemId}
+                    </span>
+                  )}
+                </span>
+                <span className="shrink-0 text-xs text-muted-foreground/80">{e.lootedFrom.replace(/^@MOB_/, '')}</span>
+              </div>
+            ))}
+          </div>
         </section>
       </div>
     </div>
   )
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Ledger({ icon: Icon, label, value, gold }: { icon: typeof Package; label: string; value: string; gold?: boolean }) {
   return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
-        <div className="mt-1 text-2xl font-semibold">{value}</div>
-      </CardContent>
-    </Card>
+    <div className="flex items-center gap-3">
+      <div className={cn('grid size-9 place-items-center rounded-lg', gold ? 'bg-primary/15 text-primary' : 'bg-elevated text-muted-foreground')}>
+        <Icon className="size-4" />
+      </div>
+      <div>
+        <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</div>
+        <div className={cn('text-xl font-semibold tnum leading-tight', gold && 'text-primary')}>{value}</div>
+      </div>
+    </div>
   )
 }
 
-function Th({ children, right }: { children: ReactNode; right?: boolean }) {
-  return <th className={`px-3 py-2 font-medium ${right ? 'text-right' : 'text-left'}`}>{children}</th>
+function SectionTitle({ children }: { children: ReactNode }) {
+  return <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{children}</h2>
 }
 
-function Td({
-  children,
-  right,
-  className = '',
-  colSpan,
-}: {
-  children: ReactNode
-  right?: boolean
-  className?: string
-  colSpan?: number
-}) {
-  return (
-    <td colSpan={colSpan} className={`px-3 py-2 ${right ? 'text-right tabular-nums' : ''} ${className}`}>
-      {children}
-    </td>
-  )
+function Empty({ children }: { children: ReactNode }) {
+  return <div className="px-3 py-8 text-center text-sm text-muted-foreground">{children}</div>
 }
 
 function time(iso: string): string {
@@ -191,11 +194,8 @@ function time(iso: string): string {
 }
 
 function sessionDuration(times: string[]): string {
-  if (times.length === 0) return '0:00'
   const ms = times.map((t) => new Date(t).getTime()).filter((n) => !isNaN(n))
   if (ms.length === 0) return '0:00'
   const secs = Math.max(0, Math.round((Math.max(...ms) - Math.min(...ms)) / 1000))
-  const m = Math.floor(secs / 60)
-  const s = secs % 60
-  return `${m}:${s.toString().padStart(2, '0')}`
+  return `${Math.floor(secs / 60)}:${(secs % 60).toString().padStart(2, '0')}`
 }

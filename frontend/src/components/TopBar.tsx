@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { Play, Square, Activity, MapPin, User } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Play, Square, Activity, MapPin, User, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api, type CaptureStatus, type PartyView } from '@/lib/bindings'
 import { useTopic } from '@/hooks/useTopic'
@@ -19,81 +18,116 @@ export function TopBar({
 
   const running = status?.running ?? false
   const stats = status?.stats
-  const toggleCapture = () => {
-    void (running ? api.stop() : api.start())
-  }
+  const errs = stats?.decodeErrors ?? 0
+  const toggleCapture = () => void (running ? api.stop() : api.start())
 
   return (
-    <header className="flex items-center gap-4 border-b border-border px-4 py-2">
-      <Button size="sm" variant={running ? 'destructive' : 'default'} onClick={toggleCapture}>
-        {running ? <Square /> : <Play />}
-        {running ? 'Stop' : 'Start'}
-      </Button>
-      <span className={cn('size-2 rounded-full', running ? 'bg-emerald-500' : 'bg-zinc-600')} />
+    <header className="flex items-center gap-3 border-b border-border bg-surface/40 px-4 py-2.5">
+      <button
+        onClick={toggleCapture}
+        className={cn(
+          'inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+          running
+            ? 'bg-elevated text-foreground hover:bg-accent'
+            : 'bg-primary text-primary-foreground hover:bg-primary/90',
+        )}
+      >
+        {running ? (
+          <>
+            <span className="relative flex size-2">
+              <span className="absolute inline-flex size-full animate-ping rounded-full bg-heal/70" />
+              <span className="relative inline-flex size-2 rounded-full bg-heal" />
+            </span>
+            <span>Capturing</span>
+            <Square className="size-3 fill-current opacity-70" />
+          </>
+        ) : (
+          <>
+            <Play className="size-3.5" />
+            Start capture
+          </>
+        )}
+      </button>
 
-      <div className="flex items-center gap-1 text-sm text-muted-foreground">
-        <MapPin className="size-3.5" />
-        {party?.location || '—'}
-      </div>
-      <div className="flex items-center gap-1 text-sm text-muted-foreground">
-        <User className="size-3.5" />
-        {party?.me || '—'}
-      </div>
+      <div className="mx-1 h-5 w-px bg-border" />
+
+      <Chip icon={MapPin} value={party?.location} empty="No zone" />
+      <Chip icon={User} value={party?.me} empty="No player" />
 
       <div className="relative ml-auto">
         <button
           onClick={() => setDiagOpen((v) => !v)}
           className={cn(
-            'flex items-center gap-1.5 rounded-md px-2 py-1 text-xs',
-            (stats?.decodeErrors ?? 0) > 0 ? 'text-amber-400' : 'text-muted-foreground',
-            'hover:bg-accent',
+            'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium tnum transition-colors hover:bg-accent',
+            errs > 0 ? 'text-ember' : 'text-muted-foreground',
           )}
         >
-          <Activity className="size-3.5" />
-          {stats?.packets ?? 0} pkts
+          {errs > 0 ? <AlertTriangle className="size-3.5" /> : <Activity className="size-3.5" />}
+          {fmtInt(stats?.packets ?? 0)} pkts
         </button>
         {diagOpen && (
-          <div className="absolute right-0 top-8 z-10 w-56 rounded-md border border-border bg-popover p-3 text-xs shadow-lg">
-            <div className="mb-1 font-medium text-foreground">Diagnostics</div>
-            <Row label="Sources" value={status?.sources?.join(', ') || '—'} />
-            <Row label="Packets" value={stats?.packets ?? 0} />
-            <Row label="Messages" value={stats?.messages ?? 0} />
-            <Row label="Unknown" value={stats?.unknown ?? 0} />
-            <Row label="Decode errors" value={stats?.decodeErrors ?? 0} />
-            <Row label="Encrypted" value={stats?.encrypted ?? 0} />
-            {status?.error && <div className="mt-1 text-destructive">{status.error}</div>}
-          </div>
+          <>
+            <div className="fixed inset-0 z-10" onClick={() => setDiagOpen(false)} />
+            <div className="absolute right-0 top-9 z-20 w-60 rounded-lg border border-border bg-popover p-3 text-xs shadow-xl shadow-black/40">
+              <div className="mb-2 font-medium text-foreground">Capture diagnostics</div>
+              <Row label="Sources" value={status?.sources?.join(', ') || '—'} />
+              <Row label="Packets" value={fmtInt(stats?.packets ?? 0)} />
+              <Row label="Messages" value={fmtInt(stats?.messages ?? 0)} />
+              <Row label="Unknown" value={fmtInt(stats?.unknown ?? 0)} warn={(stats?.unknown ?? 0) > 0} />
+              <Row label="Decode errors" value={fmtInt(errs)} warn={errs > 0} />
+              <Row label="Encrypted" value={fmtInt(stats?.encrypted ?? 0)} />
+              {status?.error && <div className="mt-2 rounded bg-destructive/15 px-2 py-1 text-destructive">{status.error}</div>}
+            </div>
+          </>
         )}
       </div>
 
-      <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
-        <span>Party Mode</span>
-        <button
-          role="switch"
-          aria-checked={partyMode}
-          onClick={() => onPartyModeChange(!partyMode)}
-          className={cn(
-            'relative h-5 w-9 rounded-full transition-colors',
-            partyMode ? 'bg-primary' : 'bg-secondary',
-          )}
-        >
+      <div className="h-5 w-px bg-border" />
+
+      <button
+        role="switch"
+        aria-checked={partyMode}
+        onClick={() => onPartyModeChange(!partyMode)}
+        className="flex items-center gap-2 text-xs font-medium text-muted-foreground"
+      >
+        <span className={cn(partyMode && 'text-foreground')}>Party only</span>
+        <span className={cn('relative h-5 w-9 rounded-full transition-colors', partyMode ? 'bg-primary' : 'bg-secondary')}>
           <span
             className={cn(
-              'absolute top-0.5 size-4 rounded-full bg-background transition-transform',
+              'absolute top-0.5 size-4 rounded-full bg-background shadow transition-transform',
               partyMode ? 'translate-x-4' : 'translate-x-0.5',
             )}
           />
-        </button>
-      </label>
+        </span>
+      </button>
     </header>
   )
 }
 
-function Row({ label, value }: { label: string; value: string | number }) {
+function Chip({ icon: Icon, value, empty }: { icon: typeof MapPin; value?: string; empty: string }) {
+  const has = !!value
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs',
+        has ? 'bg-elevated text-foreground' : 'text-muted-foreground',
+      )}
+    >
+      <Icon className={cn('size-3.5', has ? 'text-primary/80' : 'text-muted-foreground')} />
+      <span className="max-w-[18ch] truncate">{value || empty}</span>
+    </span>
+  )
+}
+
+function Row({ label, value, warn }: { label: string; value: string | number; warn?: boolean }) {
   return (
     <div className="flex justify-between py-0.5">
       <span className="text-muted-foreground">{label}</span>
-      <span className="text-foreground">{value}</span>
+      <span className={cn('tnum', warn ? 'text-ember' : 'text-foreground')}>{value}</span>
     </div>
   )
+}
+
+function fmtInt(n: number): string {
+  return n.toLocaleString()
 }
