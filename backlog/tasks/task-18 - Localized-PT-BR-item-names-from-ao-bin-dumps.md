@@ -1,10 +1,11 @@
 ---
 id: TASK-18
 title: Localized (PT-BR) item names from ao-bin-dumps
-status: To Do
+status: Done
 assignee:
   - '@devlucasteles'
 created_date: '2026-11-01 01:20'
+updated_date: '2026-11-01 01:54'
 labels:
   - itemdb
   - ui
