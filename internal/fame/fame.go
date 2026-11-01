@@ -91,5 +91,16 @@ func perHour(total float64, first, last time.Time) float64 {
 func (t *Tracker) Reset() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	*t = Tracker{}
+	// Zero the session fields individually — never "*t = Tracker{}", which would
+	// overwrite t.mu with a fresh (unlocked) mutex and make the deferred Unlock
+	// panic with "sync: Unlock of unlocked RWMutex".
+	t.total = 0
+	t.base = 0
+	t.premium = 0
+	t.satchel = 0
+	t.yellow = 0
+	t.count = 0
+	t.latest = 0
+	t.first = time.Time{}
+	t.last = time.Time{}
 }
