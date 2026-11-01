@@ -49,3 +49,36 @@ func TestMeter_Rules(t *testing.T) {
 		}
 	}
 }
+
+func TestMeter_PerSpellBreakdown(t *testing.T) {
+	st := game.NewState()
+	st.ApplyJoin(events.JoinResponse{ObjectID: 1, Name: "Me", GUID: "g-me"})
+	st.ApplyPartyJoined(events.PartyJoined{Members: []events.PartyMember{{GUID: "g-me", Name: "Me"}}})
+	const mob = 500
+
+	m := NewMeter(Options{PartyOnly: true})
+	t0 := time.Unix(1000, 0)
+	m.Apply(events.HealthUpdate{CauserID: 1, AffectedID: mob, Change: -100, SpellIndex: 7}, t0, st)
+	m.Apply(events.HealthUpdate{CauserID: 1, AffectedID: mob, Change: -50, SpellIndex: 7}, t0, st)
+	m.Apply(events.HealthUpdate{CauserID: 1, AffectedID: mob, Change: -400, SpellIndex: 3}, t0, st)
+
+	snap := m.Snapshot()
+	if len(snap) != 1 {
+		t.Fatalf("snapshot = %+v", snap)
+	}
+	sp := snap[0].Spells
+	if len(sp) != 2 {
+		t.Fatalf("spells = %+v", sp)
+	}
+	// Sorted by damage desc: spell 3 (400) before spell 7 (150).
+	if sp[0].SpellIndex != 3 || sp[0].Damage != 400 || sp[0].Hits != 1 {
+		t.Fatalf("top spell = %+v", sp[0])
+	}
+	if sp[1].SpellIndex != 7 || sp[1].Damage != 150 || sp[1].Hits != 2 {
+		t.Fatalf("second spell = %+v", sp[1])
+	}
+	// Per-spell damage sums to the player total.
+	if sp[0].Damage+sp[1].Damage != snap[0].Damage {
+		t.Fatalf("spell sum %d != player damage %d", sp[0].Damage+sp[1].Damage, snap[0].Damage)
+	}
+}

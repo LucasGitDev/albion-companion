@@ -60,6 +60,13 @@ export interface LootView {
   total: number
 }
 
+export interface SpellStat {
+  spellIndex: number
+  damage: number
+  heal: number
+  hits: number
+}
+
 export interface CombatRow {
   name: string
   damage: number
@@ -71,6 +78,7 @@ export interface CombatRow {
   dps: number
   hps: number
   share: number
+  spells?: SpellStat[]
 }
 
 export interface CombatView {

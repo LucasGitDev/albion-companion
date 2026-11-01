@@ -126,6 +126,16 @@ function combatView(): CombatView {
     lastAt: now.toISOString(),
     hps: r.heal / 163,
     share: total ? (r.damage * 100) / total : 0,
+    spells:
+      r.damage > 0
+        ? [
+            { spellIndex: 3, damage: Math.round(r.damage * 0.55), heal: 0, hits: 40 },
+            { spellIndex: 7, damage: Math.round(r.damage * 0.3), heal: 0, hits: 90 },
+            { spellIndex: -1, damage: Math.round(r.damage * 0.15), heal: 0, hits: 70 },
+          ]
+        : r.heal > 0
+          ? [{ spellIndex: 11, damage: 0, heal: r.heal, hits: 120 }]
+          : [],
   }))
   return { rows, totalDamage: total }
 }

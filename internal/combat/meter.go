@@ -26,6 +26,20 @@ type PlayerStats struct {
 	Hits    int       `json:"hits"`
 	FirstAt time.Time `json:"firstAt"`
 	LastAt  time.Time `json:"lastAt"`
+
+	// Spells is the per-ability breakdown, populated by Snapshot (sorted by
+	// damage desc). The index is the spell index; a name map comes later.
+	Spells []SpellStat `json:"spells,omitempty"`
+
+	spells map[int]*SpellStat // internal accumulator
+}
+
+// SpellStat is one ability's contribution for a player.
+type SpellStat struct {
+	SpellIndex int   `json:"spellIndex"`
+	Damage     int64 `json:"damage"`
+	Heal       int64 `json:"heal"`
+	Hits       int   `json:"hits"`
 }
 
 // DPS is damage over the player's active combat window (min 1s).
@@ -62,7 +76,7 @@ func (m *Meter) SetOptions(o Options) {
 func (m *Meter) stat(name string) *PlayerStats {
 	s := m.stats[name]
 	if s == nil {
-		s = &PlayerStats{Name: name}
+		s = &PlayerStats{Name: name, spells: map[int]*SpellStat{}}
 		m.stats[name] = s
 	}
 	return s
@@ -114,11 +128,19 @@ func (m *Meter) Apply(u events.HealthUpdate, at time.Time, st *game.State) {
 	}
 	s := m.stat(causer.Name)
 	s.touch(at)
+	sp := s.spells[u.SpellIndex]
+	if sp == nil {
+		sp = &SpellStat{SpellIndex: u.SpellIndex}
+		s.spells[u.SpellIndex] = sp
+	}
 	if u.IsDamage() {
 		s.Damage += amount
 		s.Hits++
+		sp.Damage += amount
+		sp.Hits++
 	} else {
 		s.Heal += amount
+		sp.Heal += amount
 	}
 }
 
@@ -131,7 +153,22 @@ func (m *Meter) Snapshot() []PlayerStats {
 		if s.Damage == 0 && s.Heal == 0 && s.Taken == 0 {
 			continue
 		}
-		out = append(out, *s)
+		cp := *s
+		cp.spells = nil
+		cp.Spells = make([]SpellStat, 0, len(s.spells))
+		for _, sp := range s.spells {
+			if sp.Damage == 0 && sp.Heal == 0 {
+				continue
+			}
+			cp.Spells = append(cp.Spells, *sp)
+		}
+		sort.Slice(cp.Spells, func(i, j int) bool {
+			if cp.Spells[i].Damage != cp.Spells[j].Damage {
+				return cp.Spells[i].Damage > cp.Spells[j].Damage
+			}
+			return cp.Spells[i].Heal > cp.Spells[j].Heal
+		})
+		out = append(out, cp)
 	}
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].Damage != out[j].Damage {
