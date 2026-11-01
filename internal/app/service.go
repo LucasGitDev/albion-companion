@@ -20,6 +20,7 @@ import (
 
 	"github.com/LucasGitDev/albion-companion/internal/capture"
 	"github.com/LucasGitDev/albion-companion/internal/combat"
+	"github.com/LucasGitDev/albion-companion/internal/dungeon"
 	"github.com/LucasGitDev/albion-companion/internal/engine"
 	"github.com/LucasGitDev/albion-companion/internal/events"
 	"github.com/LucasGitDev/albion-companion/internal/fame"
@@ -299,6 +300,60 @@ func (s *Service) TimelineView(recent int) TimelineView {
 	tl := s.eng.Timeline()
 	return TimelineView{Events: tl.Recent(recent), Total: tl.Len()}
 }
+
+// ---- dungeon tracker ------------------------------------------------------
+
+// DungeonRecord is one visited dungeon, enriched for the UI with a live
+// duration and an open flag so the frontend renders without recomputing from
+// timestamps.
+type DungeonRecord struct {
+	dungeon.Record
+	DurationSec float64 `json:"durationSec"`
+	Open        bool    `json:"open"`
+}
+
+// DungeonView is the dungeon list, newest first.
+type DungeonView struct {
+	Records []DungeonRecord `json:"records"`
+	Total   int             `json:"total"`
+}
+
+// DungeonView returns every dungeon record, newest first.
+func (s *Service) DungeonView() DungeonView {
+	recs := s.eng.Dungeon().Records()
+	now := time.Now()
+	out := make([]DungeonRecord, len(recs))
+	// Reverse into newest-first order.
+	for i, r := range recs {
+		end := r.ExitedAt
+		if end.IsZero() {
+			end = now
+		}
+		out[len(recs)-1-i] = DungeonRecord{
+			Record:      r,
+			DurationSec: end.Sub(r.EnteredAt).Seconds(),
+			Open:        r.Open(),
+		}
+	}
+	return DungeonView{Records: out, Total: len(recs)}
+}
+
+// RenameDungeon sets a user label on a dungeon record.
+func (s *Service) RenameDungeon(id int, name string) {
+	if s.eng.Dungeon().Rename(id, name) {
+		s.opts.Emit("dungeon:changed", nil)
+	}
+}
+
+// SetDungeonTier tags a dungeon record's tier (free text, e.g. "T6").
+func (s *Service) SetDungeonTier(id int, tier string) {
+	if s.eng.Dungeon().SetTier(id, tier) {
+		s.opts.Emit("dungeon:changed", nil)
+	}
+}
+
+// ResetDungeons clears the dungeon list.
+func (s *Service) ResetDungeons() { s.eng.Dungeon().Reset(); s.opts.Emit("dungeon:changed", nil) }
 
 // ExportLootCSV writes the current (filtered) loot in ao-loot-logger format.
 // main.go wraps it with a native save dialog.

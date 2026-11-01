@@ -154,6 +154,44 @@ export interface TimelineView {
   total: number
 }
 
+export type DungeonType =
+  | ''
+  | 'random'
+  | 'group'
+  | 'corrupted'
+  | 'hellgate'
+  | 'avalon'
+  | 'mists'
+  | 'other'
+
+export interface DungeonCombatSnap {
+  name: string
+  damage: number
+  dps: number
+}
+
+export interface DungeonRecord {
+  id: number
+  name: string
+  cluster: string
+  type: DungeonType
+  tier: string
+  enteredAt: string
+  exitedAt: string
+  fame: number
+  silver: number
+  loot: number
+  chests: number
+  combat: DungeonCombatSnap[] | null
+  durationSec: number
+  open: boolean
+}
+
+export interface DungeonView {
+  records: DungeonRecord[]
+  total: number
+}
+
 export interface CodesInfo {
   source: string
   events: number
@@ -184,6 +222,10 @@ declare global {
           ExportLootCSV(): Promise<string>
           TimelineView(recent: number): Promise<TimelineView>
           ResetTimeline(): Promise<void>
+          DungeonView(): Promise<DungeonView>
+          RenameDungeon(id: number, name: string): Promise<void>
+          SetDungeonTier(id: number, tier: string): Promise<void>
+          ResetDungeons(): Promise<void>
           SetLootFilter(f: { PartyOnly: boolean; Player: string; IncludeTrash: boolean }): Promise<void>
           SetCombatOptions(o: { PartyOnly: boolean; PlayerTargetsOnly: boolean }): Promise<void>
           Interfaces(): Promise<string[]>

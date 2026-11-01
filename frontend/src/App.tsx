@@ -5,6 +5,7 @@ import { TopBar } from '@/components/TopBar'
 import { Loot } from '@/tabs/Loot'
 import { Dps } from '@/tabs/Dps'
 import { Party } from '@/tabs/Party'
+import { Dungeon } from '@/tabs/Dungeon'
 import { Timeline } from '@/tabs/Timeline'
 import { Settings } from '@/tabs/Settings'
 import { PermissionScreen } from '@/components/PermissionScreen'
@@ -56,6 +57,7 @@ export default function App() {
                 />
               )}
               {tab === 'party' && <Party />}
+              {tab === 'dungeon' && <Dungeon />}
               {tab === 'timeline' && <Timeline />}
               {tab === 'settings' && <Settings />}
             </>

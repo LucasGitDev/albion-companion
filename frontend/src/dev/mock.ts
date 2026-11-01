@@ -5,6 +5,8 @@
 import type {
   CaptureStatus,
   CombatView,
+  DungeonRecord,
+  DungeonView,
   LootView,
   PartyView,
   TimelineEvent,
@@ -112,6 +114,66 @@ function timelineView(recent: number): TimelineView {
   return { events: timeline.slice(0, recent), total: timeline.length }
 }
 
+const dungeons: DungeonRecord[] = [
+  {
+    id: 1,
+    name: 'Random Dungeon',
+    cluster: '@RANDOMDUNGEON@SOLO_T5',
+    type: 'random',
+    tier: 'T5',
+    enteredAt: new Date(Date.now() - 2_400_000).toISOString(),
+    exitedAt: new Date(Date.now() - 1_800_000).toISOString(),
+    fame: 184500,
+    silver: 42310,
+    loot: 37,
+    chests: 4,
+    durationSec: 600,
+    open: false,
+    combat: [
+      { name: 'slug88', damage: 132052, dps: 812 },
+      { name: 'L0rdCap', damage: 77478, dps: 476 },
+      { name: 'drmutty', damage: 39902, dps: 245 },
+    ],
+  },
+  {
+    id: 2,
+    name: 'Corrupted Dungeon',
+    cluster: 'CORRUPTED_LAIR_STANDARD',
+    type: 'corrupted',
+    tier: '',
+    enteredAt: new Date(Date.now() - 900_000).toISOString(),
+    exitedAt: new Date(Date.now() - 300_000).toISOString(),
+    fame: 96200,
+    silver: 15800,
+    loot: 12,
+    chests: 1,
+    durationSec: 600,
+    open: false,
+    combat: [{ name: 'L0rdCap', damage: 58120, dps: 512 }],
+  },
+  {
+    id: 3,
+    name: 'Avalonian Dungeon',
+    cluster: 'AVALON_ROADS_DUNGEON',
+    type: 'avalon',
+    tier: 'T6',
+    enteredAt: new Date(Date.now() - 180_000).toISOString(),
+    exitedAt: '0001-01-01T00:00:00Z',
+    fame: 54300,
+    silver: 8900,
+    loot: 9,
+    chests: 2,
+    durationSec: 180,
+    open: true,
+    combat: null,
+  },
+]
+
+function dungeonView(): DungeonView {
+  // Newest first, matching the Go service.
+  return { records: [...dungeons].reverse(), total: dungeons.length }
+}
+
 function combatView(): CombatView {
   const base = [
     { name: 'slug88', damage: 132052, heal: 0, taken: 17773, dps: 812 },
@@ -198,6 +260,21 @@ export function installMock() {
         ResetTimeline: async () => {
           timeline.length = 0
           emit('timeline:changed')
+        },
+        DungeonView: async () => dungeonView(),
+        RenameDungeon: async (id: number, name: string) => {
+          const d = dungeons.find((x) => x.id === id)
+          if (d) d.name = name
+          emit('dungeon:changed')
+        },
+        SetDungeonTier: async (id: number, tier: string) => {
+          const d = dungeons.find((x) => x.id === id)
+          if (d) d.tier = tier
+          emit('dungeon:changed')
+        },
+        ResetDungeons: async () => {
+          dungeons.length = 0
+          emit('dungeon:changed')
         },
         FameView: async () => ({
           total: fameTotal,

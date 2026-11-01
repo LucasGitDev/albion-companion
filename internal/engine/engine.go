@@ -14,6 +14,7 @@ import (
 	"github.com/LucasGitDev/albion-companion/internal/capture"
 	"github.com/LucasGitDev/albion-companion/internal/chest"
 	"github.com/LucasGitDev/albion-companion/internal/combat"
+	"github.com/LucasGitDev/albion-companion/internal/dungeon"
 	"github.com/LucasGitDev/albion-companion/internal/events"
 	"github.com/LucasGitDev/albion-companion/internal/fame"
 	"github.com/LucasGitDev/albion-companion/internal/game"
@@ -34,6 +35,7 @@ const (
 	TopicFame     Topic = "fame"
 	TopicRates    Topic = "rates"
 	TopicTimeline Topic = "timeline"
+	TopicDungeon  Topic = "dungeon"
 )
 
 type Config struct {
@@ -58,15 +60,16 @@ type Stats struct {
 }
 
 type Engine struct {
-	cfg    Config
-	dec    *protocol.Decoder
-	state  *game.State
-	loot   *loot.Tracker
-	combat *combat.Meter
-	fame   *fame.Tracker
-	rates  *rates.Tracker
-	chest  *chest.Tracker
-	tl     *timeline.Ring
+	cfg     Config
+	dec     *protocol.Decoder
+	state   *game.State
+	loot    *loot.Tracker
+	combat  *combat.Meter
+	fame    *fame.Tracker
+	rates   *rates.Tracker
+	chest   *chest.Tracker
+	dungeon *dungeon.Tracker
+	tl      *timeline.Ring
 
 	packets, messages, unknown, decodeErrors atomic.Uint64
 
@@ -79,14 +82,15 @@ func New(cfg Config) *Engine {
 		cfg.Codes = protocol.DefaultCodes()
 	}
 	e := &Engine{
-		cfg:    cfg,
-		state:  game.NewState(),
-		loot:   loot.NewTracker(cfg.Items),
-		combat: combat.NewMeter(cfg.Combat),
-		fame:   fame.New(),
-		rates:  rates.New(),
-		chest:  chest.New(),
-		tl:     timeline.NewRing(cfg.TimelineCap),
+		cfg:     cfg,
+		state:   game.NewState(),
+		loot:    loot.NewTracker(cfg.Items),
+		combat:  combat.NewMeter(cfg.Combat),
+		fame:    fame.New(),
+		rates:   rates.New(),
+		chest:   chest.New(),
+		dungeon: dungeon.New(),
+		tl:      timeline.NewRing(cfg.TimelineCap),
 	}
 	e.dec = protocol.NewDecoder(cfg.Codes, e.handle)
 	return e
@@ -98,6 +102,33 @@ func (e *Engine) Combat() *combat.Meter { return e.combat }
 func (e *Engine) Fame() *fame.Tracker   { return e.fame }
 func (e *Engine) Rates() *rates.Tracker { return e.rates }
 func (e *Engine) Chest() *chest.Tracker { return e.chest }
+
+// Dungeon is the per-dungeon session tracker.
+func (e *Engine) Dungeon() *dungeon.Tracker { return e.dungeon }
+
+// combatSnap projects the current combat meter into dungeon.CombatSnap rows,
+// captured when a dungeon record closes.
+func (e *Engine) combatSnap() []dungeon.CombatSnap {
+	snap := e.combat.Snapshot()
+	out := make([]dungeon.CombatSnap, 0, len(snap))
+	for _, p := range snap {
+		out = append(out, dungeon.CombatSnap{Name: p.Name, Damage: p.Damage, DPS: p.DPS()})
+	}
+	return out
+}
+
+// dungeonLoot credits the open dungeon with the local player's own pickups
+// (silver and item quantity), mirroring how the loot views attribute loot.
+func (e *Engine) dungeonLoot(entry loot.Entry) {
+	if entry.Looter != e.state.LocalPlayer().Name {
+		return
+	}
+	if entry.IsSilver {
+		e.dungeon.AddSilver(entry.Silver)
+	} else {
+		e.dungeon.AddLoot(entry.Quantity)
+	}
+}
 
 // Timeline is the merged chronological feed of session events.
 func (e *Engine) Timeline() *timeline.Ring { return e.tl }
@@ -191,6 +222,11 @@ func (e *Engine) handle(m protocol.Message) {
 				e.state.ApplyJoin(j)
 				e.chest.Reset() // object ids are per-zone
 				e.changed(TopicZone)
+				// Segment the session by dungeon: the Join cluster id decides
+				// whether we entered or left a dungeon (see internal/dungeon).
+				if e.dungeon.OnZone(e.state.Location(), m.At, e.combatSnap) {
+					e.changed(TopicDungeon)
+				}
 				e.pushTL(timeline.Event{At: m.At, Kind: timeline.KindZone, Zone: e.state.Location(), Player: j.Name})
 			}
 		}
@@ -218,6 +254,7 @@ func (e *Engine) handleEvent(m protocol.Message) {
 			return
 		}
 		entry := e.loot.Record(g, m.At, e.state)
+		e.dungeonLoot(entry)
 		if e.cfg.OnLoot != nil {
 			e.cfg.OnLoot(entry)
 		}
@@ -303,6 +340,7 @@ func (e *Engine) handleEvent(m protocol.Message) {
 		// attributing an event with an absent/zero subject id to the session.
 		if local := e.state.LocalPlayer(); local.ObjectID != 0 && f.PlayerObjectID == local.ObjectID {
 			e.fame.Add(f, m.At)
+			e.dungeon.AddFame(f.Gained())
 			e.changed(TopicFame)
 			e.pushTL(timeline.Event{At: m.At, Kind: timeline.KindFame, Player: local.Name, Fame: f.Gained()})
 		}
@@ -329,6 +367,10 @@ func (e *Engine) handleEvent(m protocol.Message) {
 	case events.EvNewLootChest:
 		if c, err := events.DecodeNewLootChest(m.Params); err == nil {
 			e.chest.NewChest(c)
+			// Count each chest seen in the current dungeon (the game sends no
+			// distinct "opened" event; NewLootChest marks a lootable chest).
+			e.dungeon.AddChest()
+			e.changed(TopicDungeon)
 		}
 	case events.EvNewSimpleItem, events.EvNewEquipmentItem:
 		if it, err := events.DecodeItemObject(m.Name, m.Params); err == nil {
@@ -354,6 +396,7 @@ func (e *Engine) handleEvent(m protocol.Message) {
 			Quantity:   take.Quantity,
 		}
 		entry := e.loot.Record(g, m.At, e.state)
+		e.dungeonLoot(entry)
 		if e.cfg.OnLoot != nil {
 			e.cfg.OnLoot(entry)
 		}

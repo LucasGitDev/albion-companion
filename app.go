@@ -143,6 +143,10 @@ func (a *App) RatesView() app.RatesView                 { return a.svc.RatesView
 func (a *App) ResetRates()                              { a.svc.ResetRates() }
 func (a *App) TimelineView(recent int) app.TimelineView { return a.svc.TimelineView(recent) }
 func (a *App) ResetTimeline()                           { a.svc.ResetTimeline() }
+func (a *App) DungeonView() app.DungeonView             { return a.svc.DungeonView() }
+func (a *App) RenameDungeon(id int, name string)        { a.svc.RenameDungeon(id, name) }
+func (a *App) SetDungeonTier(id int, tier string)       { a.svc.SetDungeonTier(id, tier) }
+func (a *App) ResetDungeons()                           { a.svc.ResetDungeons() }
 
 // ExportLootCSV opens a native save dialog and writes the current (filtered)
 // loot in ao-loot-logger format. Returns the saved path, or "" if the user
