@@ -79,4 +79,28 @@ func TestEngine_EndToEnd(t *testing.T) {
 	if len(topics) == 0 {
 		t.Fatal("OnChange never called")
 	}
+
+	// Timeline merges the session newest-first: loot, two party joins, zone.
+	tl := e.Timeline().Recent(0)
+	if len(tl) != 4 {
+		t.Fatalf("timeline len = %d, want 4: %+v", len(tl), tl)
+	}
+	if tl[0].Kind != "loot" || tl[0].Item != "Adept's Bag" || tl[0].Quantity != 3 {
+		t.Errorf("timeline[0] = %+v", tl[0])
+	}
+	if tl[1].Kind != "party_joined" || tl[1].Player != "Friend" {
+		t.Errorf("timeline[1] = %+v", tl[1])
+	}
+	if tl[2].Kind != "party_joined" || tl[2].Player != "Me" {
+		t.Errorf("timeline[2] = %+v", tl[2])
+	}
+	if tl[3].Kind != "zone" || tl[3].Zone != "3008" {
+		t.Errorf("timeline[3] = %+v", tl[3])
+	}
+	// Timestamps must be non-increasing (newest first).
+	for i := 1; i < len(tl); i++ {
+		if tl[i].At.After(tl[i-1].At) {
+			t.Errorf("timeline out of order at %d: %v after %v", i, tl[i].At, tl[i-1].At)
+		}
+	}
 }
