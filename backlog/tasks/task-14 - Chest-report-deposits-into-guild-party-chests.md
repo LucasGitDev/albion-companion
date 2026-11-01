@@ -4,7 +4,7 @@ title: Chest report (deposits into guild/party chests)
 status: To Do
 assignee: []
 created_date: '2026-10-31T19:20:00Z'
-updated_date: '2026-11-01 02:03'
+updated_date: '2026-11-01 02:10'
 labels:
   - loot
 dependencies: []
@@ -14,12 +14,16 @@ ordinal: 14000
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-Port ao-loot-logger container logic (AttachItemContainer, DetachItemContainer, InventoryPutItem, InventoryMoveItem request) to answer 'who looted and did not deposit'. Spec first in Protocol spec doc.
+Guild loot-event audit: map EVERY item movement during an event/session to answer "who looted what, and who did not deposit it" — to catch members stealing or failing to deposit loot obtained during a guild event. Not only chests: every acquisition source counts — mob/player BODIES on a kill (OtherGrabbedLoot), dungeon loot chests and island/treasure chests (TASK-21 decoders), world drops, and transfers between players. Plus the DEPOSIT side: items placed into guild/party chests. Per player over the event window, compute looted vs deposited and flag the gap. Reuse TASK-21 chest decoders (NewLootChest/NewSimpleItem/AttachItemContainer/InventoryPutItem) and add the deposit path (DetachItemContainer, InventoryMoveItem request to a guild/party container). Note the hard limit: InventoryPutItem/container contents are client-local, so full per-OTHER-member deposit visibility may be constrained to what the local client sees — investigate and document what is actually observable for party/guild members vs only the local player. Spec the event set in the Protocol spec doc first.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
 - [ ] #1 Report lists looted vs deposited per player
+- [ ] #2 Every item acquisition is attributed to a player and a source type (body, dungeon chest, island/treasure chest, world, transfer)
+- [ ] #3 Deposits into guild/party chests are tracked per player (to the extent the protocol exposes them to the local client; documented)
+- [ ] #4 Per-player looted-vs-deposited is reported over a session/event window, flagging members who looted but did not deposit
+- [ ] #5 Observability limits for other members (client-local events) are investigated and documented in the Protocol spec
 <!-- AC:END -->
 
 ## Implementation Notes
