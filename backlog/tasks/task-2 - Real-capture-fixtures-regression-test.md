@@ -1,11 +1,11 @@
 ---
 id: TASK-2
 title: Real capture fixtures + regression test
-status: In Progress
+status: In Review
 assignee:
   - '@devlucasteles'
 created_date: '2026-10-31T19:20:00Z'
-updated_date: '2026-10-31 20:42'
+updated_date: '2026-11-01 00:43'
 labels:
   - testing
 dependencies:

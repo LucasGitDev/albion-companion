@@ -1,11 +1,11 @@
 ---
 id: TASK-1
 title: Validate engine on macOS with a live game session
-status: In Progress
+status: In Review
 assignee:
   - '@devlucasteles'
 created_date: '2026-10-31T19:20:00Z'
-updated_date: '2026-10-31 20:33'
+updated_date: '2026-11-01 00:43'
 labels:
   - capture
   - core

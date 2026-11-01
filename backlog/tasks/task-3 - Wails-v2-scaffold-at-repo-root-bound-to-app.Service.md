@@ -1,10 +1,10 @@
 ---
 id: TASK-3
 title: Wails v2 scaffold at repo root bound to app.Service
-status: To Do
+status: In Review
 assignee: []
 created_date: '2026-10-31T19:20:00Z'
-updated_date: '2026-10-31 23:13'
+updated_date: '2026-11-01 00:43'
 labels:
   - app
   - build
