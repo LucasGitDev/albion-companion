@@ -111,17 +111,7 @@ export function Loot({ filter, setFilter }: { filter: LootFilter; setFilter: (f:
               {players.map((p, i) => (
                 <tr
                   key={p.name}
-                  role="button"
-                  tabIndex={0}
-                  aria-pressed={selected === p.name}
-                  aria-label={`Filter loot by ${p.name}`}
                   onClick={() => pick(p.name)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      pick(p.name)
-                    }
-                  }}
                   className={cn(
                     'cursor-pointer border-t border-border/60 transition-colors',
                     selected === p.name ? 'bg-primary/10' : 'hover:bg-elevated/70',
@@ -130,7 +120,18 @@ export function Loot({ filter, setFilter }: { filter: LootFilter; setFilter: (f:
                   <td className="px-3 py-2.5 tnum text-muted-foreground">{i + 1}</td>
                   <td className="px-3 py-2.5">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium">{p.name}</span>
+                      <button
+                        type="button"
+                        aria-pressed={selected === p.name}
+                        aria-label={`Filter loot by ${p.name}`}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          pick(p.name)
+                        }}
+                        className="rounded font-medium hover:text-primary"
+                      >
+                        {p.name}
+                      </button>
                       {!p.inParty && <span className="text-[10px] uppercase tracking-wide text-muted-foreground">outsider</span>}
                     </div>
                     <div className="mt-1 h-1 w-28 overflow-hidden rounded-full bg-elevated">
