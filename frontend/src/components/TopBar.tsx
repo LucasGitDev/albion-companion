@@ -88,6 +88,7 @@ export function TopBar({
         role="switch"
         aria-checked={partyMode}
         onClick={() => onPartyModeChange(!partyMode)}
+        title="Party only: count loot and damage from your party members and hide everyone else. Turn off to see all nearby players."
         className="flex items-center gap-2 text-xs font-medium text-muted-foreground"
       >
         <span className={cn(partyMode && 'text-foreground')}>Party only</span>

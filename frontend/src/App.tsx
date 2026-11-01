@@ -8,15 +8,15 @@ import { Settings } from '@/tabs/Settings'
 import { Placeholder } from '@/tabs/Placeholder'
 import { PermissionScreen } from '@/components/PermissionScreen'
 import { StartScreen } from '@/components/StartScreen'
-import { api, type CaptureStatus, type LootFilter } from '@/lib/bindings'
-import { useTopic } from '@/hooks/useTopic'
+import { api, type LootFilter } from '@/lib/bindings'
+import { useStatus } from '@/hooks/useStatus'
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('loot')
   const [filter, setFilter] = useState<LootFilter>({ PartyOnly: true, Player: '', IncludeTrash: false })
   const [playerTargetsOnly, setPlayerTargetsOnly] = useState(false)
-  // Service emits capture:status on start/stop, so the top bar stays in sync.
-  const status = useTopic<CaptureStatus>(api.status, ['capture:status'])
+  // Polls so the live packet counter keeps advancing during capture.
+  const status = useStatus()
 
   // Permission error takes over the whole window (UI spec: status.hint === "permission").
   if (status?.hint === 'permission') {

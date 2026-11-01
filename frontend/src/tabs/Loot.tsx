@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { ItemIcon } from '@/components/ItemIcon'
 import { api, type LootFilter } from '@/lib/bindings'
 import { useLoot } from '@/hooks/useLoot'
-import { fmt, cn } from '@/lib/utils'
+import { fmt, fmtSilver, cn } from '@/lib/utils'
 
 export function Loot({ filter, setFilter }: { filter: LootFilter; setFilter: (f: LootFilter) => void }) {
   const view = useLoot(filter)
@@ -24,9 +24,9 @@ export function Loot({ filter, setFilter }: { filter: LootFilter; setFilter: (f:
     <div className="flex flex-col gap-5">
       {/* Session ledger — one strip, not four cards. */}
       <div className="flex flex-wrap items-stretch gap-x-8 gap-y-3 rounded-xl border border-border bg-surface/60 px-5 py-4">
-        <Ledger icon={Package} label="Items" value={fmt(totalItems)} />
-        <Ledger icon={Coins} label="Silver" value={fmt(totalSilver)} gold />
-        <Ledger icon={Hand} label="Pickups" value={String(totalPickups)} />
+        <Ledger icon={Package} label="Items" value={fmt(totalItems)} title="Total quantity of items looted" />
+        <Ledger icon={Coins} label="Silver" value={fmtSilver(totalSilver)} gold title="Silver looted (matches the in-game amount)" />
+        <Ledger icon={Hand} label="Pickups" value={String(totalPickups)} title="Number of loot events — how many times loot was grabbed" />
         <Ledger icon={Clock} label="Duration" value={sessionDuration(recent.map((e) => e.at))} />
       </div>
 
@@ -93,7 +93,7 @@ export function Loot({ filter, setFilter }: { filter: LootFilter; setFilter: (f:
                   </td>
                   <td className="px-3 py-2.5 text-muted-foreground">{p.guild || '—'}</td>
                   <td className="px-3 py-2.5 text-right tnum font-medium">{fmt(p.items)}</td>
-                  <td className="px-3 py-2.5 text-right tnum text-primary">{fmt(p.silver)}</td>
+                  <td className="px-3 py-2.5 text-right tnum text-primary">{fmtSilver(p.silver)}</td>
                 </tr>
               ))}
               {players.length === 0 && (
@@ -149,7 +149,7 @@ export function Loot({ filter, setFilter }: { filter: LootFilter; setFilter: (f:
                 <span className="min-w-0 flex-1 truncate">
                   <span className="font-medium">{e.looter}</span>{' '}
                   {e.isSilver ? (
-                    <span className="tnum text-primary">+{fmt(e.silver)}</span>
+                    <span className="tnum text-primary">+{fmtSilver(e.silver)}</span>
                   ) : (
                     <span className="text-muted-foreground">
                       <span className="tnum text-foreground">×{e.quantity}</span> {e.itemName || e.itemId}
@@ -166,9 +166,21 @@ export function Loot({ filter, setFilter }: { filter: LootFilter; setFilter: (f:
   )
 }
 
-function Ledger({ icon: Icon, label, value, gold }: { icon: typeof Package; label: string; value: string; gold?: boolean }) {
+function Ledger({
+  icon: Icon,
+  label,
+  value,
+  gold,
+  title,
+}: {
+  icon: typeof Package
+  label: string
+  value: string
+  gold?: boolean
+  title?: string
+}) {
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-3" title={title}>
       <div className={cn('grid size-9 place-items-center rounded-lg', gold ? 'bg-primary/15 text-primary' : 'bg-elevated text-muted-foreground')}>
         <Icon className="size-4" />
       </div>

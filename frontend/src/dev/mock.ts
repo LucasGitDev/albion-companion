@@ -179,7 +179,12 @@ export function installMock() {
     stats.packets = 0
     return
   }
-  // Seed a few entries, then tick a live feed.
+  // Seed a few entries, then tick a live feed and advance the packet counters.
   for (let i = 0; i < 8; i++) pushLoot()
-  setInterval(() => running && pushLoot(), 1500)
+  setInterval(() => {
+    if (!running) return
+    stats.packets += Math.floor(Math.random() * 400) + 200
+    stats.messages += Math.floor(Math.random() * 600) + 300
+    pushLoot()
+  }, 1500)
 }
