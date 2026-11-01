@@ -101,7 +101,14 @@ export interface FameView {
   since: string
 }
 
-export type TimelineKind = 'loot' | 'silver' | 'fame' | 'zone' | 'party_joined' | 'party_left'
+export type TimelineKind =
+  | 'loot'
+  | 'silver'
+  | 'fame'
+  | 'zone'
+  | 'party_joined'
+  | 'party_left'
+  | 'kill'
 
 export interface TimelineEvent {
   at: string
@@ -114,6 +121,10 @@ export interface TimelineEvent {
   fame?: number
   zone?: string
   source?: string
+  killer?: string
+  killerGuild?: string
+  guild?: string
+  lethal?: boolean
 }
 
 export interface TimelineView {

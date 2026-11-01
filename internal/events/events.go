@@ -34,6 +34,9 @@ const (
 	EvNewEquipmentItem    = "NewEquipmentItem"
 	EvAttachItemContainer = "AttachItemContainer"
 	EvInventoryPutItem    = "InventoryPutItem"
+
+	EvDied         = "Died"
+	EvKilledPlayer = "KilledPlayer"
 )
 
 // fixPoint converts Albion's FixPoint internal integer to its real value
@@ -506,4 +509,55 @@ func DecodeInventoryPutItem(p protocol.Params) (InventoryPut, error) {
 	}
 	guid, _ := p.GUID(2)
 	return InventoryPut{ItemObjectID: id, InventoryGUID: guid}, nil
+}
+
+// ---------------------------------------------------------------------------
+// Killfeed — nearby deaths and kills, broadcast for entities around the player.
+// SA: Network/Events/DiedEvent.cs, KilledPlayerEvent.cs
+
+// Died is the rich, broadcast death event (SA DiedEvent.cs): who died, who
+// killed them, both guilds, and whether it was the lethal (final) blow.
+type Died struct {
+	VictimID    int64
+	Victim      string // param 2
+	VictimGuild string // param 3
+	KillerID    int64
+	Killer      string // param 10
+	KillerGuild string // param 11
+	Lethal      bool   // param 17
+}
+
+func DecodeDied(p protocol.Params) (Died, error) {
+	var r Died
+	if _, ok := p.String(2); !ok {
+		return r, missing(EvDied, "Victim", 2)
+	}
+	r.Victim, _ = p.String(2)
+	r.VictimID, _ = p.Int64(1)
+	r.VictimGuild, _ = p.String(3)
+	r.KillerID, _ = p.Int64(9)
+	r.Killer, _ = p.String(10)
+	r.KillerGuild, _ = p.String(11)
+	r.Lethal, _ = p.Bool(17)
+	return r, nil
+}
+
+// KilledPlayer credits the local player with a killing blow (SA
+// KilledPlayerEvent.cs): 0 killer object id, 1 killed object id, 2 killed name.
+type KilledPlayer struct {
+	KillerID int64
+	VictimID int64
+	Victim   string
+}
+
+func DecodeKilledPlayer(p protocol.Params) (KilledPlayer, error) {
+	var r KilledPlayer
+	r.KillerID, _ = p.Int64(0)
+	id, ok := p.Int64(1)
+	if !ok {
+		return r, missing(EvKilledPlayer, "VictimID", 1)
+	}
+	r.VictimID = id
+	r.Victim, _ = p.String(2)
+	return r, nil
 }

@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { Package, Coins, Sparkles, MapPin, UserPlus, UserMinus, RotateCcw } from 'lucide-react'
+import { Package, Coins, Sparkles, MapPin, UserPlus, UserMinus, Skull, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ItemIcon } from '@/components/ItemIcon'
 import { api } from '@/lib/bindings'
@@ -17,9 +17,10 @@ const KINDS: Record<TimelineKind, { label: string; icon: typeof Package; color: 
   zone: { label: 'Zone', icon: MapPin, color: 'text-emerald-400', bg: 'bg-emerald-400/15' },
   party_joined: { label: 'Joined', icon: UserPlus, color: 'text-teal-400', bg: 'bg-teal-400/15' },
   party_left: { label: 'Left', icon: UserMinus, color: 'text-rose-400', bg: 'bg-rose-400/15' },
+  kill: { label: 'Kill', icon: Skull, color: 'text-taken', bg: 'bg-taken/15' },
 }
 
-const ORDER: TimelineKind[] = ['loot', 'silver', 'fame', 'zone', 'party_joined', 'party_left']
+const ORDER: TimelineKind[] = ['loot', 'silver', 'fame', 'kill', 'zone', 'party_joined', 'party_left']
 
 export function Timeline() {
   const { data: view, status, retry } = useTopic(() => api.timelineView(), ['timeline:changed'])
@@ -128,6 +129,24 @@ function describe(e: TimelineEvent): ReactNode {
       return <span className="text-muted-foreground">{who} joined the party</span>
     case 'party_left':
       return <span className="text-muted-foreground">{who} left the party</span>
+    case 'kill':
+      // Victim reads in normal weight, killer bold — so "X killed by Y" is
+      // unambiguous without parsing the verb. "lethal" is the default, so only
+      // the rarer non-lethal knockdown gets a marker.
+      return (
+        <span className="text-muted-foreground">
+          <span className="text-foreground">{e.player || 'Someone'}</span>
+          {e.guild && <span className="text-muted-foreground"> [{e.guild}]</span>} killed
+          {e.killer ? (
+            <>
+              {' by '}
+              <span className="font-medium text-foreground">{e.killer}</span>
+              {e.killerGuild && <span className="text-muted-foreground"> [{e.killerGuild}]</span>}
+            </>
+          ) : null}
+          {!e.lethal && <span className="ml-1 text-muted-foreground">· knockdown</span>}
+        </span>
+      )
     case 'loot':
     default:
       return (

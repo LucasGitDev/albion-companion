@@ -317,3 +317,40 @@ func TestDecodeNewCharacter(t *testing.T) {
 		t.Fatalf("unexpected %+v", got)
 	}
 }
+
+// Killfeed decoders. Params verified against refs/session-1.aorec.
+func TestDecodeDied(t *testing.T) {
+	got, err := DecodeDied(protocol.Params{
+		1: int32(55675), 2: "xRosiex", 3: "Harvesters of the Hopeful",
+		9: int32(55427), 10: "Ilberserk", 11: "Arroz Clan", 17: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Victim != "xRosiex" || got.VictimGuild != "Harvesters of the Hopeful" ||
+		got.Killer != "Ilberserk" || got.KillerGuild != "Arroz Clan" || !got.Lethal ||
+		got.VictimID != 55675 || got.KillerID != 55427 {
+		t.Fatalf("unexpected %+v", got)
+	}
+	// A non-lethal knockdown with no killer named still decodes the victim.
+	nd, err := DecodeDied(protocol.Params{1: int16(10), 2: "Bob"})
+	if err != nil || nd.Victim != "Bob" || nd.Lethal || nd.Killer != "" {
+		t.Fatalf("knockdown decode = %+v err=%v", nd, err)
+	}
+	if _, err := DecodeDied(protocol.Params{1: int32(1)}); err == nil {
+		t.Fatal("want missing Victim error")
+	}
+}
+
+func TestDecodeKilledPlayer(t *testing.T) {
+	got, err := DecodeKilledPlayer(protocol.Params{0: int32(56163), 1: int32(55915), 2: "paweleltorol"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.KillerID != 56163 || got.VictimID != 55915 || got.Victim != "paweleltorol" {
+		t.Fatalf("unexpected %+v", got)
+	}
+	if _, err := DecodeKilledPlayer(protocol.Params{0: int32(1)}); err == nil {
+		t.Fatal("want missing VictimID error")
+	}
+}
