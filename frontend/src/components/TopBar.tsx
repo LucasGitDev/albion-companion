@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { Play, Square, Activity, MapPin, User, AlertTriangle } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { api, type CaptureStatus, type PartyView } from '@/lib/bindings'
+import { Play, Square, Activity, MapPin, User, AlertTriangle, Sparkles } from 'lucide-react'
+import { cn, fmt } from '@/lib/utils'
+import { api, type CaptureStatus, type PartyView, type FameView } from '@/lib/bindings'
 import { useTopic } from '@/hooks/useTopic'
 
 export function TopBar({
@@ -15,6 +15,7 @@ export function TopBar({
 }) {
   const [diagOpen, setDiagOpen] = useState(false)
   const party = useTopic<PartyView>(api.partyView, ['zone:changed', 'party:changed', 'capture:status'])
+  const fame = useTopic<FameView>(api.fameView, ['fame:changed', 'zone:changed'])
 
   const running = status?.running ?? false
   const stats = status?.stats
@@ -54,7 +55,16 @@ export function TopBar({
       <Chip icon={MapPin} value={party?.location} empty="No zone" />
       <Chip icon={User} value={party?.me} empty="No player" />
 
-      <div className="relative ml-auto">
+      <span
+        className="ml-auto inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary"
+        title={`Fame this session · ${Math.round(fame?.perHour ?? 0).toLocaleString()}/h · yellow ${Math.round(fame?.premium ?? 0).toLocaleString()}`}
+      >
+        <Sparkles className="size-3.5" />
+        <span className="tnum">{fmt(fame?.total ?? 0)}</span>
+        <span className="text-primary/60">fame</span>
+      </span>
+
+      <div className="relative">
         <button
           onClick={() => setDiagOpen((v) => !v)}
           className={cn(

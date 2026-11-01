@@ -1,11 +1,11 @@
 ---
 id: TASK-4
 title: Tailwind + shadcn/ui + app shell
-status: In Review
+status: Done
 assignee:
   - '@devlucasteles'
 created_date: '2026-10-31T19:20:00Z'
-updated_date: '2026-11-01 00:43'
+updated_date: '2026-11-01 01:33'
 labels:
   - ui
 dependencies:

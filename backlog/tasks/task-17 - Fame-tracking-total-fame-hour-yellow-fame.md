@@ -1,11 +1,11 @@
 ---
 id: TASK-17
 title: 'Fame tracking (total, fame/hour, yellow fame)'
-status: In Review
+status: Done
 assignee:
   - '@devlucasteles'
 created_date: '2026-11-01 01:19'
-updated_date: '2026-11-01 01:27'
+updated_date: '2026-11-01 01:33'
 labels:
   - events
   - engine

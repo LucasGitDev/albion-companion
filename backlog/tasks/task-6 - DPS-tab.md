@@ -1,10 +1,10 @@
 ---
 id: TASK-6
 title: DPS tab
-status: In Review
+status: Done
 assignee: []
 created_date: '2026-10-31T19:20:00Z'
-updated_date: '2026-11-01 00:43'
+updated_date: '2026-11-01 01:33'
 labels:
   - ui
 dependencies:
