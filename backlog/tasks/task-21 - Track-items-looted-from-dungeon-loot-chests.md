@@ -1,11 +1,11 @@
 ---
 id: TASK-21
 title: Track items looted from dungeon loot chests
-status: In Review
+status: Done
 assignee:
   - '@devlucasteles'
 created_date: '2026-11-01 02:03'
-updated_date: '2026-11-01 02:03'
+updated_date: '2026-11-01 02:04'
 labels:
   - loot
   - events
