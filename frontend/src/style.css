@@ -28,7 +28,7 @@
     --taken: 2 74% 60%;
     --fame: 265 62% 70%; /* timeline: fame / progression accent */
     --zone: 190 64% 55%; /* timeline: zone / navigation accent */
-    --warning: 34 90% 56%; /* caution banners (e.g. outdated codes.json) */
+    --warning: 25 90% 56%; /* caution banners (orange, kept distinct from gold --primary at 41°) */
     --destructive: 2 74% 55%;
     --destructive-foreground: 40 12% 96%;
     --border: 222 12% 17%;
@@ -103,7 +103,8 @@
   :focus-visible {
     outline: 2px solid hsl(var(--ring) / 0.7);
     outline-offset: 2px;
-    border-radius: 4px;
+    /* no border-radius override: the outline follows each element's own radius
+       (pills stay pills, cards stay cards). */
   }
   .tnum {
     font-variant-numeric: tabular-nums;

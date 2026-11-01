@@ -52,10 +52,10 @@ export function Timeline() {
                 onClick={() => toggle(k)}
                 className={cn(
                   'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
-                  on ? cn(bg, color, 'border-transparent') : 'border-border text-muted-foreground hover:bg-elevated/70',
+                  on ? cn(bg, 'border-transparent text-foreground') : 'border-border text-muted-foreground hover:bg-elevated/70',
                 )}
               >
-                <Icon className="size-3.5" />
+                <Icon className={cn('size-3.5', on && color)} />
                 {label}
               </button>
             )
