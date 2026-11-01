@@ -203,8 +203,10 @@ function RatesRow({ rates }: { rates: { data: RatesView | null; status: string; 
   return (
     <section className="rounded-xl border border-border bg-surface/60 px-5 py-4" aria-label="Session rates">
       <div className="mb-3 flex items-center justify-between gap-4">
-        <h2 className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Rates</h2>
-        <div className="flex gap-1 rounded-lg bg-background/60 p-1 text-xs" role="group" aria-label="Rate basis">
+        <h2 className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+          Rates · {mode === 'hour' ? 'per hour' : 'session'}
+        </h2>
+        <div className="flex gap-1 rounded-lg border border-border bg-background/60 p-1 text-xs" role="group" aria-label="Rate basis">
           {(['session', 'hour'] as const).map((m) => (
             <button
               key={m}
@@ -212,7 +214,7 @@ function RatesRow({ rates }: { rates: { data: RatesView | null; status: string; 
               onClick={() => setMode(m)}
               className={cn(
                 'rounded-md px-3 py-1 font-medium transition-colors motion-reduce:transition-none',
-                mode === m ? 'bg-elevated text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                mode === m ? 'bg-elevated text-foreground ring-1 ring-border' : 'text-muted-foreground hover:text-foreground',
               )}
             >
               {m === 'session' ? 'Session' : 'Per hour'}
@@ -271,7 +273,7 @@ function RateTile({
       <div
         className={cn(
           'font-display text-xl font-semibold leading-tight tnum',
-          empty ? 'text-muted-foreground/40' : accent ? 'text-primary' : 'text-foreground',
+          empty ? 'text-muted-foreground' : accent ? 'text-primary' : 'text-foreground',
         )}
       >
         {empty ? '—' : fmt(value)}

@@ -44,10 +44,14 @@ export function Loot({ filter, setFilter }: { filter: LootFilter; setFilter: (f:
 
   const value = view?.value
   const pricesOn = !!value?.available
-  // Estimated market value of a player's items (silver). "—" while prices are
-  // unavailable (offline or still loading) so the number is never misleading.
-  const playerValue = (name: string): string =>
-    pricesOn ? fmtSilver(value?.perPlayer?.[name] ?? 0) : '—'
+  // Estimated market value of a player's items (silver). "—" when prices are
+  // unavailable (offline/loading) OR when this player's items have no price yet,
+  // so a missing price is never shown as a misleading 0.
+  const playerValue = (name: string): string => {
+    if (!pricesOn) return '—'
+    const v = value?.perPlayer?.[name]
+    return v === undefined ? '—' : fmtSilver(v)
+  }
 
   const selected = filter.Player
   const pick = (name: string) => setFilter({ ...filter, Player: selected === name ? '' : name })
@@ -64,7 +68,7 @@ export function Loot({ filter, setFilter }: { filter: LootFilter; setFilter: (f:
           icon={TrendingUp}
           label="Est. value"
           value={pricesOn ? fmtSilver(value?.total ?? 0) : '—'}
-          gold
+          sub={pricesOn ? undefined : value?.pending ? 'Fetching prices…' : 'Offline · no prices'}
           title={
             pricesOn
               ? `Estimated market value (${value?.regionLabel}) · ~${fmtSilver(value?.silverPerHour ?? 0)}/h`
@@ -248,12 +252,14 @@ function Ledger({
   value,
   gold,
   title,
+  sub,
 }: {
   icon: typeof Package
   label: string
   value: string
   gold?: boolean
   title?: string
+  sub?: string
 }) {
   return (
     <div className="flex items-center gap-3" title={title}>
@@ -263,6 +269,7 @@ function Ledger({
       <div>
         <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</div>
         <div className={cn('font-display text-xl font-semibold tnum leading-tight', gold && 'text-primary')}>{value}</div>
+        {sub && <div className="text-[11px] text-warning">{sub}</div>}
       </div>
     </div>
   )

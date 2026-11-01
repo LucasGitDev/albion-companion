@@ -12,6 +12,7 @@ export function Settings() {
   const [regions, setRegions] = useState<PriceRegion[]>([])
   const [priceState, setPriceState] = useState<ValueView | null>(null)
   const [refreshingPrices, setRefreshingPrices] = useState(false)
+  const [priceError, setPriceError] = useState(false)
 
   const loadPriceState = () => api.lootView(0).then((v) => setPriceState(v.value)).catch(() => {})
 
@@ -36,9 +37,11 @@ export function Settings() {
   }
   const refreshPrices = () => {
     setRefreshingPrices(true)
+    setPriceError(false)
     api
       .refreshPrices()
       .then(loadPriceState)
+      .catch(() => setPriceError(true))
       .finally(() => setRefreshingPrices(false))
   }
   // Empty value = auto-detect from the game server; a detected region is the
@@ -85,7 +88,7 @@ export function Settings() {
         <CardContent className="flex items-center justify-between text-sm text-muted-foreground">
           <span>{items ? `${items.count.toLocaleString()} items loaded` : 'loading…'}</span>
           <Button size="sm" variant="outline" disabled={refreshing} onClick={refresh}>
-            <RefreshCw className={refreshing ? 'animate-spin' : ''} /> Refresh
+            <RefreshCw className={refreshing ? 'animate-spin motion-reduce:animate-none' : ''} /> Refresh
           </Button>
         </CardContent>
       </Card>
@@ -121,15 +124,19 @@ export function Settings() {
             </select>
           </div>
           <div className="flex items-center justify-between gap-3">
-            <span>
-              {priceState?.available
-                ? `${priceState.priced} item${priceState.priced === 1 ? '' : 's'} priced · ${priceState.regionLabel}`
-                : priceState?.pending
-                  ? 'Fetching prices…'
-                  : 'No prices yet (offline, or session empty)'}
+            <span className={priceError ? 'text-destructive' : !priceState || priceState.available ? '' : 'text-warning'}>
+              {priceError
+                ? 'Failed to refresh prices — try again.'
+                : priceState?.available
+                  ? `${priceState.priced} item${priceState.priced === 1 ? '' : 's'} priced · ${priceState.regionLabel}`
+                  : priceState?.pending
+                    ? 'Fetching prices…'
+                    : priceState === null
+                      ? 'Loading prices…'
+                      : 'Offline — no prices (or no items yet)'}
             </span>
             <Button size="sm" variant="outline" disabled={refreshingPrices} onClick={refreshPrices}>
-              <RefreshCw className={refreshingPrices ? 'animate-spin' : ''} /> Refresh prices
+              <RefreshCw className={refreshingPrices ? 'animate-spin motion-reduce:animate-none' : ''} /> Refresh prices
             </Button>
           </div>
         </CardContent>

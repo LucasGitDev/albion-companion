@@ -22,7 +22,7 @@
 | `--ember` | `18 88% 57%` | **Dano** (DPS, erros de decode) |
 | `--heal` | `150 56% 47%` | Cura / estado "capturando" / sucesso / Timeline: entrou na party |
 | `--taken` | `2 74% 60%` | Dano recebido / Timeline: kill |
-| `--fame` | `265 62% 70%` | **Fame / progressão.** Acento da Timeline (violeta) |
+| `--fame` | `265 62% 70%` | **Categoria "fame" no feed da Timeline/Dungeon (violeta).** NÃO é a cor da métrica fame — a métrica fame (TopBar, aba DPS) usa ouro (`--primary`), porque fame é progressão/loot. `--fame` só distingue eventos de fama no feed multicategoria, onde ouro já marca silver. |
 | `--zone` | `190 64% 55%` | **Zona / navegação.** Acento da Timeline (ciano) |
 | `--warning` | `34 90% 56%` | Banners de cautela (ex.: codes.json desatualizado) — âmbar, não é erro |
 | `--destructive` | `2 74% 55%` | Destrutivo / erro de captura |

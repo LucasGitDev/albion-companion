@@ -19,13 +19,16 @@ import { fmt, fmtSilver, cn } from '@/lib/utils'
 
 // One label + accent per dungeon type, shared by the badge and the type filter
 // so the list and the chips agree.
+// Types are distinguished by label, not hue: a neutral badge keeps the card to a
+// single accent (gold = silver) and stays on-token. Hellgate/Avalon carry a
+// semantic token since they map cleanly to ember/gold.
 const TYPES: Record<Exclude<DungeonType, ''>, { label: string; color: string; bg: string }> = {
-  random: { label: 'Random', color: 'text-sky-400', bg: 'bg-sky-400/15' },
-  group: { label: 'Group', color: 'text-teal-400', bg: 'bg-teal-400/15' },
-  corrupted: { label: 'Corrupted', color: 'text-violet-400', bg: 'bg-violet-400/15' },
+  random: { label: 'Random', color: 'text-muted-foreground', bg: 'bg-elevated' },
+  group: { label: 'Group', color: 'text-muted-foreground', bg: 'bg-elevated' },
+  corrupted: { label: 'Corrupted', color: 'text-muted-foreground', bg: 'bg-elevated' },
   hellgate: { label: 'Hellgate', color: 'text-ember', bg: 'bg-ember/15' },
   avalon: { label: 'Avalon', color: 'text-primary', bg: 'bg-primary/15' },
-  mists: { label: 'Mists', color: 'text-emerald-400', bg: 'bg-emerald-400/15' },
+  mists: { label: 'Mists', color: 'text-muted-foreground', bg: 'bg-elevated' },
   other: { label: 'Dungeon', color: 'text-muted-foreground', bg: 'bg-elevated' },
 }
 
@@ -151,10 +154,10 @@ function DungeonCard({ r }: { r: DungeonRecord }) {
                 setName(r.name)
                 setEditing(true)
               }}
-              className="group flex min-w-0 items-center gap-1.5 text-left"
+              className="group flex min-w-0 items-center gap-1.5 text-left" title="Rename dungeon"
             >
-              <span className="truncate font-display text-sm font-semibold tracking-tight">{r.name}</span>
-              <Pencil className="size-3 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+              <span className="truncate font-display text-base font-semibold tracking-tight">{r.name}</span>
+              <Pencil className="size-3 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
             </button>
           )}
           {r.open && (
@@ -169,10 +172,10 @@ function DungeonCard({ r }: { r: DungeonRecord }) {
       </div>
 
       <div className="mt-3.5 flex flex-wrap gap-x-7 gap-y-3">
-        <Stat icon={Sparkles} color="text-violet-400" label="Fame" value={fmt(r.fame)} />
+        <Stat icon={Sparkles} color="text-muted-foreground" label="Fame" value={fmt(r.fame)} />
         <Stat icon={Coins} color="text-primary" label="Silver" value={fmtSilver(r.silver)} />
-        <Stat icon={Package} color="text-sky-400" label="Loot" value={fmt(r.loot)} />
-        <Stat icon={Box} color="text-emerald-400" label="Chests" value={String(r.chests)} />
+        <Stat icon={Package} color="text-muted-foreground" label="Loot" value={fmt(r.loot)} />
+        <Stat icon={Box} color="text-muted-foreground" label="Chests" value={String(r.chests)} />
         <Stat icon={Clock} color="text-muted-foreground" label="Duration" value={duration(r.durationSec)} />
       </div>
 
@@ -183,7 +186,7 @@ function DungeonCard({ r }: { r: DungeonRecord }) {
           </span>
           {topDps.map((c) => (
             <span key={c.name} className="tnum">
-              <span className="text-foreground">{c.name}</span> {fmt(c.dps)}
+              <span className="text-foreground">{c.name}</span> {fmt(c.dps)}/s
             </span>
           ))}
         </div>
@@ -198,7 +201,7 @@ function TierSelect({ id, tier }: { id: number; tier: string }) {
       value={tier}
       onChange={(e) => void api.setDungeonTier(id, e.target.value)}
       aria-label="Dungeon tier"
-      className="rounded-md border border-input bg-background px-2 py-1 text-xs text-muted-foreground outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
+      className="rounded-md border border-input bg-elevated px-2.5 py-1.5 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       {TIERS.map((t) => (
         <option key={t} value={t}>
@@ -224,7 +227,7 @@ function Stat({
     <div className="flex items-center gap-2.5">
       <Icon className={cn('size-4', color)} />
       <div className="leading-tight">
-        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+        <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
         <div className="tnum text-sm font-medium">{value}</div>
       </div>
     </div>
