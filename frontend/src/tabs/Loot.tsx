@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react'
-import { Package, Coins, Hand, Clock, RotateCcw, X } from 'lucide-react'
+import { type ReactNode, useState } from 'react'
+import { Package, Coins, Hand, Clock, RotateCcw, X, Download, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ItemIcon } from '@/components/ItemIcon'
 import { api, type LootFilter } from '@/lib/bindings'
@@ -8,6 +8,15 @@ import { fmt, fmtSilver, cn } from '@/lib/utils'
 
 export function Loot({ filter, setFilter }: { filter: LootFilter; setFilter: (f: LootFilter) => void }) {
   const view = useLoot(filter)
+  const [saved, setSaved] = useState(false)
+  const exportCsv = () => {
+    api.exportLootCSV().then((path) => {
+      if (path) {
+        setSaved(true)
+        setTimeout(() => setSaved(false), 2500)
+      }
+    })
+  }
   const players = view?.players ?? []
   const items = view?.items ?? []
   const recent = view?.recent ?? []
@@ -54,6 +63,9 @@ export function Loot({ filter, setFilter }: { filter: LootFilter; setFilter: (f:
               />
               Include trash
             </label>
+            <Button size="sm" variant="outline" onClick={exportCsv}>
+              {saved ? <Check className="text-heal" /> : <Download />} {saved ? 'Saved' : 'Export CSV'}
+            </Button>
             <Button size="sm" variant="outline" onClick={() => api.resetLoot()}>
               <RotateCcw /> Reset
             </Button>

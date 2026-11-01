@@ -145,6 +145,7 @@ declare global {
           ResetCombat(): Promise<void>
           ResetFame(): Promise<void>
           FameView(): Promise<FameView>
+          ExportLootCSV(): Promise<string>
           TimelineView(recent: number): Promise<TimelineView>
           ResetTimeline(): Promise<void>
           SetLootFilter(f: { PartyOnly: boolean; Player: string; IncludeTrash: boolean }): Promise<void>
