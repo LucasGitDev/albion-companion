@@ -1,11 +1,11 @@
 ---
 id: TASK-12
 title: Loot value via Albion Online Data prices
-status: In Progress
+status: Done
 assignee:
   - '@devlucasteles'
 created_date: '2026-10-31T19:20:00Z'
-updated_date: '2026-11-01 14:00'
+updated_date: '2026-11-01 14:47'
 labels:
   - loot
 dependencies:

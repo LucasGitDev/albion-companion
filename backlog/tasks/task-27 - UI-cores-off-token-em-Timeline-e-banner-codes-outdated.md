@@ -1,10 +1,10 @@
 ---
 id: TASK-27
 title: 'UI: cores off-token em Timeline e banner codes-outdated'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-11-01 03:12'
-updated_date: '2026-11-01 13:55'
+updated_date: '2026-11-01 14:47'
 labels:
   - ui
   - design

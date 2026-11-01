@@ -1,11 +1,11 @@
 ---
 id: TASK-28
 title: Dungeon tracker (per-dungeon fame/silver/loot/DPS)
-status: In Review
+status: Done
 assignee:
   - '@devlucasteles'
 created_date: '2026-11-01 13:36'
-updated_date: '2026-11-01 14:40'
+updated_date: '2026-11-01 14:47'
 labels:
   - engine
   - ui
