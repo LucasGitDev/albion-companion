@@ -4,7 +4,7 @@ title: Chest report (deposits into guild/party chests)
 status: To Do
 assignee: []
 created_date: '2026-10-31T19:20:00Z'
-updated_date: '2026-11-01 02:10'
+updated_date: '2026-11-01 02:16'
 labels:
   - loot
 dependencies: []
@@ -39,4 +39,10 @@ GATE: only treat a container as a chest if its objectId came from NewLootChest (
 Item id/qty encoding == OtherGrabbedLoot (numeric items.txt index + qty) -> reuse itemdb. session-1.aorec sufficient for decoder + table tests (8 chests, single+multi-item). SA InventoryPutItemEventHandler is a no-op and ao-loot-logger EvInventoryPutItem is commented out -> we implement the dormant-but-correct path.
 
 NOTE: the dungeon loot-chest LOOTING path (NewLootChest/NewSimpleItem/AttachItemContainer/InventoryPutItem decoders + internal/chest + engine wiring) was implemented under a separate task (dungeon chest loot). This TASK-14 remains the broader 'looted vs deposited per player' guild/party-chest report, which can reuse those decoders plus the deposit side (DetachItemContainer / InventoryMoveItem request).
+
+FEASIBILITY (investigation, session-1.aorec + SA + ao-loot-logger): the 'who looted but did not deposit' audit is NOT achievable passively. What the server broadcasts:
+- Body/mob loot (OtherGrabbedLoot param2=looter): visible for ALL nearby members. OK.
+- Chest/container pickups (InventoryPutItem/AttachItemContainer): CLIENT-LOCAL only -> only the local player. ao-loot-logger hardcodes lootedBy=self; SA gates container tracking on IsTrackingAllowedByMainCharacter. No event exists for another member picking up a chest.
+- Guild/party chest DEPOSITS by others: NO broadcast event. InventoryMoveItem is the LOCAL player's own request. GetGuildAccountLogs is silver/energy-only, pull-triggered (only when the local player opens the guild log UI), and item-level chest logs have no SA decoder.
+CONCLUSION: deposit visibility for other members does not exist passively -> the theft/deposit audit as specified is infeasible. Realistic achievable scope: a per-member ledger of BODY/MOB loot only (all members) + full item movement (pickups into containers) for the LOCAL player only. A true cross-member deposit audit needs every member running the tool and merging logs (or server-side guild logs, not passively broadcast). Decision needed from user before building.
 <!-- SECTION:NOTES:END -->
