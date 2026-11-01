@@ -1,4 +1,8 @@
-.PHONY: check test race cli run-replay fixture codes refs tidy dev build
+.PHONY: check test race cli run-live run-replay fixture codes refs tidy dev build run run-dev run-replay-app grant-capture
+
+# Resolve the wails CLI whether or not GOPATH/bin is on PATH.
+WAILS := $(shell command -v wails 2>/dev/null || echo "$(shell go env GOPATH)/bin/wails")
+APP_BIN := build/bin/albion-companion.app/Contents/MacOS/albion-companion
 
 ## check: quality gate (Definition of Done) — see scripts/check.sh
 check:
@@ -38,9 +42,28 @@ codes: refs
 tidy:
 	go mod tidy
 
-## dev / build: Wails app (after TASK "Wails scaffold" is done)
+## dev / build: Wails app
 dev:
-	wails dev
+	$(WAILS) dev
 
 build:
-	wails build
+	$(WAILS) build
+
+## grant-capture: let your user read /dev/bpf* so the GUI can capture (macOS, until reboot)
+grant-capture:
+	sudo scripts/grant-capture.sh
+
+## run: build and launch the app for a REAL live-capture test (needs 'make grant-capture' first).
+## Open Albion, click Start capture; watch packets/decodeErr in the diagnostics popover.
+run: build
+	@echo "Launching Albion Companion. If it shows the permission screen, run 'make grant-capture' and retry."
+	$(APP_BIN)
+
+## run-dev: app with hot-reload (frontend edits live). Also needs capture permission.
+run-dev:
+	$(WAILS) dev
+
+## run-replay-app: launch the GUI replaying a recording — no game or permission needed.
+## Great to see the UI fill with real decoded data from the captured fixture.
+run-replay-app: build
+	ALBION_COMPANION_REPLAY=testdata/party-dungeon.aorec $(APP_BIN)
