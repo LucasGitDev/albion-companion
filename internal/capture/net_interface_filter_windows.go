@@ -7,7 +7,6 @@ package capture
 import (
 	"errors"
 	"os"
-	"strings"
 	"syscall"
 	"unicode/utf16"
 	"unsafe"
