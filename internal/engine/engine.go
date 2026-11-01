@@ -381,11 +381,18 @@ func (e *Engine) handleEvent(m protocol.Message) {
 	// --- Chest loot: stitched across four events (see internal/chest) ---
 	case events.EvNewLootChest:
 		if c, err := events.DecodeNewLootChest(m.Params); err == nil {
-			e.chest.NewChest(c)
+			e.chest.NewContainer(c.ObjectID, c.UniqueName)
 			// Count each chest seen in the current dungeon (the game sends no
 			// distinct "opened" event; NewLootChest marks a lootable chest).
 			e.dungeon.AddChest()
 			e.changed(TopicDungeon)
+		}
+	case events.EvNewLoot:
+		// A corpse bag / loot body: items taken from it (opened via its inventory)
+		// flow through the same AttachItemContainer → InventoryPutItem path as a
+		// chest. lootedFrom = the body name (dead player or @MOB_...).
+		if nl, err := events.DecodeNewLoot(m.Params); err == nil {
+			e.chest.NewContainer(nl.ObjectID, nl.LootBody)
 		}
 	case events.EvNewSimpleItem, events.EvNewEquipmentItem:
 		if it, err := events.DecodeItemObject(m.Name, m.Params); err == nil {

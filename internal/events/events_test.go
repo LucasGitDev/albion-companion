@@ -411,7 +411,9 @@ func TestDecodeMightAndFavorReceived(t *testing.T) {
 			}
 		})
 	}
-	if _, err := DecodeMightAndFavorReceived(protocol.Params{2: int32(1)}); err == nil {
-		t.Fatal("want missing Might error")
+	// Might (param 1) is optional: the serializer omits it on a favor-only event.
+	favorOnly, err := DecodeMightAndFavorReceived(protocol.Params{4: int32(2000000)})
+	if err != nil || favorOnly.Might != 0 || favorOnly.Favor != 200 {
+		t.Fatalf("favor-only decode = %+v err=%v", favorOnly, err)
 	}
 }

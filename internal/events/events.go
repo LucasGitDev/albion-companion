@@ -482,11 +482,11 @@ type MightAndFavor struct {
 
 func DecodeMightAndFavorReceived(p protocol.Params) (MightAndFavor, error) {
 	var r MightAndFavor
-	might, ok := p.Int64(1)
-	if !ok {
-		return r, missing(EvMightAndFavorReceived, "Might", 1)
+	// Might (1) is optional: the serializer omits it when the event carries only
+	// favor (zero might). SA reads every field via TryGetValue.
+	if v, ok := p.Int64(1); ok {
+		r.Might = fixPoint(v)
 	}
-	r.Might = fixPoint(might)
 	if v, ok := p.Int64(2); ok {
 		r.BonusOfMight = fixPoint(v)
 	}

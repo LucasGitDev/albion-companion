@@ -35,11 +35,13 @@ func New() *Tracker {
 	}
 }
 
-// NewChest records a chest object and its name (upsert; the game re-announces).
-func (t *Tracker) NewChest(c events.LootChest) {
+// NewContainer records a lootable container object and the name to credit as
+// "looted from" — a dungeon/treasure chest (NewLootChest → unique name) or a
+// corpse bag / loot body (NewLoot → body name). Upsert; the game re-announces.
+func (t *Tracker) NewContainer(objectID int64, name string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	t.chests[c.ObjectID] = c.UniqueName
+	t.chests[objectID] = name
 }
 
 // NewItem records an item instance declared by NewSimpleItem/NewEquipmentItem.

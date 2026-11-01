@@ -156,3 +156,48 @@ func TestEngine_ChestLoot(t *testing.T) {
 		t.Fatalf("unexpected chest loot: %+v", got)
 	}
 }
+
+// TestEngine_CorpseBagLoot covers taking an item from a corpse bag / loot body
+// (NewLoot container), not a chest — the user's "open my death bag, take the log"
+// case. It must be recorded as loot with lootedFrom = the body name.
+func TestEngine_CorpseBagLoot(t *testing.T) {
+	codes := protocol.DefaultCodes()
+	code := func(name string) uint16 {
+		c, ok := codes.EventCode(name)
+		if !ok {
+			t.Fatalf("missing event %s", name)
+		}
+		return c
+	}
+	join, _ := codes.OperationCode("Join")
+
+	var looted []loot.Entry
+	e := New(Config{
+		Codes:         codes,
+		Items:         items{566: {Index: 566, UniqueName: "T1_WOOD", Name: "Log"}},
+		OnLoot:        func(en loot.Entry) { looted = append(looted, en) },
+		OnDecodeError: func(name string, err error) { t.Errorf("decode error %s: %v", name, err) },
+	})
+
+	t0 := time.Unix(3000, 0)
+	feed := func(payload []byte, dt time.Duration) {
+		e.Feed(capture.Packet{At: t0.Add(dt), Payload: payload})
+	}
+
+	feed(photontest.Response(join, map[byte]any{0: int32(1), 2: "Me", 8: "9", 54: guid(9)}), 0)
+	// A corpse bag (NewLoot), its item, the attach, and the take.
+	feed(photontest.Event(code("NewLoot"), map[byte]any{0: int32(700), 3: "react01"}), time.Second)
+	feed(photontest.Event(code("NewSimpleItem"), map[byte]any{0: int32(910), 1: int16(566), 2: int16(1)}), time.Second)
+	feed(photontest.Event(code("AttachItemContainer"), map[byte]any{0: int32(700), 3: []int32{910}, 5: int16(1)}), time.Second)
+	feed(photontest.Event(code("InventoryPutItem"), map[byte]any{0: int32(910), 2: guid(9)}), 2*time.Second)
+
+	if st := e.Stats(); st.DecodeErrors != 0 {
+		t.Fatalf("decode errors = %d", st.DecodeErrors)
+	}
+	if len(looted) != 1 {
+		t.Fatalf("expected 1 corpse-bag loot entry, got %d: %+v", len(looted), looted)
+	}
+	if got := looted[0]; got.Looter != "Me" || got.LootedFrom != "react01" || got.ItemID != "T1_WOOD" || got.Quantity != 1 {
+		t.Fatalf("unexpected corpse loot: %+v", got)
+	}
+}
