@@ -380,15 +380,10 @@ func DecodeUpdateFame(p protocol.Params) (FameUpdate, error) {
 		r.Satchel = fixPoint(v)
 	}
 
-	// SA: BonusFactor = 1 + param17, but it is reset to 1 whenever that bonus is
-	// positive (the factor is informational, not applied to the gained total).
+	// param 17 is an informational bonus factor. SA computes 1+param17 but resets
+	// it to 1 whenever it is positive, so it never scales the gained total; a
+	// negative value is not a real scenario and must not deflate fame. We keep it
+	// at 1 unconditionally — the gained total is Base + Premium + Satchel.
 	r.BonusFactor = 1
-	if v, ok := p.Float64(17); ok {
-		if 1+v > 1 {
-			r.BonusFactor = 1
-		} else {
-			r.BonusFactor = 1 + v
-		}
-	}
 	return r, nil
 }

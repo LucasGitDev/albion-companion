@@ -70,9 +70,9 @@ func (t *Tracker) Snapshot() Snapshot {
 	}
 }
 
-// perHour projects the session rate to a full hour (actual = total ÷ elapsed).
-// Before ~15s of data it extrapolates from the short window, which the UI can
-// label as a projection.
+// perHour is the session fame rate: total fame gained ÷ elapsed time, expressed
+// per hour. Early in a session this short window makes it a projection of the
+// hourly rate; as the session grows it converges on the actual rate.
 func perHour(total float64, first, last time.Time) float64 {
 	if first.IsZero() || !last.After(first) {
 		return 0

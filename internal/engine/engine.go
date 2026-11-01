@@ -243,8 +243,10 @@ func (e *Engine) handleEvent(m protocol.Message) {
 			e.fail(m.Name, err)
 			return
 		}
-		// Only the local player's fame (the event also fires for others nearby).
-		if local := e.state.LocalPlayer(); f.PlayerObjectID == 0 || f.PlayerObjectID == local.ObjectID {
+		// Fame is private: count only events whose subject is the local player,
+		// and only once the local player is known (after Join). This avoids
+		// attributing an event with an absent/zero subject id to the session.
+		if local := e.state.LocalPlayer(); local.ObjectID != 0 && f.PlayerObjectID == local.ObjectID {
 			e.fame.Add(f, m.At)
 			e.changed(TopicFame)
 		}
