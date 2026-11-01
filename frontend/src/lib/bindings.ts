@@ -9,6 +9,7 @@ import type {
   RatesView,
   TimelineView,
   DungeonView,
+  GatherView,
   PriceRegion,
 } from '@/wails.d'
 
@@ -33,6 +34,8 @@ export type {
   DungeonView,
   DungeonRecord,
   DungeonType,
+  GatherView,
+  GatherItem,
   CodesInfo,
   ItemDBInfo,
   Stats,
@@ -71,6 +74,8 @@ export const api = {
   renameDungeon: (id: number, name: string): Promise<void> => app().RenameDungeon(id, name),
   setDungeonTier: (id: number, tier: string): Promise<void> => app().SetDungeonTier(id, tier),
   resetDungeons: (): Promise<void> => app().ResetDungeons(),
+  gatherView: (): Promise<GatherView> => app().GatherView(),
+  resetGather: (): Promise<void> => app().ResetGather(),
   interfaces: () => app().Interfaces(),
   priceRegions: (): Promise<PriceRegion[]> => app().PriceRegions(),
   setPriceRegion: (key: string): Promise<void> => app().SetPriceRegion(key),

@@ -14,6 +14,7 @@ import (
 	"github.com/LucasGitDev/albion-companion/internal/capture"
 	"github.com/LucasGitDev/albion-companion/internal/combat"
 	"github.com/LucasGitDev/albion-companion/internal/fame"
+	"github.com/LucasGitDev/albion-companion/internal/gather"
 	"github.com/LucasGitDev/albion-companion/internal/itemdb"
 	"github.com/LucasGitDev/albion-companion/internal/loot"
 	"github.com/LucasGitDev/albion-companion/internal/prices"
@@ -103,6 +104,7 @@ func (a *App) startup(ctx context.Context) {
 		db, err := itemdb.LoadCached(ctx, itemsCacheDir(), 24*time.Hour)
 		if err == nil {
 			a.svc.Engine().Loot().SetItems(db)
+			a.svc.Engine().Gather().SetItems(db)
 			a.mu.Lock()
 			a.items = db
 			a.mu.Unlock()
@@ -170,6 +172,8 @@ func (a *App) ResetFame()                               { a.svc.ResetFame() }
 func (a *App) FameView() fame.Snapshot                  { return a.svc.FameView() }
 func (a *App) RatesView() app.RatesView                 { return a.svc.RatesView() }
 func (a *App) ResetRates()                              { a.svc.ResetRates() }
+func (a *App) GatherView() gather.Snapshot              { return a.svc.GatherView() }
+func (a *App) ResetGather()                             { a.svc.ResetGather() }
 func (a *App) TimelineView(recent int) app.TimelineView { return a.svc.TimelineView(recent) }
 func (a *App) ResetTimeline()                           { a.svc.ResetTimeline() }
 func (a *App) DungeonView() app.DungeonView             { return a.svc.DungeonView() }
@@ -247,6 +251,7 @@ func (a *App) RefreshItemDB() (ItemDBInfo, error) {
 		return a.ItemDBInfo(), err
 	}
 	a.svc.Engine().Loot().SetItems(db)
+	a.svc.Engine().Gather().SetItems(db)
 	a.mu.Lock()
 	a.items = db
 	a.mu.Unlock()

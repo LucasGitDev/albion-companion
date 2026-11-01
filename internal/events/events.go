@@ -40,6 +40,8 @@ const (
 
 	EvDied         = "Died"
 	EvKilledPlayer = "KilledPlayer"
+
+	EvHarvestFinished = "HarvestFinished"
 )
 
 // fixPoint converts Albion's FixPoint internal integer to its real value
@@ -646,5 +648,36 @@ func DecodeKilledPlayer(p protocol.Params) (KilledPlayer, error) {
 	}
 	r.VictimID = id
 	r.Victim, _ = p.String(2)
+	return r, nil
+}
+
+// ---------------------------------------------------------------------------
+// HarvestFinished — a resource was gathered (fiber/ore/hide/wood/stone/fish).
+// SA: Network/Events/HarvestFinishedEvent.cs
+//   0 userObjectId, 3 node objectId, 4 itemId (items.txt index),
+//   5 standardAmount, 6 collectorBonusAmount, 7 premiumBonusAmount.
+
+type Harvest struct {
+	UserObjectID int64
+	ItemIndex    int
+	Standard     int64
+	Collector    int64
+	Premium      int64
+}
+
+// Amount is the total gathered (base + collector + premium bonuses).
+func (h Harvest) Amount() int64 { return h.Standard + h.Collector + h.Premium }
+
+func DecodeHarvestFinished(p protocol.Params) (Harvest, error) {
+	var r Harvest
+	r.UserObjectID, _ = p.Int64(0)
+	idx, ok := p.Int64(4)
+	if !ok {
+		return r, missing(EvHarvestFinished, "ItemIndex", 4)
+	}
+	r.ItemIndex = int(idx)
+	r.Standard, _ = p.Int64(5)
+	r.Collector, _ = p.Int64(6)
+	r.Premium, _ = p.Int64(7)
 	return r, nil
 }

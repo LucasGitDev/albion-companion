@@ -214,6 +214,21 @@ export interface DungeonView {
   total: number
 }
 
+export interface GatherItem {
+  itemIndex: number
+  amount: number
+  uniqueName: string
+  name: string
+}
+
+export interface GatherView {
+  items: GatherItem[] | null
+  total: number
+  count: number
+  perHour: number
+  since: string
+}
+
 export interface CodesInfo {
   source: string
   events: number
@@ -248,6 +263,8 @@ declare global {
           RenameDungeon(id: number, name: string): Promise<void>
           SetDungeonTier(id: number, tier: string): Promise<void>
           ResetDungeons(): Promise<void>
+          GatherView(): Promise<GatherView>
+          ResetGather(): Promise<void>
           SetLootFilter(f: { PartyOnly: boolean; Player: string; IncludeTrash: boolean }): Promise<void>
           SetCombatOptions(o: { PartyOnly: boolean; PlayerTargetsOnly: boolean }): Promise<void>
           Interfaces(): Promise<string[]>
