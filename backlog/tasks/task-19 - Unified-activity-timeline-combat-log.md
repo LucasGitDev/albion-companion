@@ -1,11 +1,11 @@
 ---
 id: TASK-19
 title: Unified activity timeline (combat log)
-status: In Review
+status: Done
 assignee:
   - '@devlucasteles'
 created_date: '2026-11-01 01:33'
-updated_date: '2026-11-01 01:54'
+updated_date: '2026-11-01 01:55'
 labels:
   - ui
   - engine
