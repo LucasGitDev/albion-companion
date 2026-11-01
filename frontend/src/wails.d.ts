@@ -109,6 +109,20 @@ export interface FameView {
   since: string
 }
 
+export interface RateMetric {
+  total: number
+  perHour: number
+  count: number
+  since: string
+}
+
+export interface RatesView {
+  fame: RateMetric
+  silver: RateMetric
+  respec: RateMetric
+  might: RateMetric
+}
+
 export type TimelineKind =
   | 'loot'
   | 'silver'
@@ -165,6 +179,8 @@ declare global {
           ResetCombat(): Promise<void>
           ResetFame(): Promise<void>
           FameView(): Promise<FameView>
+          RatesView(): Promise<RatesView>
+          ResetRates(): Promise<void>
           ExportLootCSV(): Promise<string>
           TimelineView(recent: number): Promise<TimelineView>
           ResetTimeline(): Promise<void>

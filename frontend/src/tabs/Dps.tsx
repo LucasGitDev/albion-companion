@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { RotateCcw, Timer, Swords, Sparkles, ChevronRight } from 'lucide-react'
+import { RotateCcw, Timer, Swords, Sparkles, Coins, RefreshCw, Flame, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Loading, ErrorState } from '@/components/ui/states'
-import { api, type CombatRow, type FameView } from '@/lib/bindings'
+import { api, type CombatRow, type RatesView, type RateMetric } from '@/lib/bindings'
 import { useCombat } from '@/hooks/useCombat'
 import { useTopic } from '@/hooks/useTopic'
 import { fmt, cn } from '@/lib/utils'
@@ -34,7 +34,7 @@ export function Dps({
       next.has(name) ? next.delete(name) : next.add(name)
       return next
     })
-  const { data: fame } = useTopic<FameView>(api.fameView, ['fame:changed', 'zone:changed'])
+  const rates = useTopic<RatesView>(api.ratesView, ['rates:changed', 'fame:changed', 'zone:changed'])
   const { data: view, status, retry } = useCombat({ PartyOnly: partyOnly, PlayerTargetsOnly: playerTargetsOnly })
 
   if (status === 'loading') return <Loading rows={6} />
@@ -46,22 +46,8 @@ export function Dps({
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Fame — Albion's core progression metric. */}
-      <div className="flex flex-wrap items-center gap-x-8 gap-y-3 rounded-xl border border-border bg-surface/60 px-5 py-4">
-        <div className="flex items-center gap-3">
-          <div className="grid size-9 place-items-center rounded-lg bg-primary/15 text-primary">
-            <Sparkles className="size-4" />
-          </div>
-          <div>
-            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Fame this session</div>
-            <div className="font-display text-xl font-semibold tnum leading-tight text-primary">{fmt(fame?.total ?? 0)}</div>
-          </div>
-        </div>
-        <FameStat label="Fame / hour" value={fmt(fame?.perHour ?? 0)} />
-        <FameStat label="Yellow (Quick-Learner)" value={fmt(fame?.yellow ?? 0)} accent />
-        <FameStat label="Premium bonus" value={fmt(fame?.premium ?? 0)} />
-        <FameStat label="Events" value={String(fame?.count ?? 0)} />
-      </div>
+      {/* Rates dashboard — fame/silver/respec/might as session totals or /hour. */}
+      <RatesRow rates={rates} />
 
       <div className="flex flex-wrap items-center gap-4 rounded-xl border border-border bg-surface/60 px-5 py-3">
         <div className="flex items-center gap-2 text-sm">
@@ -82,6 +68,7 @@ export function Dps({
             onClick={() => {
               void api.resetCombat()
               void api.resetFame()
+              void api.resetRates()
             }}
           >
             <RotateCcw /> Reset
@@ -200,11 +187,96 @@ export function Dps({
   )
 }
 
-function FameStat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+type RateMode = 'session' | 'hour'
+
+const RATE_METRICS = [
+  { key: 'fame', label: 'Fame', Icon: Sparkles, accent: true },
+  { key: 'silver', label: 'Silver', Icon: Coins, accent: true },
+  { key: 'respec', label: 'Respec', Icon: RefreshCw, accent: false },
+  { key: 'might', label: 'Might', Icon: Flame, accent: false },
+] as const
+
+function RatesRow({ rates }: { rates: { data: RatesView | null; status: string; retry: () => void } }) {
+  const [mode, setMode] = useState<RateMode>('session')
+  const { data, status, retry } = rates
+
+  return (
+    <section className="rounded-xl border border-border bg-surface/60 px-5 py-4" aria-label="Session rates">
+      <div className="mb-3 flex items-center justify-between gap-4">
+        <h2 className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Rates</h2>
+        <div className="flex gap-1 rounded-lg bg-background/60 p-1 text-xs" role="group" aria-label="Rate basis">
+          {(['session', 'hour'] as const).map((m) => (
+            <button
+              key={m}
+              aria-pressed={mode === m}
+              onClick={() => setMode(m)}
+              className={cn(
+                'rounded-md px-3 py-1 font-medium transition-colors motion-reduce:transition-none',
+                mode === m ? 'bg-elevated text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {m === 'session' ? 'Session' : 'Per hour'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {status === 'loading' && (
+        <div className="grid grid-cols-4 gap-4" aria-hidden>
+          {RATE_METRICS.map(({ key }) => (
+            <div key={key} className="animate-pulse motion-reduce:animate-none">
+              <div className="mb-2 h-3 w-14 rounded bg-muted/60" />
+              <div className="h-6 w-20 rounded bg-muted/50" />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {status === 'error' && (
+        <ErrorState message="Couldn't load session rates." onRetry={retry} />
+      )}
+
+      {status === 'ready' && (
+        <div className="grid grid-cols-4 gap-4">
+          {RATE_METRICS.map(({ key, label, Icon, accent }) => (
+            <RateTile key={key} label={label} Icon={Icon} accent={accent} metric={data?.[key]} mode={mode} />
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function RateTile({
+  label,
+  Icon,
+  accent,
+  metric,
+  mode,
+}: {
+  label: string
+  Icon: typeof Sparkles
+  accent: boolean
+  metric: RateMetric | undefined
+  mode: RateMode
+}) {
+  const value = metric ? (mode === 'hour' ? metric.perHour : metric.total) : 0
+  const empty = !metric || metric.count === 0
   return (
     <div>
-      <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className={cn('font-display text-xl font-semibold tnum leading-tight', accent && 'text-primary')}>{value}</div>
+      <div className="mb-1 flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
+        <Icon className={cn('size-3.5', accent ? 'text-primary' : 'text-muted-foreground')} />
+        {label}
+      </div>
+      <div
+        className={cn(
+          'font-display text-xl font-semibold leading-tight tnum',
+          empty ? 'text-muted-foreground/40' : accent ? 'text-primary' : 'text-foreground',
+        )}
+      >
+        {empty ? '—' : fmt(value)}
+        {!empty && mode === 'hour' && <span className="ml-1 text-xs font-normal text-muted-foreground">/h</span>}
+      </div>
     </div>
   )
 }

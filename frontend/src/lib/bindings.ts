@@ -6,6 +6,7 @@ import type {
   LootView,
   PartyView,
   FameView,
+  RatesView,
   TimelineView,
 } from '@/wails.d'
 
@@ -20,6 +21,8 @@ export type {
   PartyView,
   PartyMember,
   FameView,
+  RatesView,
+  RateMetric,
   TimelineView,
   TimelineEvent,
   TimelineKind,
@@ -52,6 +55,8 @@ export const api = {
   resetCombat: (): Promise<void> => app().ResetCombat(),
   resetFame: (): Promise<void> => app().ResetFame(),
   fameView: (): Promise<FameView> => app().FameView(),
+  ratesView: (): Promise<RatesView> => app().RatesView(),
+  resetRates: (): Promise<void> => app().ResetRates(),
   exportLootCSV: (): Promise<string> => app().ExportLootCSV(),
   timelineView: (recent = 200): Promise<TimelineView> => app().TimelineView(recent),
   resetTimeline: (): Promise<void> => app().ResetTimeline(),
