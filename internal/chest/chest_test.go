@@ -8,7 +8,7 @@ import (
 
 func TestTracker_StitchesChestPickup(t *testing.T) {
 	tr := New()
-	tr.NewChest(events.LootChest{ObjectID: 46753, UniqueName: "TREASURE_COFFER_SOLO"})
+	tr.NewContainer(46753, "TREASURE_COFFER_SOLO")
 	tr.NewItem(events.ItemObject{ObjectID: 54194, ItemIndex: 2014, Quantity: 3})
 	tr.Attach(events.ItemContainer{ObjectID: 46753, Slots: []int64{0, 54194, 0}})
 
@@ -37,7 +37,7 @@ func TestTracker_IgnoresNonChestContainers(t *testing.T) {
 
 func TestTracker_TakeUnknownItem(t *testing.T) {
 	tr := New()
-	tr.NewChest(events.LootChest{ObjectID: 1, UniqueName: "C"})
+	tr.NewContainer(1, "C")
 	// Attach references an item we never saw declared.
 	tr.Attach(events.ItemContainer{ObjectID: 1, Slots: []int64{42}})
 	if _, ok := tr.Take(42); ok {
@@ -47,7 +47,7 @@ func TestTracker_TakeUnknownItem(t *testing.T) {
 
 func TestTracker_Reset(t *testing.T) {
 	tr := New()
-	tr.NewChest(events.LootChest{ObjectID: 1, UniqueName: "C"})
+	tr.NewContainer(1, "C")
 	tr.NewItem(events.ItemObject{ObjectID: 2, ItemIndex: 5, Quantity: 1})
 	tr.Attach(events.ItemContainer{ObjectID: 1, Slots: []int64{2}})
 	tr.Reset()
