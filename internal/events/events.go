@@ -29,6 +29,9 @@ const (
 	EvPartyDisbanded    = "PartyDisbanded"
 	EvUpdateFame        = "UpdateFame"
 
+	EvUpdateReSpecPoints    = "UpdateReSpecPoints"
+	EvMightAndFavorReceived = "MightAndFavorReceivedEvent"
+
 	EvNewLootChest        = "NewLootChest"
 	EvNewSimpleItem       = "NewSimpleItem"
 	EvNewEquipmentItem    = "NewEquipmentItem"
@@ -418,6 +421,90 @@ func DecodeUpdateFame(p protocol.Params) (FameUpdate, error) {
 	// negative value is not a real scenario and must not deflate fame. We keep it
 	// at 1 unconditionally — the gained total is Base + Premium + Satchel.
 	r.BonusFactor = 1
+	return r, nil
+}
+
+// ---------------------------------------------------------------------------
+// UpdateReSpecPoints — respec (Learning Points refund) points gained, a local
+// player-only progression event (no object id). SA accumulates GainedReSpecPoints
+// per event for the respec/hour live stat.
+// SA: Network/Events/UpdateReSpecPointsEvent.cs
+//   param 0: int/long array, index 1 = CurrentTotalReSpecPoints (optional)
+//   param 2: GainedReSpecPoints
+//   param 3: PaidSilver
+// All values are FixPoint (÷10000).
+
+type ReSpecPoints struct {
+	CurrentTotal    float64 // param 0, array index 1 (lifetime total)
+	HasCurrentTotal bool
+	Gained          float64 // param 2: respec points gained by this event
+	PaidSilver      float64 // param 3: silver paid for the respec
+}
+
+func DecodeUpdateReSpecPoints(p protocol.Params) (ReSpecPoints, error) {
+	var r ReSpecPoints
+	gained, ok := p.Int64(2)
+	if !ok {
+		return r, missing(EvUpdateReSpecPoints, "GainedReSpecPoints", 2)
+	}
+	r.Gained = fixPoint(gained)
+	if v, ok := p.Int64(3); ok {
+		r.PaidSilver = fixPoint(v)
+	}
+	// param 0 is an int/long array whose index 1 holds the lifetime total
+	// (SA switches on Int32[]/Int64[] then reads index 1).
+	if arr, ok := p.Int64s(0); ok && len(arr) > 1 {
+		r.CurrentTotal = fixPoint(arr[1])
+		r.HasCurrentTotal = true
+	}
+	return r, nil
+}
+
+// ---------------------------------------------------------------------------
+// MightAndFavorReceived — Might & Favor (daily/activity progression) gained.
+// Local player-only (no object id). SA accumulates Might (param 1) and Favor
+// (param 4) per event for the might/hour live stat; the bonus/premium splits
+// are informational.
+// SA: Network/Events/MightAndFavorReceivedEvent.cs
+//   1 Might, 2 BonusOfMight, 3 PremiumOfMight,
+//   4 Favor, 5 BonusOfFavor, 6 PremiumOfFavor, 7 TotalFavor
+// All values are FixPoint (÷10000).
+
+type MightAndFavor struct {
+	Might          float64 // param 1
+	BonusOfMight   float64 // param 2
+	PremiumOfMight float64 // param 3
+	Favor          float64 // param 4
+	BonusOfFavor   float64 // param 5
+	PremiumOfFavor float64 // param 6
+	TotalFavor     float64 // param 7
+}
+
+func DecodeMightAndFavorReceived(p protocol.Params) (MightAndFavor, error) {
+	var r MightAndFavor
+	might, ok := p.Int64(1)
+	if !ok {
+		return r, missing(EvMightAndFavorReceived, "Might", 1)
+	}
+	r.Might = fixPoint(might)
+	if v, ok := p.Int64(2); ok {
+		r.BonusOfMight = fixPoint(v)
+	}
+	if v, ok := p.Int64(3); ok {
+		r.PremiumOfMight = fixPoint(v)
+	}
+	if v, ok := p.Int64(4); ok {
+		r.Favor = fixPoint(v)
+	}
+	if v, ok := p.Int64(5); ok {
+		r.BonusOfFavor = fixPoint(v)
+	}
+	if v, ok := p.Int64(6); ok {
+		r.PremiumOfFavor = fixPoint(v)
+	}
+	if v, ok := p.Int64(7); ok {
+		r.TotalFavor = fixPoint(v)
+	}
 	return r, nil
 }
 
