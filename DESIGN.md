@@ -20,8 +20,11 @@
 | `--primary` (ouro) | `41 92% 55%` | **Loot / silver.** Ação primária, acento único por tela |
 | `--primary-foreground` | `36 45% 8%` | Texto sobre ouro |
 | `--ember` | `18 88% 57%` | **Dano** (DPS, erros de decode) |
-| `--heal` | `150 56% 47%` | Cura / estado "capturando" / sucesso |
-| `--taken` | `2 74% 60%` | Dano recebido |
+| `--heal` | `150 56% 47%` | Cura / estado "capturando" / sucesso / Timeline: entrou na party |
+| `--taken` | `2 74% 60%` | Dano recebido / Timeline: kill |
+| `--fame` | `265 62% 70%` | **Fame / progressão.** Acento da Timeline (violeta) |
+| `--zone` | `190 64% 55%` | **Zona / navegação.** Acento da Timeline (ciano) |
+| `--warning` | `34 90% 56%` | Banners de cautela (ex.: codes.json desatualizado) — âmbar, não é erro |
 | `--destructive` | `2 74% 55%` | Destrutivo / erro de captura |
 | `--secondary` / `--muted` / `--accent` | `222 13% 16/15/17%` | Neutros tingidos de superfície |
 | `--border` | `222 12% 17%` | Bordas (aplicada a `*` por padrão) |
@@ -30,6 +33,10 @@
 
 Regra: **um acento por tela.** Ouro domina Loot/fame; ember domina DPS. Todo o resto
 é neutro tingido (nunca cinza puro — todos os neutros carregam a matiz `222`).
+Exceção: a **Timeline** é um feed multi-categoria (como uma legenda) e mapeia cada tipo
+de evento a um token semântico — loot/silver=`--primary`, fame=`--fame`, zone=`--zone`,
+party entrou=`--heal`, party saiu=`--muted-foreground`, kill=`--taken` — nunca a cores
+Tailwind cruas. Chips de filtro e linhas do feed usam o mesmo token por tipo.
 Contraste: texto normal ≥ 4.5:1, UI/texto grande ≥ 3:1.
 
 Fundo do `body` tem um glow radial de ouro a 5% no canto superior direito — sutil,

@@ -11,12 +11,12 @@ import { fmt, fmtSilver, cn } from '@/lib/utils'
 // One visual recipe per event kind: icon + accent colour + short label used by
 // the filter chips. Keeping it in one map makes the feed and the filter agree.
 const KINDS: Record<TimelineKind, { label: string; icon: typeof Package; color: string; bg: string }> = {
-  loot: { label: 'Loot', icon: Package, color: 'text-sky-400', bg: 'bg-sky-400/15' },
+  loot: { label: 'Loot', icon: Package, color: 'text-primary', bg: 'bg-primary/15' },
   silver: { label: 'Silver', icon: Coins, color: 'text-primary', bg: 'bg-primary/15' },
-  fame: { label: 'Fame', icon: Sparkles, color: 'text-violet-400', bg: 'bg-violet-400/15' },
-  zone: { label: 'Zone', icon: MapPin, color: 'text-emerald-400', bg: 'bg-emerald-400/15' },
-  party_joined: { label: 'Joined', icon: UserPlus, color: 'text-teal-400', bg: 'bg-teal-400/15' },
-  party_left: { label: 'Left', icon: UserMinus, color: 'text-rose-400', bg: 'bg-rose-400/15' },
+  fame: { label: 'Fame', icon: Sparkles, color: 'text-fame', bg: 'bg-fame/15' },
+  zone: { label: 'Zone', icon: MapPin, color: 'text-zone', bg: 'bg-zone/15' },
+  party_joined: { label: 'Joined', icon: UserPlus, color: 'text-heal', bg: 'bg-heal/15' },
+  party_left: { label: 'Left', icon: UserMinus, color: 'text-muted-foreground', bg: 'bg-muted-foreground/15' },
   kill: { label: 'Kill', icon: Skull, color: 'text-taken', bg: 'bg-taken/15' },
 }
 
@@ -116,7 +116,7 @@ function describe(e: TimelineEvent): ReactNode {
     case 'fame':
       return (
         <>
-          {who} <span className="tnum text-violet-400">+{fmt(e.fame ?? 0)} fame</span>
+          {who} <span className="tnum text-fame">+{fmt(e.fame ?? 0)} fame</span>
         </>
       )
     case 'zone':

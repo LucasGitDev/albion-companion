@@ -36,7 +36,7 @@ export default function App() {
           onPartyModeChange={(v) => setFilter((f) => ({ ...f, PartyOnly: v }))}
         />
         {status?.codesOutdated && (
-          <div className="flex items-center gap-2 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-xs text-amber-400">
+          <div className="flex items-center gap-2 border-b border-warning/30 bg-warning/10 px-4 py-2 text-xs text-warning">
             <AlertTriangle className="size-3.5 shrink-0" />
             Many unrecognized packets — codes.json may be outdated after a game patch. Run <code className="rounded bg-background/60 px-1 font-mono">make codes</code> or drop an updated codes.json in the config folder.
           </div>
