@@ -38,7 +38,17 @@ func NewApp() *App { return &App{} }
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 
+	// A user override file (hotfix codes after a patch without a new release)
+	// takes precedence over the embedded codes.json when present and valid.
 	a.codes = protocol.DefaultCodes()
+	if path := codesOverridePath(); path != "" {
+		if c, err := protocol.LoadCodes(path); err == nil {
+			a.codes = c
+			runtime.LogInfof(ctx, "codes: using override %s", path)
+		} else if !os.IsNotExist(err) {
+			runtime.LogWarningf(ctx, "codes: ignoring invalid override %s: %v", path, err)
+		}
+	}
 	opts := app.Options{
 		Codes:         a.codes,
 		Throttle:      250 * time.Millisecond,
@@ -96,6 +106,16 @@ func (a *App) shutdown(context.Context) {
 	if a.svc != nil {
 		a.svc.StopCapture()
 	}
+}
+
+// codesOverridePath is the optional user file that overrides the embedded codes
+// (<config dir>/albion-companion/codes.json). Returns "" if no config dir.
+func codesOverridePath() string {
+	d, err := os.UserConfigDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(d, "albion-companion", "codes.json")
 }
 
 func itemsCacheDir() string {

@@ -140,9 +140,10 @@ function status(): CaptureStatus {
       hint: 'permission',
       error: 'pcap: en0: Operation not permitted (need read access to /dev/bpf*)',
       stats: { packets: 0, messages: 0, unknown: 0, decodeErrors: 0, encrypted: 0 },
+      codesOutdated: false,
     }
   }
-  return { running, sources: ['en0'], stats }
+  return { running, sources: ['en0'], stats, codesOutdated: devState === 'stale' }
 }
 
 function partyView(): PartyView {

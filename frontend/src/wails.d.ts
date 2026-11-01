@@ -17,6 +17,7 @@ export interface CaptureStatus {
   error?: string
   hint?: string
   stats: Stats
+  codesOutdated: boolean
 }
 
 export interface LootEntry {

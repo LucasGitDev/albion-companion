@@ -10,6 +10,7 @@ import (
 
 	"github.com/LucasGitDev/albion-companion/internal/capture"
 	"github.com/LucasGitDev/albion-companion/internal/combat"
+	"github.com/LucasGitDev/albion-companion/internal/engine"
 	"github.com/LucasGitDev/albion-companion/internal/photon/photontest"
 	"github.com/LucasGitDev/albion-companion/internal/protocol"
 )
@@ -76,5 +77,24 @@ func TestService_CaptureAndViews(t *testing.T) {
 	var buf bytes.Buffer
 	if err := svc.ExportLootCSV(&buf); err != nil || !strings.Contains(buf.String(), ";Me;") {
 		t.Fatalf("csv = %q err=%v", buf.String(), err)
+	}
+}
+
+func TestCodesOutdated(t *testing.T) {
+	cases := []struct {
+		name string
+		st   engine.Stats
+		want bool
+	}{
+		{"cold start", engine.Stats{Messages: 100, Unknown: 100}, false},      // below warmup
+		{"healthy", engine.Stats{Messages: 10000, Unknown: 0}, false},         // codes match
+		{"a few unknown", engine.Stats{Messages: 10000, Unknown: 50}, false},  // 0.5% < threshold
+		{"shifted codes", engine.Stats{Messages: 10000, Unknown: 6000}, true}, // 60% unknown
+		{"at threshold", engine.Stats{Messages: 1000, Unknown: 50}, true},     // exactly 5%
+	}
+	for _, c := range cases {
+		if got := codesOutdated(c.st); got != c.want {
+			t.Errorf("%s: codesOutdated(%+v) = %v, want %v", c.name, c.st, got, c.want)
+		}
 	}
 }
