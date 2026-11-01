@@ -16,3 +16,4 @@
 *-after*.png
 /*.png
 !build/appicon.png
+/.claude/worktrees/
