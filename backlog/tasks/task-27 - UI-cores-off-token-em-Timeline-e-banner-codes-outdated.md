@@ -4,10 +4,12 @@ title: 'UI: cores off-token em Timeline e banner codes-outdated'
 status: To Do
 assignee: []
 created_date: '2026-11-01 03:12'
+updated_date: '2026-11-01 13:55'
 labels:
   - ui
   - design
 dependencies: []
+priority: high
 ordinal: 27000
 ---
 

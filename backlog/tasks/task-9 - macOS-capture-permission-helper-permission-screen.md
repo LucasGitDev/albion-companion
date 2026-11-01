@@ -4,13 +4,13 @@ title: macOS capture permission helper + permission screen
 status: To Do
 assignee: []
 created_date: '2026-10-31T19:20:00Z'
-updated_date: '2026-11-01 00:59'
+updated_date: '2026-11-01 13:55'
 labels:
   - capture
   - platform
 dependencies:
   - TASK-3
-priority: high
+priority: low
 ordinal: 9000
 ---
 

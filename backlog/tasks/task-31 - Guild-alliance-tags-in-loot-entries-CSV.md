@@ -5,12 +5,14 @@ status: To Do
 assignee:
   - '@devlucasteles'
 created_date: '2026-11-01 13:36'
+updated_date: '2026-11-01 13:55'
 labels:
   - loot
   - itemdb
 dependencies: []
 references:
   - refs/ao-loot-logger
+priority: medium
 ordinal: 31000
 ---
 

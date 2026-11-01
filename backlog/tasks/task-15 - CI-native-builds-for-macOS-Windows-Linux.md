@@ -4,11 +4,13 @@ title: 'CI: native builds for macOS, Windows, Linux'
 status: To Do
 assignee: []
 created_date: '2026-10-31T19:20:00Z'
+updated_date: '2026-11-01 13:55'
 labels:
   - build
   - ci
 dependencies:
   - TASK-3
+priority: low
 ordinal: 15000
 ---
 

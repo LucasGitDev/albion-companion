@@ -4,11 +4,12 @@ title: Loot value via Albion Online Data prices
 status: To Do
 assignee: []
 created_date: '2026-10-31T19:20:00Z'
-updated_date: '2026-11-01 02:23'
+updated_date: '2026-11-01 13:55'
 labels:
   - loot
 dependencies:
   - TASK-5
+priority: high
 ordinal: 12000
 ---
 

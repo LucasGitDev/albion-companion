@@ -4,10 +4,11 @@ title: Chest report (deposits into guild/party chests)
 status: To Do
 assignee: []
 created_date: '2026-10-31T19:20:00Z'
-updated_date: '2026-11-01 02:16'
+updated_date: '2026-11-01 13:55'
 labels:
   - loot
 dependencies: []
+priority: medium
 ordinal: 14000
 ---
 

@@ -5,10 +5,12 @@ status: To Do
 assignee:
   - '@devlucasteles'
 created_date: '2026-11-01 13:36'
+updated_date: '2026-11-01 13:55'
 labels:
   - capture
   - ui
 dependencies: []
+priority: low
 ordinal: 33000
 ---
 

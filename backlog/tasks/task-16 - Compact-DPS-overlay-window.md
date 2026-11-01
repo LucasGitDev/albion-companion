@@ -4,11 +4,12 @@ title: Compact DPS overlay window
 status: To Do
 assignee: []
 created_date: '2026-10-31T19:20:00Z'
-updated_date: '2026-11-01 02:23'
+updated_date: '2026-11-01 13:55'
 labels:
   - ui
 dependencies:
   - TASK-6
+priority: low
 ordinal: 16000
 ---
 

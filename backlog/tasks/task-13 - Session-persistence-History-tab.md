@@ -4,9 +4,11 @@ title: Session persistence + History tab
 status: To Do
 assignee: []
 created_date: '2026-10-31T19:20:00Z'
+updated_date: '2026-11-01 13:55'
 labels:
   - app
 dependencies: []
+priority: medium
 ordinal: 13000
 ---
 
