@@ -5,6 +5,7 @@ import { ItemIcon } from '@/components/ItemIcon'
 import { api } from '@/lib/bindings'
 import type { TimelineEvent, TimelineKind } from '@/lib/bindings'
 import { useTopic } from '@/hooks/useTopic'
+import { Loading, ErrorState } from '@/components/ui/states'
 import { fmt, fmtSilver, cn } from '@/lib/utils'
 
 // One visual recipe per event kind: icon + accent colour + short label used by
@@ -21,10 +22,10 @@ const KINDS: Record<TimelineKind, { label: string; icon: typeof Package; color: 
 const ORDER: TimelineKind[] = ['loot', 'silver', 'fame', 'zone', 'party_joined', 'party_left']
 
 export function Timeline() {
-  const view = useTopic(() => api.timelineView(), ['timeline:changed'])
-  const events = view?.events ?? []
+  const { data: view, status, retry } = useTopic(() => api.timelineView(), ['timeline:changed'])
   const [active, setActive] = useState<Set<TimelineKind>>(new Set())
 
+  const events = view?.events ?? []
   const shown = active.size === 0 ? events : events.filter((e) => active.has(e.kind))
   const toggle = (k: TimelineKind) =>
     setActive((prev) => {
@@ -32,6 +33,9 @@ export function Timeline() {
       next.has(k) ? next.delete(k) : next.add(k)
       return next
     })
+
+  if (status === 'loading') return <Loading rows={8} />
+  if (status === 'error') return <ErrorState message="Couldn't load the timeline." onRetry={retry} />
 
   return (
     <div className="flex flex-col gap-4">
@@ -43,6 +47,7 @@ export function Timeline() {
             return (
               <button
                 key={k}
+                aria-pressed={on}
                 onClick={() => toggle(k)}
                 className={cn(
                   'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
@@ -93,7 +98,7 @@ function Row({ e }: { e: TimelineEvent }) {
         </span>
       )}
       <span className="min-w-0 flex-1 truncate">{describe(e)}</span>
-      {e.source && <span className="shrink-0 text-xs text-muted-foreground/80">{e.source.replace(/^@MOB_/, '')}</span>}
+      {e.source && <span className="shrink-0 text-xs text-muted-foreground">{e.source.replace(/^@MOB_/, '')}</span>}
     </div>
   )
 }

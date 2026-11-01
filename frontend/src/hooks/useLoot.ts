@@ -1,33 +1,18 @@
-import { useEffect, useState } from 'react'
-import { api, on, type LootFilter, type LootView } from '@/lib/bindings'
+import { api, type LootFilter, type LootView } from '@/lib/bindings'
+import { useTopic, type Async } from '@/hooks/useTopic'
 
 /**
  * useLoot pushes the current filter to the backend, then fetches LootView and
  * re-fetches on loot/zone events. Re-runs whenever the filter changes. The
  * backend holds a single loot filter (party mode is global), so the view always
- * reflects the latest filter.
+ * reflects the latest filter. Returns an Async so the tab can show loading vs.
+ * a genuinely empty session.
  */
-export function useLoot(filter: LootFilter, recent = 100): LootView | null {
-  const [view, setView] = useState<LootView | null>(null)
+export function useLoot(filter: LootFilter, recent = 100): Async<LootView> {
   const key = `${filter.PartyOnly}|${filter.Player}|${filter.IncludeTrash}`
-
-  useEffect(() => {
-    let alive = true
-    const run = () => {
-      api.setLootFilter(filter).then(() =>
-        api.lootView(recent).then((v) => {
-          if (alive) setView(v)
-        }),
-      )
-    }
-    run()
-    const offs = ['loot:changed', 'loot:new', 'zone:changed'].map((e) => on(e, run))
-    return () => {
-      alive = false
-      offs.forEach((off) => off())
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, recent])
-
-  return view
+  return useTopic<LootView>(
+    () => api.setLootFilter(filter).then(() => api.lootView(recent)),
+    ['loot:changed', 'loot:new', 'zone:changed'],
+    [key, recent],
+  )
 }

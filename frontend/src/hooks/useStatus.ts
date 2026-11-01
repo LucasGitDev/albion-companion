@@ -13,9 +13,12 @@ export function useStatus(): CaptureStatus | null {
   useEffect(() => {
     let alive = true
     const refresh = () =>
-      api.status().then((s) => {
-        if (alive) setStatus(s)
-      })
+      api
+        .status()
+        .then((s) => {
+          if (alive) setStatus(s)
+        })
+        .catch((err) => console.error('useStatus: status() failed', err))
     refresh()
     const off = on('capture:status', refresh)
     const timer = setInterval(refresh, 1000)

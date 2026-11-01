@@ -14,8 +14,8 @@ export function TopBar({
   onPartyModeChange: (v: boolean) => void
 }) {
   const [diagOpen, setDiagOpen] = useState(false)
-  const party = useTopic<PartyView>(api.partyView, ['zone:changed', 'party:changed', 'capture:status'])
-  const fame = useTopic<FameView>(api.fameView, ['fame:changed', 'zone:changed'])
+  const { data: party } = useTopic<PartyView>(api.partyView, ['zone:changed', 'party:changed', 'capture:status'])
+  const { data: fame } = useTopic<FameView>(api.fameView, ['fame:changed', 'zone:changed'])
 
   const running = status?.running ?? false
   const stats = status?.stats
@@ -60,7 +60,7 @@ export function TopBar({
         title={`Fame this session · ${Math.round(fame?.perHour ?? 0).toLocaleString()}/h · premium bonus ${Math.round(fame?.premium ?? 0).toLocaleString()}`}
       >
         <Sparkles className="size-3.5" />
-        <span className="tnum">{fmt(fame?.total ?? 0)}</span>
+        <span className="font-display tnum">{fmt(fame?.total ?? 0)}</span>
         <span className="text-primary/60">fame</span>
       </span>
 
@@ -77,7 +77,7 @@ export function TopBar({
         </button>
         {diagOpen && (
           <>
-            <div className="fixed inset-0 z-10" onClick={() => setDiagOpen(false)} />
+            <div className="fixed inset-0 z-10" aria-hidden="true" onClick={() => setDiagOpen(false)} />
             <div className="absolute right-0 top-9 z-20 w-60 rounded-lg border border-border bg-popover p-3 text-xs shadow-xl shadow-black/40">
               <div className="mb-2 font-medium text-foreground">Capture diagnostics</div>
               <Row label="Sources" value={status?.sources?.join(', ') || '—'} />

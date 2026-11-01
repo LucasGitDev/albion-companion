@@ -1,22 +1,38 @@
 import { type ReactNode, useState } from 'react'
-import { Package, Coins, Hand, Clock, RotateCcw, X, Download, Check } from 'lucide-react'
+import { Package, Coins, Hand, Clock, RotateCcw, X, Download, Check, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Loading, ErrorState } from '@/components/ui/states'
 import { ItemIcon } from '@/components/ItemIcon'
 import { api, type LootFilter } from '@/lib/bindings'
 import { useLoot } from '@/hooks/useLoot'
 import { fmt, fmtSilver, cn } from '@/lib/utils'
 
+type Flash = 'idle' | 'ok' | 'failed'
+
 export function Loot({ filter, setFilter }: { filter: LootFilter; setFilter: (f: LootFilter) => void }) {
-  const view = useLoot(filter)
-  const [saved, setSaved] = useState(false)
+  const { data: view, status, retry } = useLoot(filter)
+  const [csv, setCsv] = useState<Flash>('idle')
+  const [reset, setReset] = useState<Flash>('idle')
+
   const exportCsv = () => {
-    api.exportLootCSV().then((path) => {
-      if (path) {
-        setSaved(true)
-        setTimeout(() => setSaved(false), 2500)
-      }
+    api
+      .exportLootCSV()
+      .then((path) => flash(setCsv, path ? 'ok' : 'failed'))
+      .catch((err) => {
+        console.error('exportLootCSV failed', err)
+        flash(setCsv, 'failed')
+      })
+  }
+  const resetLoot = () => {
+    api.resetLoot().catch((err) => {
+      console.error('resetLoot failed', err)
+      flash(setReset, 'failed')
     })
   }
+
+  if (status === 'loading') return <Loading rows={6} />
+  if (status === 'error') return <ErrorState message="Couldn't load loot." onRetry={retry} />
+
   const players = view?.players ?? []
   const items = view?.items ?? []
   const recent = view?.recent ?? []
@@ -64,10 +80,18 @@ export function Loot({ filter, setFilter }: { filter: LootFilter; setFilter: (f:
               Include trash
             </label>
             <Button size="sm" variant="outline" onClick={exportCsv}>
-              {saved ? <Check className="text-heal" /> : <Download />} {saved ? 'Saved' : 'Export CSV'}
+              {csv === 'ok' ? (
+                <Check className="text-heal" />
+              ) : csv === 'failed' ? (
+                <AlertTriangle className="text-destructive" />
+              ) : (
+                <Download />
+              )}{' '}
+              {csv === 'ok' ? 'Saved' : csv === 'failed' ? 'Failed' : 'Export CSV'}
             </Button>
-            <Button size="sm" variant="outline" onClick={() => api.resetLoot()}>
-              <RotateCcw /> Reset
+            <Button size="sm" variant="outline" onClick={resetLoot}>
+              {reset === 'failed' ? <AlertTriangle className="text-destructive" /> : <RotateCcw />}{' '}
+              {reset === 'failed' ? 'Failed' : 'Reset'}
             </Button>
           </div>
         </div>
@@ -96,8 +120,19 @@ export function Loot({ filter, setFilter }: { filter: LootFilter; setFilter: (f:
                   <td className="px-3 py-2.5 tnum text-muted-foreground">{i + 1}</td>
                   <td className="px-3 py-2.5">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium">{p.name}</span>
-                      {!p.inParty && <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70">outsider</span>}
+                      <button
+                        type="button"
+                        aria-pressed={selected === p.name}
+                        aria-label={`Filter loot by ${p.name}`}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          pick(p.name)
+                        }}
+                        className="rounded font-medium hover:text-primary"
+                      >
+                        {p.name}
+                      </button>
+                      {!p.inParty && <span className="text-[10px] uppercase tracking-wide text-muted-foreground">outsider</span>}
                     </div>
                     <div className="mt-1 h-1 w-28 overflow-hidden rounded-full bg-elevated">
                       <div className="h-full rounded-full bg-primary/55" style={{ width: `${(p.items / maxItems) * 100}%` }} />
@@ -170,7 +205,7 @@ export function Loot({ filter, setFilter }: { filter: LootFilter; setFilter: (f:
                     </span>
                   )}
                 </span>
-                <span className="shrink-0 text-xs text-muted-foreground/80">{e.lootedFrom.replace(/^@MOB_/, '')}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">{e.lootedFrom.replace(/^@MOB_/, '')}</span>
               </div>
             ))}
           </div>
@@ -200,14 +235,20 @@ function Ledger({
       </div>
       <div>
         <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</div>
-        <div className={cn('text-xl font-semibold tnum leading-tight', gold && 'text-primary')}>{value}</div>
+        <div className={cn('font-display text-xl font-semibold tnum leading-tight', gold && 'text-primary')}>{value}</div>
       </div>
     </div>
   )
 }
 
+/** Show a transient status on an action button, then fall back to idle. */
+function flash(set: (f: Flash) => void, value: Exclude<Flash, 'idle'>) {
+  set(value)
+  setTimeout(() => set('idle'), 2500)
+}
+
 function SectionTitle({ children }: { children: ReactNode }) {
-  return <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{children}</h2>
+  return <h2 className="font-display text-xs font-semibold uppercase tracking-wider text-muted-foreground">{children}</h2>
 }
 
 function Empty({ children }: { children: ReactNode }) {

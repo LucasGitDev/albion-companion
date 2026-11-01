@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { RotateCcw, Timer, Swords, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Loading, ErrorState } from '@/components/ui/states'
 import { api, type CombatRow, type FameView } from '@/lib/bindings'
 import { useCombat } from '@/hooks/useCombat'
 import { useTopic } from '@/hooks/useTopic'
@@ -26,8 +27,12 @@ export function Dps({
   onPlayerTargetsOnly: (v: boolean) => void
 }) {
   const [sort, setSort] = useState<SortKey>('damage')
-  const fame = useTopic<FameView>(api.fameView, ['fame:changed', 'zone:changed'])
-  const view = useCombat({ PartyOnly: partyOnly, PlayerTargetsOnly: playerTargetsOnly })
+  const { data: fame } = useTopic<FameView>(api.fameView, ['fame:changed', 'zone:changed'])
+  const { data: view, status, retry } = useCombat({ PartyOnly: partyOnly, PlayerTargetsOnly: playerTargetsOnly })
+
+  if (status === 'loading') return <Loading rows={6} />
+  if (status === 'error') return <ErrorState message="Couldn't load the damage meter." onRetry={retry} />
+
   const rows = [...(view?.rows ?? [])].sort((a, b) => b[sort] - a[sort])
   const max = rows.reduce((m, r) => Math.max(m, r[sort]), 0) || 1
   const isHeal = sort === 'heal'
@@ -42,7 +47,7 @@ export function Dps({
           </div>
           <div>
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Fame this session</div>
-            <div className="text-xl font-semibold tnum leading-tight text-primary">{fmt(fame?.total ?? 0)}</div>
+            <div className="font-display text-xl font-semibold tnum leading-tight text-primary">{fmt(fame?.total ?? 0)}</div>
           </div>
         </div>
         <FameStat label="Fame / hour" value={fmt(fame?.perHour ?? 0)} />
@@ -81,6 +86,7 @@ export function Dps({
         {SORTS.map(({ k, label }) => (
           <button
             key={k}
+            aria-pressed={sort === k}
             onClick={() => setSort(k)}
             className={cn(
               'rounded-md px-3 py-1.5 font-medium transition-colors',
@@ -142,7 +148,7 @@ function FameStat({ label, value, accent }: { label: string; value: string; acce
   return (
     <div>
       <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className={cn('text-xl font-semibold tnum leading-tight', accent && 'text-primary')}>{value}</div>
+      <div className={cn('font-display text-xl font-semibold tnum leading-tight', accent && 'text-primary')}>{value}</div>
     </div>
   )
 }

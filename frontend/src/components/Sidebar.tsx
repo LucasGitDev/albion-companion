@@ -17,8 +17,8 @@ export function Sidebar({ active, onSelect }: { active: Tab; onSelect: (t: Tab) 
       <div className="mb-4 flex items-center gap-2.5 px-2 pt-1">
         <Crest />
         <div className="leading-tight">
-          <div className="text-sm font-semibold tracking-tight">Albion</div>
-          <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Companion</div>
+          <div className="font-display text-sm font-semibold tracking-tight">Albion</div>
+          <div className="font-display text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Companion</div>
         </div>
       </div>
 
@@ -27,6 +27,7 @@ export function Sidebar({ active, onSelect }: { active: Tab; onSelect: (t: Tab) 
         return (
           <button
             key={id}
+            aria-current={on ? 'page' : undefined}
             onClick={() => onSelect(id)}
             className={cn(
               'group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
