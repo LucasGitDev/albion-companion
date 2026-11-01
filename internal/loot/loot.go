@@ -240,12 +240,18 @@ var csvHeader = []string{
 
 // WriteCSV exports item loot (silver excluded) in ao-loot-logger's format.
 func (t *Tracker) WriteCSV(w io.Writer, f Filter) error {
+	return WriteEntriesCSV(w, t.Entries(f))
+}
+
+// WriteEntriesCSV writes the given entries (silver excluded) in ao-loot-logger's
+// format. Shared by the live export and the persisted-session export.
+func WriteEntriesCSV(w io.Writer, entries []Entry) error {
 	cw := csv.NewWriter(w)
 	cw.Comma = ';'
 	if err := cw.Write(csvHeader); err != nil {
 		return err
 	}
-	for _, e := range t.Entries(f) {
+	for _, e := range entries {
 		if e.IsSilver {
 			continue
 		}

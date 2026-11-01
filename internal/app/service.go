@@ -12,6 +12,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -29,6 +30,7 @@ import (
 	"github.com/LucasGitDev/albion-companion/internal/prices"
 	"github.com/LucasGitDev/albion-companion/internal/protocol"
 	"github.com/LucasGitDev/albion-companion/internal/rates"
+	"github.com/LucasGitDev/albion-companion/internal/store"
 	"github.com/LucasGitDev/albion-companion/internal/timeline"
 )
 
@@ -48,6 +50,7 @@ type Options struct {
 	Combat        combat.Options
 	Prices        *prices.Client    // optional: price client (nil = built with defaults)
 	Recorder      *capture.Recorder // optional: record every captured packet to an .aorec
+	SessionsDir   string            // optional: persist finished sessions here (empty = no history)
 }
 
 type CaptureStatus struct {
@@ -73,6 +76,9 @@ type Service struct {
 	lootOpts     loot.Filter
 	regionManual bool   // user explicitly chose the price region (stops auto-detect)
 	regionSource string // "default" | "detected" | "manual"
+
+	store        *store.Store // nil when SessionsDir is unset
+	sessionStart time.Time    // start of the current capture session (for persistence)
 }
 
 func NewService(opts Options) *Service {
@@ -86,6 +92,9 @@ func NewService(opts Options) *Service {
 		opts.Sources = func() ([]capture.Source, error) { return capture.LiveSources(0) }
 	}
 	s := &Service{opts: opts, pending: map[engine.Topic]bool{}, lootOpts: loot.Filter{PartyOnly: opts.PartyOnlyLoot}, regionSource: "default"}
+	if opts.SessionsDir != "" {
+		s.store = store.New(opts.SessionsDir)
+	}
 	s.prices = opts.Prices
 	if s.prices == nil {
 		// Prices land asynchronously; nudge the UI to re-pull the loot view so
@@ -126,6 +135,7 @@ func (s *Service) StartCapture() (CaptureStatus, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 	s.status = CaptureStatus{Running: true}
+	s.sessionStart = time.Now()
 	for _, src := range sources {
 		s.status.Sources = append(s.status.Sources, src.Name())
 	}
@@ -133,6 +143,8 @@ func (s *Service) StartCapture() (CaptureStatus, error) {
 
 	go func() {
 		err := s.eng.Run(ctx, sources...)
+		// Persist the finished session before clearing state, so History keeps it.
+		s.saveSession()
 		s.mu.Lock()
 		s.cancel = nil
 		s.status.Running = false
@@ -145,6 +157,7 @@ func (s *Service) StartCapture() (CaptureStatus, error) {
 		st := s.statusLocked()
 		s.mu.Unlock()
 		s.opts.Emit("capture:status", st)
+		s.opts.Emit("history:changed", nil)
 	}()
 	st := s.Status()
 	s.opts.Emit("capture:status", st)
@@ -533,6 +546,116 @@ func (s *Service) ExportLootCSV(w io.Writer) error {
 		return fmt.Errorf("export csv: %w", err)
 	}
 	return nil
+}
+
+// ---- session persistence / history ---------------------------------------
+
+// SessionDetail is a finished session's full reopenable state. It is marshaled
+// into the store's opaque detail blob and returned verbatim to the History tab,
+// which renders it read-only with the same components as the live views.
+type SessionDetail struct {
+	Meta   store.Meta      `json:"meta"`
+	Loot   LootView        `json:"loot"`
+	Combat CombatView      `json:"combat"`
+	Rates  RatesView       `json:"rates"`
+	Gather gather.Snapshot `json:"gather"`
+	Fame   fame.Snapshot   `json:"fame"`
+}
+
+// lootViewFull is an unfiltered loot view (all players, trash included) used for
+// persistence and session CSV export, independent of the live filter.
+func (s *Service) lootViewFull() LootView {
+	f := loot.Filter{IncludeTrash: true}
+	tr := s.eng.Loot()
+	all := tr.Entries(f)
+	rec := make([]loot.Entry, 0, len(all))
+	for i := len(all) - 1; i >= 0; i-- {
+		rec = append(rec, all[i])
+	}
+	return LootView{Filter: f, Players: tr.ByPlayer(f), Items: tr.ByItem(f), Recent: rec, Total: len(all), Value: s.valueView(all)}
+}
+
+// saveSession persists the just-ended session. No-op when history is disabled or
+// the session captured nothing worth keeping.
+func (s *Service) saveSession() {
+	s.mu.Lock()
+	st := s.store
+	start := s.sessionStart
+	s.sessionStart = time.Time{}
+	s.mu.Unlock()
+	if st == nil || start.IsZero() {
+		return
+	}
+
+	lv := s.lootViewFull()
+	cv := s.CombatView()
+	rv := s.RatesView()
+	gv := s.GatherView()
+	fv := s.FameView()
+	if lv.Total == 0 && cv.Total == 0 && fv.Total == 0 && gv.Total == 0 {
+		return // nothing captured; don't clutter History with empty sessions
+	}
+
+	gs := s.eng.State()
+	meta := store.Meta{
+		ID:        store.NewID(start),
+		StartedAt: start,
+		EndedAt:   time.Now(),
+		Zone:      gs.Location(),
+		Me:        gs.LocalPlayer().Name,
+		LootCount: lv.Total,
+		Silver:    rv.Silver.Total,
+		Fame:      fv.Total,
+		Damage:    cv.Total,
+	}
+	detail, err := json.Marshal(SessionDetail{Meta: meta, Loot: lv, Combat: cv, Rates: rv, Gather: gv, Fame: fv})
+	if err != nil {
+		return
+	}
+	_ = st.Save(meta, detail) // best-effort; a write error must not crash capture
+}
+
+// HistoryList returns saved sessions, newest first (empty when disabled).
+func (s *Service) HistoryList() ([]store.Meta, error) {
+	if s.store == nil {
+		return nil, nil
+	}
+	return s.store.List()
+}
+
+// HistoryLoad returns one saved session's full reopenable detail.
+func (s *Service) HistoryLoad(id string) (SessionDetail, error) {
+	var d SessionDetail
+	if s.store == nil {
+		return d, fmt.Errorf("history: persistence disabled")
+	}
+	_, raw, err := s.store.Load(id)
+	if err != nil {
+		return d, err
+	}
+	if err := json.Unmarshal(raw, &d); err != nil {
+		return d, err
+	}
+	return d, nil
+}
+
+// DeleteSession removes one saved session.
+func (s *Service) DeleteSession(id string) error {
+	if s.store == nil {
+		return nil
+	}
+	err := s.store.Delete(id)
+	s.opts.Emit("history:changed", nil)
+	return err
+}
+
+// WriteSessionCSV writes a saved session's loot as CSV (ao-loot-logger format).
+func (s *Service) WriteSessionCSV(w io.Writer, id string) error {
+	d, err := s.HistoryLoad(id)
+	if err != nil {
+		return err
+	}
+	return loot.WriteEntriesCSV(w, d.Loot.Recent)
 }
 
 // ---- throttled change notifications --------------------------------------

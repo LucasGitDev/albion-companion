@@ -1,10 +1,11 @@
 ---
 id: TASK-13
 title: Session persistence + History tab
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@claude'
 created_date: '2026-10-31T19:20:00Z'
-updated_date: '2026-11-01 13:55'
+updated_date: '2026-11-01 20:27'
 labels:
   - app
 dependencies: []

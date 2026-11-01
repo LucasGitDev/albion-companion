@@ -19,6 +19,7 @@ import (
 	"github.com/LucasGitDev/albion-companion/internal/loot"
 	"github.com/LucasGitDev/albion-companion/internal/prices"
 	"github.com/LucasGitDev/albion-companion/internal/protocol"
+	"github.com/LucasGitDev/albion-companion/internal/store"
 )
 
 // App is the thin Wails binding layer. Every exported method delegates to
@@ -58,6 +59,7 @@ func (a *App) startup(ctx context.Context) {
 		Throttle:      250 * time.Millisecond,
 		PartyOnlyLoot: true,
 		Combat:        combat.Options{PartyOnly: true},
+		SessionsDir:   sessionsDir(),
 		Emit:          func(event string, payload any) { runtime.EventsEmit(a.ctx, event, payload) },
 	}
 	// ALBION_COMPANION_RECORD=<path|dir> records every captured packet to a
@@ -149,6 +151,16 @@ func codesOverridePath() string {
 	return filepath.Join(d, "albion-companion", "codes.json")
 }
 
+// sessionsDir is where finished sessions are persisted for the History tab
+// (<config dir>/albion-companion/sessions). Empty config dir disables history.
+func sessionsDir() string {
+	d, err := os.UserConfigDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(d, "albion-companion", "sessions")
+}
+
 func itemsCacheDir() string {
 	if d, err := os.UserCacheDir(); err == nil {
 		return filepath.Join(d, "albion-companion")
@@ -174,6 +186,11 @@ func (a *App) RatesView() app.RatesView                 { return a.svc.RatesView
 func (a *App) ResetRates()                              { a.svc.ResetRates() }
 func (a *App) GatherView() gather.Snapshot              { return a.svc.GatherView() }
 func (a *App) ResetGather()                             { a.svc.ResetGather() }
+func (a *App) HistoryList() ([]store.Meta, error)       { return a.svc.HistoryList() }
+func (a *App) HistoryLoad(id string) (app.SessionDetail, error) {
+	return a.svc.HistoryLoad(id)
+}
+func (a *App) DeleteSession(id string) error            { return a.svc.DeleteSession(id) }
 func (a *App) TimelineView(recent int) app.TimelineView { return a.svc.TimelineView(recent) }
 func (a *App) ResetTimeline()                           { a.svc.ResetTimeline() }
 func (a *App) DungeonView() app.DungeonView             { return a.svc.DungeonView() }
@@ -202,6 +219,31 @@ func (a *App) ExportLootCSV() (string, error) {
 	}
 	defer f.Close()
 	if err := a.svc.ExportLootCSV(f); err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
+// ExportSessionCSV opens a native save dialog and writes a saved session's loot
+// as CSV. Returns the saved path, or "" if the user cancelled.
+func (a *App) ExportSessionCSV(id string) (string, error) {
+	path, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		Title:           "Export session loot",
+		DefaultFilename: "albion-session-" + id + ".csv",
+		Filters:         []runtime.FileFilter{{DisplayName: "CSV (*.csv)", Pattern: "*.csv"}},
+	})
+	if err != nil {
+		return "", err
+	}
+	if path == "" {
+		return "", nil // cancelled
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	if err := a.svc.WriteSessionCSV(f, id); err != nil {
 		return "", err
 	}
 	return path, nil

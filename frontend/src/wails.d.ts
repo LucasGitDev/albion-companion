@@ -214,6 +214,27 @@ export interface DungeonView {
   total: number
 }
 
+export interface SessionMeta {
+  id: string
+  startedAt: string
+  endedAt: string
+  zone: string
+  me: string
+  lootCount: number
+  silver: number
+  fame: number
+  damage: number
+}
+
+export interface SessionDetail {
+  meta: SessionMeta
+  loot: LootView
+  combat: CombatView
+  rates: RatesView
+  gather: GatherView
+  fame: FameView
+}
+
 export interface GatherItem {
   itemIndex: number
   amount: number
@@ -265,6 +286,10 @@ declare global {
           ResetDungeons(): Promise<void>
           GatherView(): Promise<GatherView>
           ResetGather(): Promise<void>
+          HistoryList(): Promise<SessionMeta[] | null>
+          HistoryLoad(id: string): Promise<SessionDetail>
+          DeleteSession(id: string): Promise<void>
+          ExportSessionCSV(id: string): Promise<string>
           SetLootFilter(f: { PartyOnly: boolean; Player: string; IncludeTrash: boolean }): Promise<void>
           SetCombatOptions(o: { PartyOnly: boolean; PlayerTargetsOnly: boolean }): Promise<void>
           Interfaces(): Promise<string[]>

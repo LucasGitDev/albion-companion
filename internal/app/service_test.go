@@ -80,6 +80,71 @@ func TestService_CaptureAndViews(t *testing.T) {
 	}
 }
 
+// TestService_SessionPersistence covers TASK-13: a captured session is saved on
+// stop and survives an app "restart" (a fresh Service over the same directory
+// still lists, loads, and exports it).
+func TestService_SessionPersistence(t *testing.T) {
+	codes := protocol.DefaultCodes()
+	ev := func(n string) uint16 { c, _ := codes.EventCode(n); return c }
+	join, _ := codes.OperationCode("Join")
+	src := sliceSource{
+		photontest.Response(join, map[byte]any{0: int32(1), 2: "Me", 8: "4300"}),
+		photontest.Event(ev("OtherGrabbedLoot"), map[byte]any{1: "@MOB_X", 2: "Me", 4: int32(10), 5: int32(3)}),
+	}
+	dir := t.TempDir()
+	newSvc := func() *Service {
+		return NewService(Options{
+			Codes:       codes,
+			SessionsDir: dir,
+			Sources:     func() ([]capture.Source, error) { return []capture.Source{src}, nil },
+		})
+	}
+
+	svc := newSvc()
+	if _, err := svc.StartCapture(); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for svc.Status().Running && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// Fresh Service = simulated restart; the session must still be there.
+	restarted := newSvc()
+	metas, err := restarted.HistoryList()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(metas) != 1 {
+		t.Fatalf("expected 1 persisted session, got %d: %+v", len(metas), metas)
+	}
+	m := metas[0]
+	if m.Me != "Me" || m.Zone != "4300" || m.LootCount != 1 {
+		t.Fatalf("session meta = %+v", m)
+	}
+
+	detail, err := restarted.HistoryLoad(m.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if detail.Loot.Total != 1 || len(detail.Loot.Recent) != 1 || detail.Loot.Recent[0].Quantity != 3 {
+		t.Fatalf("loaded detail loot = %+v", detail.Loot)
+	}
+
+	var buf bytes.Buffer
+	if err := restarted.WriteSessionCSV(&buf, m.ID); err != nil || !strings.Contains(buf.String(), ";Me;") {
+		t.Fatalf("session csv = %q err=%v", buf.String(), err)
+	}
+
+	// Delete removes it.
+	if err := restarted.DeleteSession(m.ID); err != nil {
+		t.Fatal(err)
+	}
+	if metas, _ := restarted.HistoryList(); len(metas) != 0 {
+		t.Fatalf("session not deleted: %+v", metas)
+	}
+}
+
 func TestCodesOutdated(t *testing.T) {
 	cases := []struct {
 		name string
