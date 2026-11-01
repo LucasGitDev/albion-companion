@@ -44,6 +44,11 @@ function pushTL(e: TimelineEvent) {
 }
 let running = true
 let fameTotal = 42000
+let silverTotal = 118_500
+let respecTotal = 86.4
+let mightTotal = 1240
+const sessionStart = new Date(Date.now() - 300_000).toISOString()
+const perHourOf = (total: number) => (total / 300) * 3600 // 5-min window
 const stats = { packets: 80268, messages: 159938, unknown: 0, decodeErrors: 0, encrypted: 12 }
 
 function pushLoot() {
@@ -203,8 +208,18 @@ export function installMock() {
           perHour: fameTotal * 12,
           count: Math.floor(fameTotal / 1800),
           latestTotalFame: 1_004_561_869,
-          since: new Date(Date.now() - 300_000).toISOString(),
+          since: sessionStart,
         }),
+        RatesView: async () => ({
+          fame: { total: fameTotal, perHour: perHourOf(fameTotal), count: Math.floor(fameTotal / 1800), since: sessionStart },
+          silver: { total: silverTotal, perHour: perHourOf(silverTotal), count: Math.floor(silverTotal / 2000), since: sessionStart },
+          respec: { total: respecTotal, perHour: perHourOf(respecTotal), count: Math.floor(respecTotal / 2), since: sessionStart },
+          might: { total: mightTotal, perHour: perHourOf(mightTotal), count: Math.floor(mightTotal / 40), since: sessionStart },
+        }),
+        ResetRates: async () => {
+          silverTotal = respecTotal = mightTotal = 0
+          emit('rates:changed')
+        },
         ExportLootCSV: async () => '/Users/you/Downloads/albion-loot-dev.csv',
         SetLootFilter: async () => {},
         SetCombatOptions: async () => {},
@@ -239,7 +254,11 @@ export function installMock() {
     stats.messages += Math.floor(Math.random() * 600) + 300
     const gain = Math.floor(Math.random() * 2500) + 500
     fameTotal += gain
+    silverTotal += Math.floor(Math.random() * 3000) + 500
+    respecTotal += Math.random() * 1.5
+    mightTotal += Math.floor(Math.random() * 30) + 5
     emit('fame:changed')
+    emit('rates:changed')
     pushTL({ at: new Date().toISOString(), kind: 'fame', player: 'L0rdCap', fame: gain })
     pushLoot()
     if (Math.random() < 0.3) {

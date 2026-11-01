@@ -354,3 +354,64 @@ func TestDecodeKilledPlayer(t *testing.T) {
 		t.Fatal("want missing VictimID error")
 	}
 }
+
+func TestDecodeUpdateReSpecPoints(t *testing.T) {
+	tests := []struct {
+		name string
+		in   protocol.Params
+		want ReSpecPoints
+	}{
+		// varied widths: gained int16, paid int64, total array as int32[]
+		{"full", protocol.Params{0: []int32{int32(5000000), int32(12345678)}, 2: int16(2500), 3: int64(15000000)},
+			ReSpecPoints{CurrentTotal: 1234.5678, HasCurrentTotal: true, Gained: 0.25, PaidSilver: 1500}},
+		// gained byte, no paid, long[] total
+		{"byteGained_int64Arr", protocol.Params{0: []int64{int64(1), int64(100000)}, 2: byte(250)},
+			ReSpecPoints{CurrentTotal: 10, HasCurrentTotal: true, Gained: 0.025}},
+		// gained int32, no total array
+		{"noArray", protocol.Params{2: int32(100000), 3: int32(0)},
+			ReSpecPoints{Gained: 10}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := DecodeUpdateReSpecPoints(tt.in)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != tt.want {
+				t.Fatalf("got %+v want %+v", got, tt.want)
+			}
+		})
+	}
+	if _, err := DecodeUpdateReSpecPoints(protocol.Params{3: int32(1)}); err == nil {
+		t.Fatal("want missing GainedReSpecPoints error")
+	}
+}
+
+func TestDecodeMightAndFavorReceived(t *testing.T) {
+	tests := []struct {
+		name string
+		in   protocol.Params
+		want MightAndFavor
+	}{
+		// varied widths across fields
+		{"full", protocol.Params{1: int64(1000000), 2: int32(250000), 3: int16(5000), 4: int32(2000000), 5: byte(100), 6: int16(3000), 7: int64(99990000)},
+			MightAndFavor{Might: 100, BonusOfMight: 25, PremiumOfMight: 0.5, Favor: 200, BonusOfFavor: 0.01, PremiumOfFavor: 0.3, TotalFavor: 9999}},
+		// might only (byte)
+		{"mightOnly", protocol.Params{1: byte(50)},
+			MightAndFavor{Might: 0.005}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := DecodeMightAndFavorReceived(tt.in)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != tt.want {
+				t.Fatalf("got %+v want %+v", got, tt.want)
+			}
+		})
+	}
+	if _, err := DecodeMightAndFavorReceived(protocol.Params{2: int32(1)}); err == nil {
+		t.Fatal("want missing Might error")
+	}
+}

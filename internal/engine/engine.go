@@ -19,6 +19,7 @@ import (
 	"github.com/LucasGitDev/albion-companion/internal/game"
 	"github.com/LucasGitDev/albion-companion/internal/loot"
 	"github.com/LucasGitDev/albion-companion/internal/protocol"
+	"github.com/LucasGitDev/albion-companion/internal/rates"
 	"github.com/LucasGitDev/albion-companion/internal/timeline"
 )
 
@@ -31,6 +32,7 @@ const (
 	TopicParty    Topic = "party"
 	TopicZone     Topic = "zone"
 	TopicFame     Topic = "fame"
+	TopicRates    Topic = "rates"
 	TopicTimeline Topic = "timeline"
 )
 
@@ -62,6 +64,7 @@ type Engine struct {
 	loot   *loot.Tracker
 	combat *combat.Meter
 	fame   *fame.Tracker
+	rates  *rates.Tracker
 	chest  *chest.Tracker
 	tl     *timeline.Ring
 
@@ -81,6 +84,7 @@ func New(cfg Config) *Engine {
 		loot:   loot.NewTracker(cfg.Items),
 		combat: combat.NewMeter(cfg.Combat),
 		fame:   fame.New(),
+		rates:  rates.New(),
 		chest:  chest.New(),
 		tl:     timeline.NewRing(cfg.TimelineCap),
 	}
@@ -92,6 +96,7 @@ func (e *Engine) State() *game.State    { return e.state }
 func (e *Engine) Loot() *loot.Tracker   { return e.loot }
 func (e *Engine) Combat() *combat.Meter { return e.combat }
 func (e *Engine) Fame() *fame.Tracker   { return e.fame }
+func (e *Engine) Rates() *rates.Tracker { return e.rates }
 func (e *Engine) Chest() *chest.Tracker { return e.chest }
 
 // Timeline is the merged chronological feed of session events.
@@ -217,6 +222,14 @@ func (e *Engine) handleEvent(m protocol.Message) {
 			e.cfg.OnLoot(entry)
 		}
 		e.changed(TopicLoot)
+		// Silver is private: the rates dashboard tracks only the local player's
+		// silver so silver/hour matches the "me" column of the loot views.
+		if entry.IsSilver {
+			if local := e.state.LocalPlayer(); local.Name != "" && entry.Looter == local.Name {
+				e.rates.AddSilver(entry.Silver, entry.At)
+				e.changed(TopicRates)
+			}
+		}
 		tev := timeline.Event{At: entry.At, Player: entry.Looter, Source: entry.LootedFrom}
 		if entry.IsSilver {
 			tev.Kind, tev.Silver = timeline.KindSilver, entry.Silver
@@ -293,6 +306,24 @@ func (e *Engine) handleEvent(m protocol.Message) {
 			e.changed(TopicFame)
 			e.pushTL(timeline.Event{At: m.At, Kind: timeline.KindFame, Player: local.Name, Fame: f.Gained()})
 		}
+
+	// --- Rates: respec & might are local player-only events (no object id) ---
+	case events.EvUpdateReSpecPoints:
+		r, err := events.DecodeUpdateReSpecPoints(m.Params)
+		if err != nil {
+			e.fail(m.Name, err)
+			return
+		}
+		e.rates.AddRespec(r.Gained, m.At)
+		e.changed(TopicRates)
+	case events.EvMightAndFavorReceived:
+		mf, err := events.DecodeMightAndFavorReceived(m.Params)
+		if err != nil {
+			e.fail(m.Name, err)
+			return
+		}
+		e.rates.AddMight(mf.Might, m.At)
+		e.changed(TopicRates)
 
 	// --- Chest loot: stitched across four events (see internal/chest) ---
 	case events.EvNewLootChest:
