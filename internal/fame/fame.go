@@ -47,7 +47,7 @@ func (t *Tracker) Add(f events.FameUpdate, at time.Time) {
 type Snapshot struct {
 	Total           float64   `json:"total"`           // fame gained this session
 	Base            float64   `json:"base"`            // base fame (no premium)
-	Premium         float64   `json:"premium"`         // "yellow" premium bonus fame
+	Premium         float64   `json:"premium"`         // premium account bonus fame (+50%), not Quick-Learner yellow fame
 	Satchel         float64   `json:"satchel"`         // satchel / bag insight fame
 	PerHour         float64   `json:"perHour"`         // actual rate: total ÷ elapsed
 	Count           int       `json:"count"`           // number of fame events

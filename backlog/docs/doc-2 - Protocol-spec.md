@@ -3,7 +3,7 @@ id: doc-2
 title: Protocol spec
 type: specification
 created_date: '2026-10-31T19:20:00Z'
-updated_date: '2026-11-01 01:27'
+updated_date: '2026-11-01 01:37'
 ---
 # Protocol spec
 
@@ -41,7 +41,7 @@ SA commit recorded in the `source` field).
 | PartyPlayerJoined | event | 1 GUID, 2 Name | Events/PartyPlayerJoinedEvent.cs |
 | PartyPlayerLeft | event | 1 GUID | Events/PartyPlayerLeftEvent.cs |
 | PartyDisbanded | event | — | Events/PartyDisbandedEvent.cs |
-| UpdateFame | event | 0 PlayerObjectID, 1 TotalPlayerFame, 2 Base (zone mult, no premium), 3 ZoneFame, 5 IsPremium, 10 SatchelFame, 17 BonusFactor(float). All FixPoint ÷10000. Premium(yellow)=0.5×Base; Gained=(Base+Premium+Satchel)×Bonus (Bonus resets to 1 when active, per SA) | Events/UpdateFameEvent.cs |
+| UpdateFame | event | 0 PlayerObjectID, 1 TotalPlayerFame, 2 Base (zone mult, no premium), 3 ZoneFame, 5 IsPremium, 10 SatchelFame, 17 BonusFactor(float). All FixPoint ÷10000. Premium(+50%)=0.5×Base; Gained=(Base+Premium+Satchel)×Bonus (Bonus resets to 1 when active, per SA) | Events/UpdateFameEvent.cs |
 
 ## Verified against live capture (TASK-1, 2026-10-31, `refs/session-1.aorec`)
 
@@ -69,7 +69,7 @@ Encrypted packets (`encrypted=12`) are expected and skipped, not errors.
 
 ## Fame (TASK-17)
 
-Verified against refs/session-1.aorec (114 UpdateFame events, decodeErr=0): session total 754,866 fame, yellow 251,622. Fame is tracked only for the local player (param 0 == Join ObjectID). Yellow fame is the premium bonus (half the base). `fame/hour` = total ÷ elapsed. SA resets the param-17 bonus factor to 1 when it is positive, so it does not scale the gained total.
+Verified against refs/session-1.aorec (114 UpdateFame events, decodeErr=0): session total 754,866 fame, premium bonus 251,622. Fame is tracked only for the local player (param 0 == Join ObjectID). The premium bonus is the +50% a premium account earns (half the base). NOTE: this is NOT the "yellow" Quick-Learner bonus fame (earned from a maxed 100/100 node, shown in the in-game combat log as "Fama bonus do Aprendizado Rapido"); that is a separate mechanic SA's UpdateFameEvent does not decode and is not yet tracked here. `fame/hour` = total ÷ elapsed. SA resets the param-17 bonus factor to 1 when it is positive, so it does not scale the gained total.
 
 ## Damage meter rules (SA CombatController.AddDamage)
 

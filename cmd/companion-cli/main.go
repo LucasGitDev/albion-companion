@@ -179,7 +179,7 @@ func printSummary(eng *engine.Engine, partyOnly bool) {
 
 	f := eng.Fame().Snapshot()
 	if f.Count > 0 {
-		fmt.Printf("FAME  total=%.0f (yellow=%.0f) %.0f/h over %d events\n", f.Total, f.Premium, f.PerHour, f.Count)
+		fmt.Printf("FAME  total=%.0f (premium=%.0f) %.0f/h over %d events\n", f.Total, f.Premium, f.PerHour, f.Count)
 	}
 }
 

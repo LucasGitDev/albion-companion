@@ -57,7 +57,7 @@ export function TopBar({
 
       <span
         className="ml-auto inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary"
-        title={`Fame this session · ${Math.round(fame?.perHour ?? 0).toLocaleString()}/h · yellow ${Math.round(fame?.premium ?? 0).toLocaleString()}`}
+        title={`Fame this session · ${Math.round(fame?.perHour ?? 0).toLocaleString()}/h · premium bonus ${Math.round(fame?.premium ?? 0).toLocaleString()}`}
       >
         <Sparkles className="size-3.5" />
         <span className="tnum">{fmt(fame?.total ?? 0)}</span>

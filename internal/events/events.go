@@ -348,8 +348,10 @@ type FameUpdate struct {
 	BonusFactor     float64 // derived from param 17 (SA resets to 1 when active)
 }
 
-// Premium is the extra "yellow" fame from the premium bonus (SA: a premium
-// account earns 1.5× the base, so the bonus is half the base).
+// Premium is the extra fame from the premium account bonus: a premium account
+// earns 1.5× the dropped fame, so the bonus is half the base (SA: PremiumFame).
+// Note: this is NOT the "yellow" Quick-Learner bonus (fame from a maxed 100/100
+// node), which is a separate mechanic not carried by this event.
 func (f FameUpdate) Premium() float64 {
 	if f.IsPremium {
 		return f.Base * 0.5
