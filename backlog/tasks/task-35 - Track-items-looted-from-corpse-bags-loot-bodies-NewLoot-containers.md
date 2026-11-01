@@ -1,7 +1,7 @@
 ---
 id: TASK-35
 title: Track items looted from corpse bags / loot bodies (NewLoot containers)
-status: In Review
+status: Done
 assignee:
   - '@devlucasteles'
 created_date: '2026-11-01 14:05'
