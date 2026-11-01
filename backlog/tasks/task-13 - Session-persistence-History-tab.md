@@ -1,7 +1,7 @@
 ---
 id: TASK-13
 title: Session persistence + History tab
-status: In Review
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-10-31T19:20:00Z'
