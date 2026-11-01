@@ -24,6 +24,7 @@ import (
 	"github.com/LucasGitDev/albion-companion/internal/engine"
 	"github.com/LucasGitDev/albion-companion/internal/events"
 	"github.com/LucasGitDev/albion-companion/internal/fame"
+	"github.com/LucasGitDev/albion-companion/internal/gather"
 	"github.com/LucasGitDev/albion-companion/internal/loot"
 	"github.com/LucasGitDev/albion-companion/internal/prices"
 	"github.com/LucasGitDev/albion-companion/internal/protocol"
@@ -424,6 +425,12 @@ func (s *Service) ResetTimeline() { s.eng.Timeline().Reset(); s.opts.Emit("timel
 // ResetRates clears the silver/respec/might accumulators (fame is reset
 // separately via ResetFame, which the rates dashboard also shows).
 func (s *Service) ResetRates() { s.eng.Rates().Reset(); s.opts.Emit("rates:changed", nil) }
+
+// ResetGather clears the gathered-resource totals.
+func (s *Service) ResetGather() { s.eng.Gather().Reset(); s.opts.Emit("gather:changed", nil) }
+
+// GatherView is the current session's gathered resources, by item and total.
+func (s *Service) GatherView() gather.Snapshot { return s.eng.Gather().Snapshot() }
 
 // FameView is the current session fame totals and rate.
 func (s *Service) FameView() fame.Snapshot { return s.eng.Fame().Snapshot() }

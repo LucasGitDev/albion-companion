@@ -18,6 +18,7 @@ import (
 	"github.com/LucasGitDev/albion-companion/internal/events"
 	"github.com/LucasGitDev/albion-companion/internal/fame"
 	"github.com/LucasGitDev/albion-companion/internal/game"
+	"github.com/LucasGitDev/albion-companion/internal/gather"
 	"github.com/LucasGitDev/albion-companion/internal/loot"
 	"github.com/LucasGitDev/albion-companion/internal/prices"
 	"github.com/LucasGitDev/albion-companion/internal/protocol"
@@ -34,6 +35,7 @@ const (
 	TopicParty    Topic = "party"
 	TopicZone     Topic = "zone"
 	TopicFame     Topic = "fame"
+	TopicGather   Topic = "gather"
 	TopicRates    Topic = "rates"
 	TopicTimeline Topic = "timeline"
 	TopicDungeon  Topic = "dungeon"
@@ -67,6 +69,7 @@ type Engine struct {
 	loot    *loot.Tracker
 	combat  *combat.Meter
 	fame    *fame.Tracker
+	gather  *gather.Tracker
 	rates   *rates.Tracker
 	chest   *chest.Tracker
 	dungeon *dungeon.Tracker
@@ -89,6 +92,7 @@ func New(cfg Config) *Engine {
 		loot:    loot.NewTracker(cfg.Items),
 		combat:  combat.NewMeter(cfg.Combat),
 		fame:    fame.New(),
+		gather:  gather.New(),
 		rates:   rates.New(),
 		chest:   chest.New(),
 		dungeon: dungeon.New(),
@@ -98,12 +102,13 @@ func New(cfg Config) *Engine {
 	return e
 }
 
-func (e *Engine) State() *game.State    { return e.state }
-func (e *Engine) Loot() *loot.Tracker   { return e.loot }
-func (e *Engine) Combat() *combat.Meter { return e.combat }
-func (e *Engine) Fame() *fame.Tracker   { return e.fame }
-func (e *Engine) Rates() *rates.Tracker { return e.rates }
-func (e *Engine) Chest() *chest.Tracker { return e.chest }
+func (e *Engine) State() *game.State      { return e.state }
+func (e *Engine) Loot() *loot.Tracker     { return e.loot }
+func (e *Engine) Combat() *combat.Meter   { return e.combat }
+func (e *Engine) Fame() *fame.Tracker     { return e.fame }
+func (e *Engine) Gather() *gather.Tracker { return e.gather }
+func (e *Engine) Rates() *rates.Tracker   { return e.rates }
+func (e *Engine) Chest() *chest.Tracker   { return e.chest }
 
 // Dungeon is the per-dungeon session tracker.
 func (e *Engine) Dungeon() *dungeon.Tracker { return e.dungeon }
@@ -377,6 +382,18 @@ func (e *Engine) handleEvent(m protocol.Message) {
 		}
 		e.rates.AddMight(mf.Might, m.At)
 		e.changed(TopicRates)
+
+	case events.EvHarvestFinished:
+		h, err := events.DecodeHarvestFinished(m.Params)
+		if err != nil {
+			e.fail(m.Name, err)
+			return
+		}
+		// Gathering is tracked for the local player (object id resets per zone).
+		if local := e.state.LocalPlayer(); local.ObjectID != 0 && h.UserObjectID == local.ObjectID {
+			e.gather.Add(h.ItemIndex, h.Amount(), m.At)
+			e.changed(TopicGather)
+		}
 
 	// --- Chest loot: stitched across four events (see internal/chest) ---
 	case events.EvNewLootChest:

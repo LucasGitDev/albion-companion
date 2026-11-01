@@ -331,6 +331,30 @@ export function installMock() {
           silverTotal = respecTotal = mightTotal = 0
           emit('rates:changed')
         },
+        GatherView: async () => {
+          const items =
+            devState === 'empty'
+              ? []
+              : [
+                  { itemIndex: 566, amount: 342, uniqueName: 'T6_WOOD', name: 'Bloodoak Logs' },
+                  { itemIndex: 570, amount: 281, uniqueName: 'T6_ORE', name: 'Titanium Ore' },
+                  { itemIndex: 580, amount: 176, uniqueName: 'T6_FIBER', name: 'Ghost Hemp' },
+                  { itemIndex: 590, amount: 128, uniqueName: 'T6_HIDE', name: 'Reinforced Hide' },
+                  { itemIndex: 600, amount: 64, uniqueName: 'T6_ROCK', name: 'Granite' },
+                  { itemIndex: 611, amount: 22, uniqueName: 'T6_FISH_FRESHWATER_ALL', name: 'Albion Perch' },
+                ]
+          const total = items.reduce((n, it) => n + it.amount, 0)
+          return {
+            items,
+            total,
+            count: items.length === 0 ? 0 : 97,
+            perHour: perHourOf(total),
+            since: sessionStart,
+          }
+        },
+        ResetGather: async () => {
+          emit('gather:changed')
+        },
         ExportLootCSV: async () => '/Users/you/Downloads/albion-loot-dev.csv',
         SetLootFilter: async () => {},
         SetCombatOptions: async () => {},

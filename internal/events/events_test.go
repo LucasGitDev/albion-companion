@@ -417,3 +417,37 @@ func TestDecodeMightAndFavorReceived(t *testing.T) {
 		t.Fatalf("favor-only decode = %+v err=%v", favorOnly, err)
 	}
 }
+
+func TestDecodeHarvestFinished(t *testing.T) {
+	tests := []struct {
+		name string
+		in   protocol.Params
+		want Harvest
+	}{
+		// varied widths; all bonus params present
+		{"full", protocol.Params{0: int64(53301), 3: int32(999), 4: int32(424), 5: byte(3), 6: int16(1), 7: int32(2)},
+			Harvest{UserObjectID: 53301, ItemIndex: 424, Standard: 3, Collector: 1, Premium: 2}},
+		// zero-valued bonuses omitted on the wire → default to 0
+		{"standardOnly", protocol.Params{0: int16(42), 4: int16(100), 5: int64(5)},
+			Harvest{UserObjectID: 42, ItemIndex: 100, Standard: 5}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := DecodeHarvestFinished(tt.in)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != tt.want {
+				t.Fatalf("got %+v want %+v", got, tt.want)
+			}
+		})
+	}
+	// ItemIndex (param 4) is required.
+	if _, err := DecodeHarvestFinished(protocol.Params{0: int32(1), 5: int32(3)}); err == nil {
+		t.Fatal("want missing ItemIndex error")
+	}
+	// Amount sums base + both bonuses.
+	if got := (Harvest{Standard: 3, Collector: 1, Premium: 2}).Amount(); got != 6 {
+		t.Fatalf("Amount = %d want 6", got)
+	}
+}

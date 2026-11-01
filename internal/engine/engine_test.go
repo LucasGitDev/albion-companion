@@ -201,3 +201,49 @@ func TestEngine_CorpseBagLoot(t *testing.T) {
 		t.Fatalf("unexpected corpse loot: %+v", got)
 	}
 }
+
+// TestEngine_Gathering covers HarvestFinished: only the local player's harvests
+// accumulate; another player's gathering nearby is ignored.
+func TestEngine_Gathering(t *testing.T) {
+	codes := protocol.DefaultCodes()
+	code := func(name string) uint16 {
+		c, ok := codes.EventCode(name)
+		if !ok {
+			t.Fatalf("missing event %s", name)
+		}
+		return c
+	}
+	join, _ := codes.OperationCode("Join")
+
+	e := New(Config{
+		Codes:         codes,
+		OnDecodeError: func(name string, err error) { t.Errorf("decode error %s: %v", name, err) },
+	})
+
+	t0 := time.Unix(4000, 0)
+	feed := func(payload []byte, dt time.Duration) {
+		e.Feed(capture.Packet{At: t0.Add(dt), Payload: payload})
+	}
+
+	// Local player is object id 1.
+	feed(photontest.Response(join, map[byte]any{0: int32(1), 2: "Me", 8: "9", 54: guid(9)}), 0)
+	// Local player harvests wood twice (base + collector + premium bonuses).
+	feed(photontest.Event(code("HarvestFinished"), map[byte]any{0: int32(1), 4: int32(566), 5: int16(3), 6: int16(1), 7: int16(2)}), time.Second)
+	feed(photontest.Event(code("HarvestFinished"), map[byte]any{0: int32(1), 4: int32(566), 5: int16(4)}), 2*time.Second)
+	// Another player (object id 2) harvests ore — must be ignored.
+	feed(photontest.Event(code("HarvestFinished"), map[byte]any{0: int32(2), 4: int32(100), 5: int16(99)}), 3*time.Second)
+
+	if st := e.Stats(); st.DecodeErrors != 0 {
+		t.Fatalf("decode errors = %d", st.DecodeErrors)
+	}
+	s := e.Gather().Snapshot()
+	if s.Total != 10 { // 3+1+2 then 4
+		t.Fatalf("Total = %d want 10 (other player's 99 must be ignored)", s.Total)
+	}
+	if s.Count != 2 {
+		t.Fatalf("Count = %d want 2", s.Count)
+	}
+	if len(s.Items) != 1 || s.Items[0].ItemIndex != 566 || s.Items[0].Amount != 10 {
+		t.Fatalf("unexpected gather items: %+v", s.Items)
+	}
+}
