@@ -18,7 +18,7 @@ func getAllPhysicalInterface() ([]string, error) {
 	var outInterfaces []string
 
 	for _, _interface := range interfaces {
-		if _interface.Flags&net.FlagLoopback == 0 && _interface.Flags&net.FlagUp == 1 && isPhysicalInterface(_interface.HardwareAddr.String()) {
+		if _interface.Flags&net.FlagLoopback == 0 && _interface.Flags&net.FlagUp != 0 && isPhysicalInterface(_interface.HardwareAddr.String()) && ifaceHasUsableIP(_interface) {
 			outInterfaces = append(outInterfaces, _interface.Name)
 		}
 	}

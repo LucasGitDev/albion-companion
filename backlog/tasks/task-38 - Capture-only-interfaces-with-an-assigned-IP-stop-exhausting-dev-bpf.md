@@ -1,9 +1,11 @@
 ---
 id: TASK-38
 title: Capture only interfaces with an assigned IP (stop exhausting /dev/bpf*)
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@devlucasteles'
 created_date: '2026-11-01 15:25'
+updated_date: '2026-11-01 15:28'
 labels:
   - capture
   - platform
@@ -24,3 +26,9 @@ Live capture opens EVERY physical interface (getAllPhysicalInterface returns ~24
 - [ ] #2 On a multi-interface Mac, capture succeeds on the game interface without re-running grant-capture after new bpf devices appear
 - [ ] #3 Interface selection change has a test; _darwin/_linux/_windows builds unaffected
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Root-caused live from a user test: tcpdump saw 541 pkts on en0:5056 but companion-cli -iface en0 failed with /dev/bpf5 Permission denied; getAllPhysicalInterface returned 24 ifaces, exhausting the grant-capture'd bpf pool. Added ifaceHasUsableIP (shared) requiring a non-loopback/non-link-local/non-unspecified assigned IP; applied in _darwin and _linux selectors (also fixed darwin FlagUp check from '==1' to '!=0' to match linux). Windows uses the IpAdapterAddresses path, left unchanged (own follow-up). Result on this Mac: 24 -> 4 interfaces (en0 + 3 VM bridges); live capture now packets=279 decodeErr=0 with no permission error, no grant-capture re-run. Extracted isUsableCaptureIP as a pure predicate with a table test + a host-enumeration sanity test.
+<!-- SECTION:NOTES:END -->
