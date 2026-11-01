@@ -18,17 +18,19 @@ import (
 	"github.com/LucasGitDev/albion-companion/internal/game"
 	"github.com/LucasGitDev/albion-companion/internal/loot"
 	"github.com/LucasGitDev/albion-companion/internal/protocol"
+	"github.com/LucasGitDev/albion-companion/internal/timeline"
 )
 
 // Topic tells listeners what changed, so the UI can refresh only that view.
 type Topic string
 
 const (
-	TopicLoot   Topic = "loot"
-	TopicCombat Topic = "combat"
-	TopicParty  Topic = "party"
-	TopicZone   Topic = "zone"
-	TopicFame   Topic = "fame"
+	TopicLoot     Topic = "loot"
+	TopicCombat   Topic = "combat"
+	TopicParty    Topic = "party"
+	TopicZone     Topic = "zone"
+	TopicFame     Topic = "fame"
+	TopicTimeline Topic = "timeline"
 )
 
 type Config struct {
@@ -40,6 +42,7 @@ type Config struct {
 	OnLoot        func(loot.Entry)             // optional
 	OnChange      func(Topic)                  // optional: called on the engine goroutine; keep it cheap
 	OnDecodeError func(name string, err error) // optional
+	TimelineCap   int                          // max timeline events retained (0 = default)
 }
 
 // Stats are diagnostics shown in the UI/CLI.
@@ -58,6 +61,7 @@ type Engine struct {
 	loot   *loot.Tracker
 	combat *combat.Meter
 	fame   *fame.Tracker
+	tl     *timeline.Ring
 
 	packets, messages, unknown, decodeErrors atomic.Uint64
 
@@ -75,6 +79,7 @@ func New(cfg Config) *Engine {
 		loot:   loot.NewTracker(cfg.Items),
 		combat: combat.NewMeter(cfg.Combat),
 		fame:   fame.New(),
+		tl:     timeline.NewRing(cfg.TimelineCap),
 	}
 	e.dec = protocol.NewDecoder(cfg.Codes, e.handle)
 	return e
@@ -84,6 +89,9 @@ func (e *Engine) State() *game.State    { return e.state }
 func (e *Engine) Loot() *loot.Tracker   { return e.loot }
 func (e *Engine) Combat() *combat.Meter { return e.combat }
 func (e *Engine) Fame() *fame.Tracker   { return e.fame }
+
+// Timeline is the merged chronological feed of session events.
+func (e *Engine) Timeline() *timeline.Ring { return e.tl }
 
 func (e *Engine) Stats() Stats {
 	return Stats{
@@ -141,6 +149,14 @@ func (e *Engine) changed(t Topic) {
 	}
 }
 
+// pushTL appends one entry to the merged timeline and signals the UI. It runs
+// on the decode goroutine, right after the matching tracker/state update, so
+// the timeline stays consistent with the per-view data.
+func (e *Engine) pushTL(ev timeline.Event) {
+	e.tl.Add(ev)
+	e.changed(TopicTimeline)
+}
+
 func (e *Engine) fail(name string, err error) {
 	e.decodeErrors.Add(1)
 	if e.cfg.OnDecodeError != nil {
@@ -165,6 +181,7 @@ func (e *Engine) handle(m protocol.Message) {
 			} else {
 				e.state.ApplyJoin(j)
 				e.changed(TopicZone)
+				e.pushTL(timeline.Event{At: m.At, Kind: timeline.KindZone, Zone: e.state.Location(), Player: j.Name})
 			}
 		}
 	case protocol.KindEvent:
@@ -195,6 +212,13 @@ func (e *Engine) handleEvent(m protocol.Message) {
 			e.cfg.OnLoot(entry)
 		}
 		e.changed(TopicLoot)
+		tev := timeline.Event{At: entry.At, Player: entry.Looter, Source: entry.LootedFrom}
+		if entry.IsSilver {
+			tev.Kind, tev.Silver = timeline.KindSilver, entry.Silver
+		} else {
+			tev.Kind, tev.Item, tev.ItemID, tev.Quantity = timeline.KindLoot, entry.ItemName, entry.ItemID, entry.Quantity
+		}
+		e.pushTL(tev)
 	case events.EvHealthUpdate:
 		u, err := events.DecodeHealthUpdate(m.Params)
 		if err != nil {
@@ -219,6 +243,9 @@ func (e *Engine) handleEvent(m protocol.Message) {
 		} else {
 			e.state.ApplyPartyJoined(p)
 			e.changed(TopicParty)
+			for _, mem := range p.Members {
+				e.pushTL(timeline.Event{At: m.At, Kind: timeline.KindPartyJoined, Player: mem.Name})
+			}
 		}
 	case events.EvPartyPlayerJoined:
 		if p, err := events.DecodePartyPlayerJoined(m.Params); err != nil {
@@ -226,13 +253,23 @@ func (e *Engine) handleEvent(m protocol.Message) {
 		} else {
 			e.state.ApplyPartyPlayerJoined(p)
 			e.changed(TopicParty)
+			e.pushTL(timeline.Event{At: m.At, Kind: timeline.KindPartyJoined, Player: p.Name})
 		}
 	case events.EvPartyPlayerLeft:
 		if p, err := events.DecodePartyPlayerLeft(m.Params); err != nil {
 			e.fail(m.Name, err)
 		} else {
+			// Resolve the name before the member is removed from state.
+			name := p.GUID
+			for _, mem := range e.state.PartyMembers() {
+				if mem.GUID == p.GUID {
+					name = mem.Name
+					break
+				}
+			}
 			e.state.ApplyPartyPlayerLeft(p)
 			e.changed(TopicParty)
+			e.pushTL(timeline.Event{At: m.At, Kind: timeline.KindPartyLeft, Player: name})
 		}
 	case events.EvPartyDisbanded:
 		e.state.ApplyPartyDisbanded()
@@ -249,6 +286,7 @@ func (e *Engine) handleEvent(m protocol.Message) {
 		if local := e.state.LocalPlayer(); local.ObjectID != 0 && f.PlayerObjectID == local.ObjectID {
 			e.fame.Add(f, m.At)
 			e.changed(TopicFame)
+			e.pushTL(timeline.Event{At: m.At, Kind: timeline.KindFame, Player: local.Name, Fame: f.Gained()})
 		}
 	}
 }

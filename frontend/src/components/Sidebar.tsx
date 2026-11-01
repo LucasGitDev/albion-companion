@@ -1,13 +1,13 @@
-import { Package, Swords, Users, History, Settings } from 'lucide-react'
+import { Package, Swords, Users, ScrollText, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-export type Tab = 'loot' | 'dps' | 'party' | 'history' | 'settings'
+export type Tab = 'loot' | 'dps' | 'party' | 'timeline' | 'settings'
 
 const items: { id: Tab; label: string; icon: typeof Package }[] = [
   { id: 'loot', label: 'Loot', icon: Package },
   { id: 'dps', label: 'DPS', icon: Swords },
   { id: 'party', label: 'Party', icon: Users },
-  { id: 'history', label: 'History', icon: History },
+  { id: 'timeline', label: 'Timeline', icon: ScrollText },
   { id: 'settings', label: 'Settings', icon: Settings },
 ]
 

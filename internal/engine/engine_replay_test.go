@@ -85,4 +85,27 @@ func TestEngine_ReplayRealSession(t *testing.T) {
 	if totalItems == 0 || totalSilver == 0 {
 		t.Fatalf("expected items and silver recorded, got items=%d silver=%v", totalItems, totalSilver)
 	}
+
+	// Timeline merged the whole session and is ordered newest-first.
+	tl := e.Timeline().Recent(0)
+	if len(tl) == 0 {
+		t.Fatal("timeline is empty after replay")
+	}
+	var kinds int
+	seen := map[string]bool{}
+	for _, ev := range tl {
+		seen[string(ev.Kind)] = true
+	}
+	kinds = len(seen)
+	if !seen["loot"] || !seen["zone"] {
+		t.Fatalf("timeline missing expected kinds, saw %v", seen)
+	}
+	if kinds < 2 {
+		t.Fatalf("expected multiple event kinds in timeline, saw %v", seen)
+	}
+	for i := 1; i < len(tl); i++ {
+		if tl[i].At.After(tl[i-1].At) {
+			t.Fatalf("timeline not newest-first at %d: %v after %v", i, tl[i].At, tl[i-1].At)
+		}
+	}
 }

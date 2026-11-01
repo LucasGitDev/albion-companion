@@ -99,6 +99,26 @@ export interface FameView {
   since: string
 }
 
+export type TimelineKind = 'loot' | 'silver' | 'fame' | 'zone' | 'party_joined' | 'party_left'
+
+export interface TimelineEvent {
+  at: string
+  kind: TimelineKind
+  player?: string
+  item?: string
+  itemId?: string
+  quantity?: number
+  silver?: number
+  fame?: number
+  zone?: string
+  source?: string
+}
+
+export interface TimelineView {
+  events: TimelineEvent[]
+  total: number
+}
+
 export interface CodesInfo {
   source: string
   events: number
@@ -124,6 +144,8 @@ declare global {
           ResetCombat(): Promise<void>
           ResetFame(): Promise<void>
           FameView(): Promise<FameView>
+          TimelineView(recent: number): Promise<TimelineView>
+          ResetTimeline(): Promise<void>
           SetLootFilter(f: { PartyOnly: boolean; Player: string; IncludeTrash: boolean }): Promise<void>
           SetCombatOptions(o: { PartyOnly: boolean; PlayerTargetsOnly: boolean }): Promise<void>
           Interfaces(): Promise<string[]>

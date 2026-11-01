@@ -6,6 +6,7 @@ import type {
   LootView,
   PartyView,
   FameView,
+  TimelineView,
 } from '@/wails.d'
 
 export type {
@@ -19,6 +20,9 @@ export type {
   PartyView,
   PartyMember,
   FameView,
+  TimelineView,
+  TimelineEvent,
+  TimelineKind,
   CodesInfo,
   ItemDBInfo,
   Stats,
@@ -48,6 +52,8 @@ export const api = {
   resetCombat: (): Promise<void> => app().ResetCombat(),
   resetFame: (): Promise<void> => app().ResetFame(),
   fameView: (): Promise<FameView> => app().FameView(),
+  timelineView: (recent = 200): Promise<TimelineView> => app().TimelineView(recent),
+  resetTimeline: (): Promise<void> => app().ResetTimeline(),
   interfaces: () => app().Interfaces(),
   codesInfo: () => app().CodesInfo(),
   itemDBInfo: () => app().ItemDBInfo(),
