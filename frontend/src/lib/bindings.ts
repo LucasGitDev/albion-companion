@@ -52,6 +52,7 @@ export const api = {
   resetCombat: (): Promise<void> => app().ResetCombat(),
   resetFame: (): Promise<void> => app().ResetFame(),
   fameView: (): Promise<FameView> => app().FameView(),
+  exportLootCSV: (): Promise<string> => app().ExportLootCSV(),
   timelineView: (recent = 200): Promise<TimelineView> => app().TimelineView(recent),
   resetTimeline: (): Promise<void> => app().ResetTimeline(),
   interfaces: () => app().Interfaces(),

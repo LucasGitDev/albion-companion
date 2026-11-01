@@ -194,6 +194,7 @@ export function installMock() {
           latestTotalFame: 1_004_561_869,
           since: new Date(Date.now() - 300_000).toISOString(),
         }),
+        ExportLootCSV: async () => '/Users/you/Downloads/albion-loot-dev.csv',
         SetLootFilter: async () => {},
         SetCombatOptions: async () => {},
         Interfaces: async () => ['en0', 'en1', 'bridge0'],

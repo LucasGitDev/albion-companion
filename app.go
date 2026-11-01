@@ -122,6 +122,32 @@ func (a *App) FameView() fame.Snapshot                  { return a.svc.FameView(
 func (a *App) TimelineView(recent int) app.TimelineView { return a.svc.TimelineView(recent) }
 func (a *App) ResetTimeline()                           { a.svc.ResetTimeline() }
 
+// ExportLootCSV opens a native save dialog and writes the current (filtered)
+// loot in ao-loot-logger format. Returns the saved path, or "" if the user
+// cancelled the dialog.
+func (a *App) ExportLootCSV() (string, error) {
+	path, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		Title:           "Export loot",
+		DefaultFilename: "albion-loot-" + time.Now().Format("2006-01-02-150405") + ".csv",
+		Filters:         []runtime.FileFilter{{DisplayName: "CSV (*.csv)", Pattern: "*.csv"}},
+	})
+	if err != nil {
+		return "", err
+	}
+	if path == "" {
+		return "", nil // cancelled
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	if err := a.svc.ExportLootCSV(f); err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
 // Interfaces lists the physical capture interfaces for the Settings picker.
 func (a *App) Interfaces() ([]string, error) { return capture.Interfaces() }
 
