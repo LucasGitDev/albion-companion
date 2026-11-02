@@ -15,6 +15,8 @@ func TestTrackerTotalsAndPerHour(t *testing.T) {
 	tr.AddRespec(4, base.Add(30*time.Minute))
 	tr.AddMight(10, base)
 	tr.AddMight(20, base.Add(30*time.Minute))
+	tr.AddFavor(100, base)
+	tr.AddFavor(200, base.Add(30*time.Minute))
 
 	s := tr.Snapshot()
 	if s.Silver.Total != 1500 || s.Silver.Count != 2 {
@@ -28,6 +30,9 @@ func TestTrackerTotalsAndPerHour(t *testing.T) {
 	}
 	if s.Might.Total != 30 || s.Might.PerHour != 60 {
 		t.Fatalf("might %+v", s.Might)
+	}
+	if s.Favor.Total != 300 || s.Favor.PerHour != 600 {
+		t.Fatalf("favor %+v", s.Favor)
 	}
 	if !s.Silver.Since.Equal(base) {
 		t.Fatalf("since = %v want %v", s.Silver.Since, base)
@@ -47,9 +52,10 @@ func TestTrackerReset(t *testing.T) {
 	now := time.Now()
 	tr.AddSilver(1000, now)
 	tr.AddMight(5, now)
+	tr.AddFavor(50, now)
 	tr.Reset()
 	s := tr.Snapshot()
-	if s.Silver.Total != 0 || s.Might.Total != 0 || s.Silver.Count != 0 {
+	if s.Silver.Total != 0 || s.Might.Total != 0 || s.Favor.Total != 0 || s.Silver.Count != 0 {
 		t.Fatalf("reset left data: %+v", s)
 	}
 }

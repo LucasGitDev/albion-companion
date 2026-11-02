@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { RotateCcw, Timer, Swords, Sparkles, Coins, RefreshCw, Flame, ChevronRight } from 'lucide-react'
+import { RotateCcw, Timer, Swords, Sparkles, Coins, RefreshCw, Flame, HandHeart, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Loading, ErrorState } from '@/components/ui/states'
 import { api, type CombatRow, type RatesView, type RateMetric } from '@/lib/bindings'
@@ -194,6 +194,7 @@ const RATE_METRICS = [
   { key: 'silver', label: 'Silver', Icon: Coins, accent: true },
   { key: 'respec', label: 'Respec', Icon: RefreshCw, accent: false },
   { key: 'might', label: 'Might', Icon: Flame, accent: false },
+  { key: 'favor', label: 'Favor', Icon: HandHeart, accent: false },
 ] as const
 
 function RatesRow({ rates }: { rates: { data: RatesView | null; status: string; retry: () => void } }) {
@@ -224,7 +225,7 @@ function RatesRow({ rates }: { rates: { data: RatesView | null; status: string; 
       </div>
 
       {status === 'loading' && (
-        <div className="grid grid-cols-4 gap-4" aria-hidden>
+        <div className="grid grid-cols-5 gap-4" aria-hidden>
           {RATE_METRICS.map(({ key }) => (
             <div key={key} className="animate-pulse motion-reduce:animate-none">
               <div className="mb-2 h-3 w-14 rounded bg-muted/60" />
@@ -239,7 +240,7 @@ function RatesRow({ rates }: { rates: { data: RatesView | null; status: string; 
       )}
 
       {status === 'ready' && (
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-5 gap-4">
           {RATE_METRICS.map(({ key, label, Icon, accent }) => (
             <RateTile key={key} label={label} Icon={Icon} accent={accent} metric={data?.[key]} mode={mode} />
           ))}
@@ -272,7 +273,7 @@ function RateTile({
       </div>
       <div
         className={cn(
-          'font-display text-xl font-semibold leading-tight tnum',
+          'whitespace-nowrap font-display text-xl font-semibold leading-tight tnum',
           empty ? 'text-muted-foreground' : accent ? 'text-primary' : 'text-foreground',
         )}
       >

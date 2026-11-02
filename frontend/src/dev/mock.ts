@@ -326,6 +326,7 @@ export function installMock() {
           silver: { total: silverTotal, perHour: perHourOf(silverTotal), count: Math.floor(silverTotal / 2000), since: sessionStart },
           respec: { total: respecTotal, perHour: perHourOf(respecTotal), count: Math.floor(respecTotal / 2), since: sessionStart },
           might: { total: mightTotal, perHour: perHourOf(mightTotal), count: Math.floor(mightTotal / 40), since: sessionStart },
+          favor: { total: mightTotal * 8, perHour: perHourOf(mightTotal * 8), count: Math.floor(mightTotal / 40), since: sessionStart },
         }),
         ResetRates: async () => {
           silverTotal = respecTotal = mightTotal = 0

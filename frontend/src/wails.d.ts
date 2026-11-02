@@ -143,6 +143,7 @@ export interface RatesView {
   silver: RateMetric
   respec: RateMetric
   might: RateMetric
+  favor: RateMetric
 }
 
 export type TimelineKind =

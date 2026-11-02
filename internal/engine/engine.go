@@ -399,6 +399,7 @@ func (e *Engine) handleEvent(m protocol.Message) {
 			return
 		}
 		e.rates.AddMight(mf.Might, m.At)
+		e.rates.AddFavor(mf.Favor, m.At)
 		e.changed(TopicRates)
 
 	case events.EvHarvestFinished:
