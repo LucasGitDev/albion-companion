@@ -1,7 +1,7 @@
 ---
 id: TASK-46
 title: Chest log / timeline show untranslated item names
-status: In Review
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-11-02 17:26'
