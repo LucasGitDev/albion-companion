@@ -1,7 +1,7 @@
 ---
 id: TASK-31
 title: Guild/alliance tags in loot entries + CSV
-status: In Review
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-11-01 13:36'
