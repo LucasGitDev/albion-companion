@@ -1,7 +1,7 @@
 ---
 id: TASK-14
 title: Personal chest deposit/withdrawal log (local player)
-status: In Review
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-10-31T19:20:00Z'
