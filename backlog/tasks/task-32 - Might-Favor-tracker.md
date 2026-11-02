@@ -1,7 +1,7 @@
 ---
 id: TASK-32
 title: Might/Favor tracker
-status: In Review
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-11-01 13:36'
