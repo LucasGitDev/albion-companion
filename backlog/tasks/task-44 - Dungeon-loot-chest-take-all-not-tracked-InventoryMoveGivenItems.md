@@ -1,7 +1,7 @@
 ---
 id: TASK-44
 title: Dungeon loot-chest 'take all' not tracked (InventoryMoveGivenItems)
-status: In Review
+status: Done
 assignee: []
 created_date: '2026-11-02 16:42'
 updated_date: '2026-11-02 16:42'
