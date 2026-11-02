@@ -72,6 +72,27 @@ func TestTracker_UnknownItemAndCSV(t *testing.T) {
 	}
 }
 
+// TestSilver_ExactSumThenFloor proves silver is accumulated exactly (matching
+// SA's FixPoint accounting) and floored once for the total, not floored per
+// pickup — so fractional drops don't lose silver (TASK-45).
+func TestSilver_ExactSumThenFloor(t *testing.T) {
+	tr, st := setup()
+	at := time.Unix(0, 0)
+	// 7.83 + 31.17 = 39.00 exactly; per-pickup flooring would give 7+31 = 38.
+	tr.Record(events.GrabbedLoot{Looter: "Me", IsSilver: true, Quantity: 78300}, at, st)
+	tr.Record(events.GrabbedLoot{Looter: "Me", IsSilver: true, Quantity: 311700}, at, st)
+
+	p := tr.ByPlayer(Filter{})
+	if len(p) != 1 || p[0].Silver != 39 {
+		t.Fatalf("silver total = %v want 39 (exact sum, not 38 per-pickup floor)", p)
+	}
+	// Each entry keeps the exact fractional value; display floors it elsewhere.
+	all := tr.Entries(Filter{})
+	if all[0].Silver != 7.83 {
+		t.Fatalf("entry silver = %v want exact 7.83", all[0].Silver)
+	}
+}
+
 // TestCSV_GuildAllianceColumns proves the ao-loot-logger columns carry both
 // sides' guild AND alliance for a player-on-player loot (TASK-31), so the export
 // stays drop-in compatible with the AO Loot Logger Viewer.
