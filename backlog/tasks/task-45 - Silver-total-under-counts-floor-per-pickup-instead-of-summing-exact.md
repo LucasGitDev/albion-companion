@@ -1,7 +1,7 @@
 ---
 id: TASK-45
 title: 'Silver total under-counts: floor per-pickup instead of summing exact'
-status: In Review
+status: Done
 assignee: []
 created_date: '2026-11-02 17:10'
 updated_date: '2026-11-02 17:11'
