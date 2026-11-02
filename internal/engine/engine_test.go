@@ -290,3 +290,72 @@ func TestEngine_Route(t *testing.T) {
 		t.Fatalf("path wrong: %+v", s.Path)
 	}
 }
+
+// TestEngine_DungeonChestTakeAll covers the dungeon loot-chest "take all" flow,
+// which emits no per-item InventoryPutItem — the client sends one
+// InventoryMoveGivenItems request listing the item object ids. All of them must
+// be recorded as loot from the chest (the user-reported bug: boss-chest loot not
+// tracked).
+func TestEngine_DungeonChestTakeAll(t *testing.T) {
+	codes := protocol.DefaultCodes()
+	code := func(name string) uint16 {
+		c, ok := codes.EventCode(name)
+		if !ok {
+			t.Fatalf("missing event %s", name)
+		}
+		return c
+	}
+	op := func(name string) uint16 {
+		c, ok := codes.OperationCode(name)
+		if !ok {
+			t.Fatalf("missing op %s", name)
+		}
+		return c
+	}
+	join, _ := codes.OperationCode("Join")
+
+	var looted []loot.Entry
+	e := New(Config{
+		Codes: codes,
+		Items: items{
+			522:  {Index: 522, UniqueName: "T1_SILVERBAG_NONTRADABLE", Name: "Bag of Silver"},
+			2021: {Index: 2021, UniqueName: "T6_RUNE", Name: "Master's Rune"},
+		},
+		OnLoot:        func(en loot.Entry) { looted = append(looted, en) },
+		OnDecodeError: func(name string, err error) { t.Errorf("decode error %s: %v", name, err) },
+	})
+
+	t0 := time.Unix(6000, 0)
+	feed := func(payload []byte, dt time.Duration) { e.Feed(capture.Packet{At: t0.Add(dt), Payload: payload}) }
+
+	feed(photontest.Response(join, map[byte]any{0: int32(1), 2: "Me", 8: "@RANDOMDUNGEON@x", 54: guid(9)}), 0)
+	feed(photontest.Event(code("NewLootChest"), map[byte]any{0: int32(101), 3: "UNDEAD_SOLO_CHEST_UNCOMMON"}), time.Second)
+	feed(photontest.Event(code("NewSimpleItem"), map[byte]any{0: int32(293), 1: int16(522), 2: int16(3)}), time.Second)
+	feed(photontest.Event(code("NewSimpleItem"), map[byte]any{0: int32(295), 1: int16(2021), 2: int16(1)}), time.Second)
+	feed(photontest.Event(code("AttachItemContainer"), map[byte]any{0: int32(101), 3: []int32{293, 295}, 5: int16(2)}), time.Second)
+	// Take-all: one request lists the item object ids (no InventoryPutItem).
+	feed(photontest.Request(op("InventoryMoveGivenItems"), map[byte]any{
+		0: guid(24), 2: guid(9), 4: []int32{293, 295}, 5: []int32{3, 1},
+	}), 2*time.Second)
+
+	if st := e.Stats(); st.DecodeErrors != 0 {
+		t.Fatalf("decode errors = %d", st.DecodeErrors)
+	}
+	if len(looted) != 2 {
+		t.Fatalf("expected 2 chest items from take-all, got %d: %+v", len(looted), looted)
+	}
+	got := map[string]int64{}
+	for _, en := range looted {
+		if en.Looter != "Me" || en.LootedFrom != "UNDEAD_SOLO_CHEST_UNCOMMON" {
+			t.Fatalf("unexpected loot: %+v", en)
+		}
+		got[en.ItemID] = en.Quantity
+	}
+	if got["T1_SILVERBAG_NONTRADABLE"] != 3 || got["T6_RUNE"] != 1 {
+		t.Fatalf("quantities wrong: %+v", got)
+	}
+	// Also landed in the personal chest log.
+	if cl := e.ChestLog().Snapshot(0); cl.Total != 2 {
+		t.Fatalf("chest log total = %d want 2", cl.Total)
+	}
+}

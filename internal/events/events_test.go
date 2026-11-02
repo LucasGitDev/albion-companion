@@ -451,3 +451,28 @@ func TestDecodeHarvestFinished(t *testing.T) {
 		t.Fatalf("Amount = %d want 6", got)
 	}
 }
+
+func TestDecodeInventoryMoveGivenItems(t *testing.T) {
+	// Item object-id array arrives with the varied int widths the Protocol18
+	// deserializer produces; read them all via protocol.Params.
+	in := protocol.Params{
+		0: guid(24),                    // container GUID (source chest)
+		2: guid(7),                     // destination inventory GUID
+		4: []int32{293, 294, 295, 296}, // item object ids
+		5: []int32{3, 2, 1, 1},         // quantities (unused by decoder)
+	}
+	mv, err := DecodeInventoryMoveGivenItems(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(mv.ItemObjectIDs) != 4 || mv.ItemObjectIDs[0] != 293 || mv.ItemObjectIDs[3] != 296 {
+		t.Fatalf("ids = %v", mv.ItemObjectIDs)
+	}
+	if mv.ContainerGUID == "" {
+		t.Fatalf("missing container GUID")
+	}
+	// Missing the item-id array is an error (the request is meaningless without it).
+	if _, err := DecodeInventoryMoveGivenItems(protocol.Params{0: guid(1)}); err == nil {
+		t.Fatal("want missing ItemObjectIds error")
+	}
+}

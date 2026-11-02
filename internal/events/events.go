@@ -17,6 +17,11 @@ import (
 const (
 	OpJoin = "Join" // response
 
+	// OpInventoryMoveGivenItems is the "take all / move these items" request
+	// (client→server) used when looting a dungeon loot chest via the open-chest
+	// UI, which sends no per-item InventoryPutItem.
+	OpInventoryMoveGivenItems = "InventoryMoveGivenItems"
+
 	EvLeave             = "Leave"
 	EvNewCharacter      = "NewCharacter"
 	EvHealthUpdate      = "HealthUpdate"
@@ -598,6 +603,27 @@ func DecodeInventoryPutItem(p protocol.Params) (InventoryPut, error) {
 	}
 	guid, _ := p.GUID(2)
 	return InventoryPut{ItemObjectID: id, InventoryGUID: guid}, nil
+}
+
+// InventoryMoveGivenItems is the batch "move these items" request the client
+// sends when looting a dungeon chest via the open-chest UI (take-all), which
+// never emits per-item InventoryPutItem.
+// SA: Network/Operations/Request/InventoryMoveGivenItemsRequest.cs —
+//
+//	0 containerGuid (source), 2 userInteractGuid (destination inventory),
+//	4 itemObjectIds (array), 5 quantities (array).
+type InventoryMoveGivenItems struct {
+	ContainerGUID string
+	ItemObjectIDs []int64
+}
+
+func DecodeInventoryMoveGivenItems(p protocol.Params) (InventoryMoveGivenItems, error) {
+	ids, ok := p.Int64s(4)
+	if !ok {
+		return InventoryMoveGivenItems{}, missing(OpInventoryMoveGivenItems, "ItemObjectIds", 4)
+	}
+	guid, _ := p.GUID(0)
+	return InventoryMoveGivenItems{ContainerGUID: guid, ItemObjectIDs: ids}, nil
 }
 
 // ---------------------------------------------------------------------------
