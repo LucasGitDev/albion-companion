@@ -1,10 +1,11 @@
 ---
 id: TASK-14
 title: Personal chest deposit/withdrawal log (local player)
-status: To Do
-assignee: []
+status: In Review
+assignee:
+  - '@claude'
 created_date: '2026-10-31T19:20:00Z'
-updated_date: '2026-11-01 20:30'
+updated_date: '2026-11-02 13:52'
 labels:
   - loot
 dependencies: []
@@ -20,10 +21,10 @@ Log the LOCAL player's own deposits into and withdrawals from guild/party/person
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Local player's own chest/container deposits and withdrawals are logged with item, quantity, container, and timestamp
-- [ ] #2 Output is framed as a personal (local-player) deposit/withdrawal log, not a cross-member audit
-- [ ] #3 Reuses internal/chest container stitching rather than reimplementing it
-- [ ] #4 The limitation (other members' chest movements are not passively observable, per decision-7) is documented in the task output / Protocol spec
+- [x] #1 Output is framed as a personal (local-player) deposit/withdrawal log, not a cross-member audit
+- [x] #2 Reuses internal/chest container stitching rather than reimplementing it
+- [x] #3 The limitation (other members' chest movements are not passively observable, per decision-7) is documented in the task output / Protocol spec
+- [x] #4 Local player's own chest/container WITHDRAWALS are logged with item, quantity, container, and timestamp (deposit side split to TASK-42, blocked on a capture per hard rule 3)
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -45,4 +46,12 @@ FEASIBILITY (investigation, session-1.aorec + SA + ao-loot-logger): the 'who loo
 - Chest/container pickups (InventoryPutItem/AttachItemContainer): CLIENT-LOCAL only -> only the local player. ao-loot-logger hardcodes lootedBy=self; SA gates container tracking on IsTrackingAllowedByMainCharacter. No event exists for another member picking up a chest.
 - Guild/party chest DEPOSITS by others: NO broadcast event. InventoryMoveItem is the LOCAL player's own request. GetGuildAccountLogs is silver/energy-only, pull-triggered (only when the local player opens the guild log UI), and item-level chest logs have no SA decoder.
 CONCLUSION: deposit visibility for other members does not exist passively -> the theft/deposit audit as specified is infeasible. Realistic achievable scope: a per-member ledger of BODY/MOB loot only (all members) + full item movement (pickups into containers) for the LOCAL player only. A true cross-member deposit audit needs every member running the tool and merging logs (or server-side guild logs, not passively broadcast). Decision needed from user before building.
+
+SHIPPED the observable half (withdrawals). New internal/chestlog tracker (withdraw entries: item/qty/container/timestamp, Snapshot with withdrawn/operations/containers, Reset) fed from the existing chest.Take stitch path in engine (reuses internal/chest, no new decode). Service ChestLogView/ResetChestLog + chestlog:changed; app bindings; new Chest Log UI tab (dominant withdrawn count, pickups/containers, chronological feed, mob labels, honest scope note). Tests: chestlog unit (add/snapshot/reset/cap) + engine integration (withdrawal logged, inventory item excluded). ui-reviewer: critical fixed (Reset now confirm + --destructive + inline error), plus hierarchy, en-US dates, mob labels, a11y (ItemIcon alt prop, motion-reduce). DEPOSIT side split to TASK-42 (blocked on TASK-41 capture): InventoryMoveItem carries no documented item/qty fields, so building it now would violate hard rule 3 (no guessing). Limitation documented in chestlog.go package doc, the UI note banner, and here. go test -race ./... green, make check OK.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Shipped a personal Chest Log of the local player's container WITHDRAWALS (item/qty/container/timestamp), reusing the chest-stitch path; new tab with an honest scope note that deposits and other members' chest moves aren't passively observable (decision-7). Deposit direction split to TASK-42 (blocked on TASK-41 capture, to avoid guessing packet fields). Verified by unit + engine integration tests and make check; ui-reviewer critical + a11y fixes applied.
+<!-- SECTION:FINAL_SUMMARY:END -->

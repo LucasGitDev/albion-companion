@@ -12,6 +12,7 @@ import (
 
 	"github.com/LucasGitDev/albion-companion/internal/app"
 	"github.com/LucasGitDev/albion-companion/internal/capture"
+	"github.com/LucasGitDev/albion-companion/internal/chestlog"
 	"github.com/LucasGitDev/albion-companion/internal/combat"
 	"github.com/LucasGitDev/albion-companion/internal/fame"
 	"github.com/LucasGitDev/albion-companion/internal/gather"
@@ -170,23 +171,25 @@ func itemsCacheDir() string {
 
 // --- Bindings exposed to the frontend (JSON-friendly signatures only) ---
 
-func (a *App) Status() app.CaptureStatus                { return a.svc.Status() }
-func (a *App) StartCapture() (app.CaptureStatus, error) { return a.svc.StartCapture() }
-func (a *App) StopCapture() app.CaptureStatus           { return a.svc.StopCapture() }
-func (a *App) LootView(recent int) app.LootView         { return a.svc.LootView(recent) }
-func (a *App) CombatView() app.CombatView               { return a.svc.CombatView() }
-func (a *App) PartyView() app.PartyView                 { return a.svc.PartyView() }
-func (a *App) SetLootFilter(f loot.Filter)              { a.svc.SetLootFilter(f) }
-func (a *App) SetCombatOptions(o combat.Options)        { a.svc.SetCombatOptions(o) }
-func (a *App) ResetLoot()                               { a.svc.ResetLoot() }
-func (a *App) ResetCombat()                             { a.svc.ResetCombat() }
-func (a *App) ResetFame()                               { a.svc.ResetFame() }
-func (a *App) FameView() fame.Snapshot                  { return a.svc.FameView() }
-func (a *App) RatesView() app.RatesView                 { return a.svc.RatesView() }
-func (a *App) ResetRates()                              { a.svc.ResetRates() }
-func (a *App) GatherView() gather.Snapshot              { return a.svc.GatherView() }
-func (a *App) ResetGather()                             { a.svc.ResetGather() }
-func (a *App) HistoryList() ([]store.Meta, error)       { return a.svc.HistoryList() }
+func (a *App) Status() app.CaptureStatus                 { return a.svc.Status() }
+func (a *App) StartCapture() (app.CaptureStatus, error)  { return a.svc.StartCapture() }
+func (a *App) StopCapture() app.CaptureStatus            { return a.svc.StopCapture() }
+func (a *App) LootView(recent int) app.LootView          { return a.svc.LootView(recent) }
+func (a *App) CombatView() app.CombatView                { return a.svc.CombatView() }
+func (a *App) PartyView() app.PartyView                  { return a.svc.PartyView() }
+func (a *App) SetLootFilter(f loot.Filter)               { a.svc.SetLootFilter(f) }
+func (a *App) SetCombatOptions(o combat.Options)         { a.svc.SetCombatOptions(o) }
+func (a *App) ResetLoot()                                { a.svc.ResetLoot() }
+func (a *App) ResetCombat()                              { a.svc.ResetCombat() }
+func (a *App) ResetFame()                                { a.svc.ResetFame() }
+func (a *App) FameView() fame.Snapshot                   { return a.svc.FameView() }
+func (a *App) RatesView() app.RatesView                  { return a.svc.RatesView() }
+func (a *App) ResetRates()                               { a.svc.ResetRates() }
+func (a *App) GatherView() gather.Snapshot               { return a.svc.GatherView() }
+func (a *App) ResetGather()                              { a.svc.ResetGather() }
+func (a *App) ChestLogView(recent int) chestlog.Snapshot { return a.svc.ChestLogView(recent) }
+func (a *App) ResetChestLog()                            { a.svc.ResetChestLog() }
+func (a *App) HistoryList() ([]store.Meta, error)        { return a.svc.HistoryList() }
 func (a *App) HistoryLoad(id string) (app.SessionDetail, error) {
 	return a.svc.HistoryLoad(id)
 }

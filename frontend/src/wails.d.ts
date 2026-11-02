@@ -214,6 +214,23 @@ export interface DungeonView {
   total: number
 }
 
+export interface ChestLogEntry {
+  at: string
+  kind: 'withdraw' | 'deposit'
+  container: string
+  itemId: string
+  itemName: string
+  quantity: number
+}
+
+export interface ChestLogView {
+  entries: ChestLogEntry[] | null
+  total: number
+  withdrawn: number
+  deposited: number
+  containers: number
+}
+
 export interface SessionMeta {
   id: string
   startedAt: string
@@ -286,6 +303,8 @@ declare global {
           ResetDungeons(): Promise<void>
           GatherView(): Promise<GatherView>
           ResetGather(): Promise<void>
+          ChestLogView(recent: number): Promise<ChestLogView>
+          ResetChestLog(): Promise<void>
           HistoryList(): Promise<SessionMeta[] | null>
           HistoryLoad(id: string): Promise<SessionDetail>
           DeleteSession(id: string): Promise<void>

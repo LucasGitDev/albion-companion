@@ -155,6 +155,16 @@ func TestEngine_ChestLoot(t *testing.T) {
 	if got.Looter != "Me" || got.LootedFrom != "TREASURE_COFFER_SOLO" || got.ItemID != "T5_SOUL" || got.Quantity != 1 {
 		t.Fatalf("unexpected chest loot: %+v", got)
 	}
+
+	// The same withdrawal lands in the personal chest-activity log (TASK-14),
+	// and the inventory item (container 5) must NOT appear there.
+	cl := e.ChestLog().Snapshot(0)
+	if cl.Total != 1 || cl.Withdrawn != 1 {
+		t.Fatalf("chest log = %+v want 1 withdrawal", cl)
+	}
+	if en := cl.Entries[0]; en.Kind != "withdraw" || en.Container != "TREASURE_COFFER_SOLO" || en.ItemID != "T5_SOUL" || en.Quantity != 1 {
+		t.Fatalf("chest log entry = %+v", en)
+	}
 }
 
 // TestEngine_CorpseBagLoot covers taking an item from a corpse bag / loot body
