@@ -6,6 +6,7 @@ package photontest
 import (
 	"encoding/binary"
 	"fmt"
+	"maps"
 	"math"
 	"sort"
 )
@@ -38,6 +39,15 @@ func Response(opCode uint16, params map[byte]any) []byte {
 	p[253] = int16(opCode)
 	body := []byte{0, 0, 8} // returnCode=0 LE, debug message = null
 	return packet(3, 1, append(body, Table(p)...))
+}
+
+// Request returns a full UDP payload carrying one operation request. The op
+// code is the leading byte of the command body (as the parser reads it), so it
+// must fit in a byte; param 253 is also set so the decoder resolves it either way.
+func Request(opCode uint16, params map[byte]any) []byte {
+	p := clone(params)
+	p[253] = int16(opCode)
+	return packet(2, 1, append([]byte{byte(opCode)}, Table(p)...))
 }
 
 // Table encodes a Protocol18 parameter table (keys sorted for determinism).
@@ -118,9 +128,7 @@ func packet(msgType, code byte, body []byte) []byte {
 
 func clone(m map[byte]any) map[byte]any {
 	out := make(map[byte]any, len(m)+1)
-	for k, v := range m {
-		out[k] = v
-	}
+	maps.Copy(out, m)
 	return out
 }
 

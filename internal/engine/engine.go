@@ -10,6 +10,7 @@ import (
 	"errors"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/LucasGitDev/albion-companion/internal/capture"
 	"github.com/LucasGitDev/albion-companion/internal/chest"
@@ -270,7 +271,56 @@ func (e *Engine) handle(m protocol.Message) {
 		}
 	case protocol.KindEvent:
 		e.handleEvent(m)
+	case protocol.KindRequest:
+		e.handleRequest(m)
 	}
+}
+
+// handleRequest processes client→server requests we care about. Dungeon loot
+// chests are emptied with a single InventoryMoveGivenItems "take all" request
+// (no per-item InventoryPutItem), so that path is handled here.
+func (e *Engine) handleRequest(m protocol.Message) {
+	if m.Name != events.OpInventoryMoveGivenItems {
+		return
+	}
+	mv, err := events.DecodeInventoryMoveGivenItems(m.Params)
+	if err != nil {
+		return
+	}
+	for _, objID := range mv.ItemObjectIDs {
+		e.recordChestTake(objID, m.At)
+	}
+}
+
+// recordChestTake records one item the local player took out of a tracked chest
+// / loot container as loot (and into the personal chest log). No-op for item ids
+// that aren't from a tracked chest.
+func (e *Engine) recordChestTake(itemObjectID int64, at time.Time) {
+	take, ok := e.chest.Take(itemObjectID)
+	if !ok {
+		return
+	}
+	g := events.GrabbedLoot{
+		Looter:     e.state.LocalPlayer().Name,
+		LootedFrom: take.ChestName,
+		ItemIndex:  take.ItemIndex,
+		Quantity:   take.Quantity,
+	}
+	entry := e.loot.Record(g, at, e.state)
+	e.dungeonLoot(entry)
+	if e.cfg.OnLoot != nil {
+		e.cfg.OnLoot(entry)
+	}
+	e.changed(TopicLoot)
+	e.chestLog.Add(chestlog.Entry{
+		At: entry.At, Kind: chestlog.KindWithdraw, Container: entry.LootedFrom,
+		ItemID: entry.ItemID, ItemName: entry.ItemName, Quantity: entry.Quantity,
+	})
+	e.changed(TopicChestLog)
+	e.pushTL(timeline.Event{
+		At: entry.At, Kind: timeline.KindLoot, Player: entry.Looter,
+		Source: entry.LootedFrom, Item: entry.ItemName, ItemID: entry.ItemID, Quantity: entry.Quantity,
+	})
 }
 
 func (e *Engine) handleEvent(m protocol.Message) {
@@ -439,38 +489,12 @@ func (e *Engine) handleEvent(m protocol.Message) {
 			e.chest.Attach(c)
 		}
 	case events.EvInventoryPutItem:
-		put, err := events.DecodeInventoryPutItem(m.Params)
-		if err != nil {
-			return
+		// A single item grabbed from a chest/body into the inventory (open-world
+		// treasure, corpse bags). Dungeon loot chests use the batch take-all
+		// request instead (see handleRequest / InventoryMoveGivenItems).
+		if put, err := events.DecodeInventoryPutItem(m.Params); err == nil {
+			e.recordChestTake(put.ItemObjectID, m.At)
 		}
-		take, ok := e.chest.Take(put.ItemObjectID)
-		if !ok {
-			return
-		}
-		g := events.GrabbedLoot{
-			Looter:     e.state.LocalPlayer().Name,
-			LootedFrom: take.ChestName,
-			ItemIndex:  take.ItemIndex,
-			Quantity:   take.Quantity,
-		}
-		entry := e.loot.Record(g, m.At, e.state)
-		e.dungeonLoot(entry)
-		if e.cfg.OnLoot != nil {
-			e.cfg.OnLoot(entry)
-		}
-		e.changed(TopicLoot)
-		// Personal chest-activity log: this is a local-player withdrawal from a
-		// container (chest or loot body). Deposits are not observable (see
-		// internal/chestlog); only the take side is recorded.
-		e.chestLog.Add(chestlog.Entry{
-			At: entry.At, Kind: chestlog.KindWithdraw, Container: entry.LootedFrom,
-			ItemID: entry.ItemID, ItemName: entry.ItemName, Quantity: entry.Quantity,
-		})
-		e.changed(TopicChestLog)
-		e.pushTL(timeline.Event{
-			At: entry.At, Kind: timeline.KindLoot, Player: entry.Looter,
-			Source: entry.LootedFrom, Item: entry.ItemName, ItemID: entry.ItemID, Quantity: entry.Quantity,
-		})
 
 	// --- Killfeed: nearby deaths (broadcast). KilledPlayer (local-kill credit)
 	// is decoded too but the feed is driven by the richer Died event. ---
