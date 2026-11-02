@@ -13,6 +13,7 @@ import (
 
 	"github.com/LucasGitDev/albion-companion/internal/capture"
 	"github.com/LucasGitDev/albion-companion/internal/chest"
+	"github.com/LucasGitDev/albion-companion/internal/chestlog"
 	"github.com/LucasGitDev/albion-companion/internal/combat"
 	"github.com/LucasGitDev/albion-companion/internal/dungeon"
 	"github.com/LucasGitDev/albion-companion/internal/events"
@@ -39,6 +40,7 @@ const (
 	TopicRates    Topic = "rates"
 	TopicTimeline Topic = "timeline"
 	TopicDungeon  Topic = "dungeon"
+	TopicChestLog Topic = "chestlog"
 )
 
 type Config struct {
@@ -63,17 +65,18 @@ type Stats struct {
 }
 
 type Engine struct {
-	cfg     Config
-	dec     *protocol.Decoder
-	state   *game.State
-	loot    *loot.Tracker
-	combat  *combat.Meter
-	fame    *fame.Tracker
-	gather  *gather.Tracker
-	rates   *rates.Tracker
-	chest   *chest.Tracker
-	dungeon *dungeon.Tracker
-	tl      *timeline.Ring
+	cfg      Config
+	dec      *protocol.Decoder
+	state    *game.State
+	loot     *loot.Tracker
+	combat   *combat.Meter
+	fame     *fame.Tracker
+	gather   *gather.Tracker
+	rates    *rates.Tracker
+	chest    *chest.Tracker
+	chestLog *chestlog.Tracker
+	dungeon  *dungeon.Tracker
+	tl       *timeline.Ring
 
 	packets, messages, unknown, decodeErrors atomic.Uint64
 	serverIP                                 atomic.Value // string: last game-server IP seen (for region detection)
@@ -87,16 +90,17 @@ func New(cfg Config) *Engine {
 		cfg.Codes = protocol.DefaultCodes()
 	}
 	e := &Engine{
-		cfg:     cfg,
-		state:   game.NewState(),
-		loot:    loot.NewTracker(cfg.Items),
-		combat:  combat.NewMeter(cfg.Combat),
-		fame:    fame.New(),
-		gather:  gather.New(),
-		rates:   rates.New(),
-		chest:   chest.New(),
-		dungeon: dungeon.New(),
-		tl:      timeline.NewRing(cfg.TimelineCap),
+		cfg:      cfg,
+		state:    game.NewState(),
+		loot:     loot.NewTracker(cfg.Items),
+		combat:   combat.NewMeter(cfg.Combat),
+		fame:     fame.New(),
+		gather:   gather.New(),
+		rates:    rates.New(),
+		chest:    chest.New(),
+		chestLog: chestlog.New(0),
+		dungeon:  dungeon.New(),
+		tl:       timeline.NewRing(cfg.TimelineCap),
 	}
 	e.dec = protocol.NewDecoder(cfg.Codes, e.handle)
 	return e
@@ -109,6 +113,9 @@ func (e *Engine) Fame() *fame.Tracker     { return e.fame }
 func (e *Engine) Gather() *gather.Tracker { return e.gather }
 func (e *Engine) Rates() *rates.Tracker   { return e.rates }
 func (e *Engine) Chest() *chest.Tracker   { return e.chest }
+
+// ChestLog is the local player's personal container-activity log (withdrawals).
+func (e *Engine) ChestLog() *chestlog.Tracker { return e.chestLog }
 
 // Dungeon is the per-dungeon session tracker.
 func (e *Engine) Dungeon() *dungeon.Tracker { return e.dungeon }
@@ -440,6 +447,14 @@ func (e *Engine) handleEvent(m protocol.Message) {
 			e.cfg.OnLoot(entry)
 		}
 		e.changed(TopicLoot)
+		// Personal chest-activity log: this is a local-player withdrawal from a
+		// container (chest or loot body). Deposits are not observable (see
+		// internal/chestlog); only the take side is recorded.
+		e.chestLog.Add(chestlog.Entry{
+			At: entry.At, Kind: chestlog.KindWithdraw, Container: entry.LootedFrom,
+			ItemID: entry.ItemID, ItemName: entry.ItemName, Quantity: entry.Quantity,
+		})
+		e.changed(TopicChestLog)
 		e.pushTL(timeline.Event{
 			At: entry.At, Kind: timeline.KindLoot, Player: entry.Looter,
 			Source: entry.LootedFrom, Item: entry.ItemName, ItemID: entry.ItemID, Quantity: entry.Quantity,

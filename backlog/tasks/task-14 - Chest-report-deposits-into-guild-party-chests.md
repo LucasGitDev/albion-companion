@@ -1,10 +1,11 @@
 ---
 id: TASK-14
 title: Personal chest deposit/withdrawal log (local player)
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@claude'
 created_date: '2026-10-31T19:20:00Z'
-updated_date: '2026-11-01 20:30'
+updated_date: '2026-11-01 20:49'
 labels:
   - loot
 dependencies: []

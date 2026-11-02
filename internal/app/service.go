@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/LucasGitDev/albion-companion/internal/capture"
+	"github.com/LucasGitDev/albion-companion/internal/chestlog"
 	"github.com/LucasGitDev/albion-companion/internal/combat"
 	"github.com/LucasGitDev/albion-companion/internal/dungeon"
 	"github.com/LucasGitDev/albion-companion/internal/engine"
@@ -444,6 +445,19 @@ func (s *Service) ResetGather() { s.eng.Gather().Reset(); s.opts.Emit("gather:ch
 
 // GatherView is the current session's gathered resources, by item and total.
 func (s *Service) GatherView() gather.Snapshot { return s.eng.Gather().Snapshot() }
+
+// ResetChestLog clears the personal chest-activity log.
+func (s *Service) ResetChestLog() { s.eng.ChestLog().Reset(); s.opts.Emit("chestlog:changed", nil) }
+
+// ChestLogView is the local player's container-activity log (withdrawals), newest
+// first. It is a personal log only — chest put/take is client-local, so it never
+// reflects other members, and deposits are not passively observable (decision-7).
+func (s *Service) ChestLogView(recent int) chestlog.Snapshot {
+	if recent <= 0 {
+		recent = 200
+	}
+	return s.eng.ChestLog().Snapshot(recent)
+}
 
 // FameView is the current session fame totals and rate.
 func (s *Service) FameView() fame.Snapshot { return s.eng.Fame().Snapshot() }

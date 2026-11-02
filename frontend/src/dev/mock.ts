@@ -375,6 +375,30 @@ export function installMock() {
           emit('history:changed')
         },
         ExportSessionCSV: async (id: string) => `/Users/you/Downloads/albion-session-${id}.csv`,
+        ChestLogView: async () => {
+          if (devState === 'empty') return { entries: [], total: 0, withdrawn: 0, deposited: 0, containers: 0 }
+          const now = Date.now()
+          const mk = (min: number, kind: 'withdraw' | 'deposit', container: string, itemId: string, itemName: string, quantity: number) => ({
+            at: new Date(now - min * 60_000).toISOString(),
+            kind,
+            container,
+            itemId,
+            itemName,
+            quantity,
+          })
+          const entries = [
+            mk(1, 'withdraw', 'TREASURE_COFFER_SOLO', 'T6_SOUL', 'Alma do Mestre', 2),
+            mk(3, 'withdraw', 'TREASURE_COFFER_SOLO', 'T7_RUNE', 'Runa do Grão-Mestre', 1),
+            mk(5, 'withdraw', '@MOB_CULTIST', 'T5_ARTEFACT_ARMOR_LEATHER_AVALON', 'Faixa Augúrea do Perito', 1),
+            mk(9, 'withdraw', 'TREASURE_COFFER_GROUP', 'T6_ARMOR_CLOTH_KEEPER', 'Robe de Druida do Mestre', 3),
+            mk(14, 'withdraw', '@MOB_CULTIST', 'T4_BAG', 'Bolsa do Adepto', 1),
+          ]
+          const withdrawn = entries.reduce((n, e) => n + e.quantity, 0)
+          return { entries, total: entries.length, withdrawn, deposited: 0, containers: 3 }
+        },
+        ResetChestLog: async () => {
+          emit('chestlog:changed')
+        },
         ExportLootCSV: async () => '/Users/you/Downloads/albion-loot-dev.csv',
         SetLootFilter: async () => {},
         SetCombatOptions: async () => {},

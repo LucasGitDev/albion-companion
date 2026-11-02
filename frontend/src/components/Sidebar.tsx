@@ -1,7 +1,7 @@
-import { Package, Swords, Users, ScrollText, Castle, Pickaxe, History, Settings } from 'lucide-react'
+import { Package, Swords, Users, ScrollText, Castle, Pickaxe, Archive, History, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-export type Tab = 'loot' | 'dps' | 'party' | 'dungeon' | 'gather' | 'timeline' | 'history' | 'settings'
+export type Tab = 'loot' | 'dps' | 'party' | 'dungeon' | 'gather' | 'chestlog' | 'timeline' | 'history' | 'settings'
 
 const items: { id: Tab; label: string; icon: typeof Package }[] = [
   { id: 'loot', label: 'Loot', icon: Package },
@@ -9,6 +9,7 @@ const items: { id: Tab; label: string; icon: typeof Package }[] = [
   { id: 'party', label: 'Party', icon: Users },
   { id: 'dungeon', label: 'Dungeons', icon: Castle },
   { id: 'gather', label: 'Gathering', icon: Pickaxe },
+  { id: 'chestlog', label: 'Chest Log', icon: Archive },
   { id: 'timeline', label: 'Timeline', icon: ScrollText },
   { id: 'history', label: 'History', icon: History },
   { id: 'settings', label: 'Settings', icon: Settings },
@@ -33,17 +34,17 @@ export function Sidebar({ active, onSelect }: { active: Tab; onSelect: (t: Tab) 
             aria-current={on ? 'page' : undefined}
             onClick={() => onSelect(id)}
             className={cn(
-              'group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
+              'group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors motion-reduce:transition-none',
               on ? 'bg-elevated text-foreground' : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground',
             )}
           >
             <span
               className={cn(
-                'absolute left-0 top-1/2 h-5 -translate-y-1/2 rounded-r-full bg-primary transition-all',
+                'absolute left-0 top-1/2 h-5 -translate-y-1/2 rounded-r-full bg-primary transition-all motion-reduce:transition-none',
                 on ? 'w-[3px] opacity-100' : 'w-0 opacity-0',
               )}
             />
-            <Icon className={cn('size-4 transition-colors', on ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground')} />
+            <Icon className={cn('size-4 transition-colors motion-reduce:transition-none', on ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground')} />
             {label}
           </button>
         )
