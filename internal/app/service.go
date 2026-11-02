@@ -31,6 +31,7 @@ import (
 	"github.com/LucasGitDev/albion-companion/internal/prices"
 	"github.com/LucasGitDev/albion-companion/internal/protocol"
 	"github.com/LucasGitDev/albion-companion/internal/rates"
+	"github.com/LucasGitDev/albion-companion/internal/route"
 	"github.com/LucasGitDev/albion-companion/internal/store"
 	"github.com/LucasGitDev/albion-companion/internal/timeline"
 )
@@ -448,6 +449,17 @@ func (s *Service) GatherView() gather.Snapshot { return s.eng.Gather().Snapshot(
 
 // ResetChestLog clears the personal chest-activity log.
 func (s *Service) ResetChestLog() { s.eng.ChestLog().Reset(); s.opts.Emit("chestlog:changed", nil) }
+
+// ResetRoute clears the zone route graph.
+func (s *Service) ResetRoute() { s.eng.Route().Reset(); s.opts.Emit("route:changed", nil) }
+
+// RouteView is the session's zone route graph (ordered path + nodes + edges).
+func (s *Service) RouteView(recent int) route.Snapshot {
+	if recent <= 0 {
+		recent = 500
+	}
+	return s.eng.Route().Snapshot(recent)
+}
 
 // ChestLogView is the local player's container-activity log (withdrawals), newest
 // first. It is a personal log only — chest put/take is client-local, so it never

@@ -1,16 +1,16 @@
 ---
 id: TASK-36
 title: Validação manual no jogo (checklist do Lucas)
-status: To Do
+status: In Progress
 assignee:
   - '@devlucasteles'
 created_date: '2026-11-01 14:53'
-updated_date: '2026-11-01 15:39'
+updated_date: '2026-11-02 13:57'
 labels:
   - testing
 dependencies: []
 priority: high
-ordinal: 36000
+ordinal: 15100
 ---
 
 ## Description

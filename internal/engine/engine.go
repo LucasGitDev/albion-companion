@@ -24,6 +24,7 @@ import (
 	"github.com/LucasGitDev/albion-companion/internal/prices"
 	"github.com/LucasGitDev/albion-companion/internal/protocol"
 	"github.com/LucasGitDev/albion-companion/internal/rates"
+	"github.com/LucasGitDev/albion-companion/internal/route"
 	"github.com/LucasGitDev/albion-companion/internal/timeline"
 )
 
@@ -41,6 +42,7 @@ const (
 	TopicTimeline Topic = "timeline"
 	TopicDungeon  Topic = "dungeon"
 	TopicChestLog Topic = "chestlog"
+	TopicRoute    Topic = "route"
 )
 
 type Config struct {
@@ -75,6 +77,7 @@ type Engine struct {
 	rates    *rates.Tracker
 	chest    *chest.Tracker
 	chestLog *chestlog.Tracker
+	route    *route.Tracker
 	dungeon  *dungeon.Tracker
 	tl       *timeline.Ring
 
@@ -99,6 +102,7 @@ func New(cfg Config) *Engine {
 		rates:    rates.New(),
 		chest:    chest.New(),
 		chestLog: chestlog.New(0),
+		route:    route.New(0),
 		dungeon:  dungeon.New(),
 		tl:       timeline.NewRing(cfg.TimelineCap),
 	}
@@ -116,6 +120,9 @@ func (e *Engine) Chest() *chest.Tracker   { return e.chest }
 
 // ChestLog is the local player's personal container-activity log (withdrawals).
 func (e *Engine) ChestLog() *chestlog.Tracker { return e.chestLog }
+
+// Route is the ordered zone-transition graph for the session.
+func (e *Engine) Route() *route.Tracker { return e.route }
 
 // Dungeon is the per-dungeon session tracker.
 func (e *Engine) Dungeon() *dungeon.Tracker { return e.dungeon }
@@ -249,6 +256,10 @@ func (e *Engine) handle(m protocol.Message) {
 				e.state.ApplyJoin(j)
 				e.chest.Reset() // object ids are per-zone
 				e.changed(TopicZone)
+				// Record the zone transition for the route graph (each Join carries
+				// the cluster id, Avalon roads included).
+				e.route.Visit(e.state.Location(), m.At)
+				e.changed(TopicRoute)
 				// Segment the session by dungeon: the Join cluster id decides
 				// whether we entered or left a dungeon (see internal/dungeon).
 				if e.dungeon.OnZone(e.state.Location(), m.At, e.combatSnap) {

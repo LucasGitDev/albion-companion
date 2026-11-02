@@ -257,3 +257,36 @@ func TestEngine_Gathering(t *testing.T) {
 		t.Fatalf("unexpected gather items: %+v", s.Items)
 	}
 }
+
+// TestEngine_Route covers the zone-transition route graph (TASK-34): each Join
+// records a visit; distinct cluster ids (incl. Avalon-road-like ids) become
+// distinct nodes, consecutive joins become edges, re-joining the same zone is
+// ignored.
+func TestEngine_Route(t *testing.T) {
+	codes := protocol.DefaultCodes()
+	join, _ := codes.OperationCode("Join")
+	e := New(Config{Codes: codes, OnDecodeError: func(n string, err error) { t.Errorf("decode %s: %v", n, err) }})
+
+	t0 := time.Unix(5000, 0)
+	joinZone := func(loc string, dt time.Duration) {
+		e.Feed(capture.Packet{At: t0.Add(dt), Payload: photontest.Response(join, map[byte]any{0: int32(1), 2: "Me", 8: loc, 54: guid(9)})})
+	}
+	joinZone("Lymhurst", 0)
+	joinZone("3005-Avalon-Road", time.Minute)    // distinct cluster id (Avalon road)
+	joinZone("3005-Avalon-Road", 90*time.Second) // re-join: ignored
+	joinZone("Caerleon", 2*time.Minute)
+
+	s := e.Route().Snapshot(0)
+	if s.TotalVisits != 3 {
+		t.Fatalf("TotalVisits = %d want 3", s.TotalVisits)
+	}
+	if len(s.Nodes) != 3 {
+		t.Fatalf("nodes = %d want 3 (avalon road distinct): %+v", len(s.Nodes), s.Nodes)
+	}
+	if len(s.Edges) != 2 {
+		t.Fatalf("edges = %d want 2: %+v", len(s.Edges), s.Edges)
+	}
+	if s.Path[0].Zone != "Lymhurst" || s.Path[1].Zone != "3005-Avalon-Road" || s.Path[2].Zone != "Caerleon" {
+		t.Fatalf("path wrong: %+v", s.Path)
+	}
+}

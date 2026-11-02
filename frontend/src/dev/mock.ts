@@ -399,6 +399,36 @@ export function installMock() {
         ResetChestLog: async () => {
           emit('chestlog:changed')
         },
+        RouteView: async () => {
+          if (devState === 'empty') return { path: [], nodes: [], edges: [], totalVisits: 0 }
+          const now = Date.now()
+          const p = (min: number, zone: string) => ({ zone, at: new Date(now - min * 60_000).toISOString() })
+          const path = [
+            p(48, 'Lymhurst'),
+            p(42, 'Lymhurst Portal'),
+            p(36, 'Avalon · Vascali-Enmeketa'),
+            p(30, 'Avalon · Qiset-O!unarya'),
+            p(22, 'Avalon · Vascali-Enmeketa'),
+            p(15, 'Caerleon'),
+            p(6, 'Lymhurst'),
+          ]
+          const nodes = [
+            { zone: 'Lymhurst', visits: 2, firstAt: path[0].at, lastAt: path[6].at },
+            { zone: 'Avalon · Vascali-Enmeketa', visits: 2, firstAt: path[2].at, lastAt: path[4].at },
+            { zone: 'Lymhurst Portal', visits: 1, firstAt: path[1].at, lastAt: path[1].at },
+            { zone: 'Avalon · Qiset-O!unarya', visits: 1, firstAt: path[3].at, lastAt: path[3].at },
+            { zone: 'Caerleon', visits: 1, firstAt: path[5].at, lastAt: path[5].at },
+          ]
+          const edges = [
+            { from: 'Avalon · Vascali-Enmeketa', to: 'Avalon · Qiset-O!unarya', count: 2, lastAt: path[3].at },
+            { from: 'Lymhurst', to: 'Lymhurst Portal', count: 1, lastAt: path[1].at },
+            { from: 'Caerleon', to: 'Lymhurst', count: 1, lastAt: path[6].at },
+          ]
+          return { path, nodes, edges, totalVisits: path.length }
+        },
+        ResetRoute: async () => {
+          emit('route:changed')
+        },
         ExportLootCSV: async () => '/Users/you/Downloads/albion-loot-dev.csv',
         SetLootFilter: async () => {},
         SetCombatOptions: async () => {},

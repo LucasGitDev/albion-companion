@@ -20,6 +20,7 @@ import (
 	"github.com/LucasGitDev/albion-companion/internal/loot"
 	"github.com/LucasGitDev/albion-companion/internal/prices"
 	"github.com/LucasGitDev/albion-companion/internal/protocol"
+	"github.com/LucasGitDev/albion-companion/internal/route"
 	"github.com/LucasGitDev/albion-companion/internal/store"
 )
 
@@ -189,6 +190,8 @@ func (a *App) GatherView() gather.Snapshot               { return a.svc.GatherVi
 func (a *App) ResetGather()                              { a.svc.ResetGather() }
 func (a *App) ChestLogView(recent int) chestlog.Snapshot { return a.svc.ChestLogView(recent) }
 func (a *App) ResetChestLog()                            { a.svc.ResetChestLog() }
+func (a *App) RouteView(recent int) route.Snapshot       { return a.svc.RouteView(recent) }
+func (a *App) ResetRoute()                               { a.svc.ResetRoute() }
 func (a *App) HistoryList() ([]store.Meta, error)        { return a.svc.HistoryList() }
 func (a *App) HistoryLoad(id string) (app.SessionDetail, error) {
 	return a.svc.HistoryLoad(id)

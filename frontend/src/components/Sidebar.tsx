@@ -1,7 +1,7 @@
-import { Package, Swords, Users, ScrollText, Castle, Pickaxe, Archive, History, Settings } from 'lucide-react'
+import { Package, Swords, Users, ScrollText, Castle, Pickaxe, Archive, Route, History, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-export type Tab = 'loot' | 'dps' | 'party' | 'dungeon' | 'gather' | 'chestlog' | 'timeline' | 'history' | 'settings'
+export type Tab = 'loot' | 'dps' | 'party' | 'dungeon' | 'gather' | 'chestlog' | 'route' | 'timeline' | 'history' | 'settings'
 
 const items: { id: Tab; label: string; icon: typeof Package }[] = [
   { id: 'loot', label: 'Loot', icon: Package },
@@ -10,6 +10,7 @@ const items: { id: Tab; label: string; icon: typeof Package }[] = [
   { id: 'dungeon', label: 'Dungeons', icon: Castle },
   { id: 'gather', label: 'Gathering', icon: Pickaxe },
   { id: 'chestlog', label: 'Chest Log', icon: Archive },
+  { id: 'route', label: 'Route', icon: Route },
   { id: 'timeline', label: 'Timeline', icon: ScrollText },
   { id: 'history', label: 'History', icon: History },
   { id: 'settings', label: 'Settings', icon: Settings },

@@ -8,6 +8,7 @@ import { Party } from '@/tabs/Party'
 import { Dungeon } from '@/tabs/Dungeon'
 import { Gather } from '@/tabs/Gather'
 import { ChestLog } from '@/tabs/ChestLog'
+import { RouteTab } from '@/tabs/Route'
 import { Timeline } from '@/tabs/Timeline'
 import { History } from '@/tabs/History'
 import { Settings } from '@/tabs/Settings'
@@ -63,6 +64,7 @@ export default function App() {
               {tab === 'dungeon' && <Dungeon />}
               {tab === 'gather' && <Gather />}
               {tab === 'chestlog' && <ChestLog />}
+              {tab === 'route' && <RouteTab />}
               {tab === 'timeline' && <Timeline />}
               {tab === 'history' && <History />}
               {tab === 'settings' && <Settings />}
