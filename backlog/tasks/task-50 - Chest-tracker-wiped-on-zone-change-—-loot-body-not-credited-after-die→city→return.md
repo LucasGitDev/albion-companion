@@ -3,11 +3,11 @@ id: TASK-50
 title: >-
   Chest tracker wiped on zone change — loot body not credited after
   die→city→return
-status: In Progress
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-11-02 19:37'
-updated_date: '2026-11-02 19:37'
+updated_date: '2026-11-02 19:38'
 labels:
   - events
   - engine
@@ -24,7 +24,19 @@ Root cause found validating TASK-47/48. The engine reset the chest tracker on ev
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Loot body announced in one zone and looted after a zone round-trip (die→city→return) is credited (looter=local, lootedFrom=body owner)
-- [ ] #2 Verified end-to-end on the real capture albion-20261102-162522.aorec (Rough Logs x2 + Rough Stone x1 from own corpse); regression test TestEngine_CorpseMoveItemAcrossZones added
-- [ ] #3 Existing chest/dungeon/corpse-bag tests still pass
+- [x] #1 Loot body announced in one zone and looted after a zone round-trip (die→city→return) is credited (looter=local, lootedFrom=body owner)
+- [x] #2 Verified end-to-end on the real capture albion-20261102-162522.aorec (Rough Logs x2 + Rough Stone x1 from own corpse); regression test TestEngine_CorpseMoveItemAcrossZones added
+- [x] #3 Existing chest/dungeon/corpse-bag tests still pass
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Fix: removed e.chest.Reset() from the Join handler in engine.go; chest containers now persist for the session. Verified on albion-20261102-162522.aorec: replay records 'x2 Rough Logs (T1_WOOD)' + 'x1 Rough Stone (T1_ROCK)' from own corpse (1plimplim). Personal chest (objectId 207, 128 slots, no NewLoot owner) is correctly NOT logged — it is own storage, not loot (ao-loot-logger skips the same). Added TestEngine_CorpseMoveItemAcrossZones; all engine/chest/events tests + -race pass.
+<!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Chest tracker no longer reset on zone change, so a loot body announced before a die→city→return round-trip is still credited on take. Verified end-to-end on a real capture and with a new cross-zone regression test.
+<!-- SECTION:FINAL_SUMMARY:END -->
