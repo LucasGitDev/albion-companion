@@ -100,6 +100,20 @@ func TestReconcile(t *testing.T) {
 	}
 }
 
+func TestReconcile_WithdrawalWithoutLootNotFlagged(t *testing.T) {
+	// Player withdrew an item they never looted this run: net out is negative,
+	// Looted is 0. Delta is positive, but this is not undeposited loot.
+	loots := []loot.Entry{}
+	deps := []Deposit{{Player: "A", ItemName: "Capuz", Quantity: -1}}
+	rows := Reconcile(loots, deps)
+	if len(rows) != 1 {
+		t.Fatalf("want 1 row, got %+v", rows)
+	}
+	if rows[0].Flagged {
+		t.Fatalf("pure withdrawal (Looted=0) must not be flagged: %+v", rows[0])
+	}
+}
+
 func TestReconcile_NameNormalization(t *testing.T) {
 	loots := []loot.Entry{{Looter: "A", ItemLocalName: "Arco  do Novato", Quantity: 1}}
 	deps := []Deposit{{Player: "a", ItemName: "arco do novato", Quantity: 1}}

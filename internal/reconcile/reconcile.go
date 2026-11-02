@@ -99,17 +99,19 @@ func ParseGuildExport(r io.Reader, from time.Time) ([]Deposit, error) {
 	return out, nil
 }
 
-// Row is the reconciliation of one (player, item) pair. Delta = Looted - NetOut;
-// Delta > 0 means the player looted more than they handed in (undeposited loot,
-// the thing we flag). Delta < 0 just means they deposited items not seen looted
-// this run (e.g. from an earlier stash), which is not a discrepancy.
+// Row is the reconciliation of one (player, item) pair. Delta = Looted - NetOut.
+// Flagged marks the anti-theft case: the player looted this item (Looted > 0) and
+// handed in less than they looted (Delta > 0). A row with Looted == 0 is only a
+// vault movement of an item not looted this run (e.g. a withdrawal, or a deposit
+// from an earlier stash); it is shown for context but never flagged, so a pure
+// withdrawal does not masquerade as undeposited loot.
 type Row struct {
 	Player  string
 	Item    string // localized display name
 	Looted  int64  // IN: quantity looted (from the loot log)
 	NetOut  int64  // OUT: net quantity deposited (deposits minus withdrawals)
 	Delta   int64  // Looted - NetOut
-	Flagged bool   // Delta > 0: looted more than deposited
+	Flagged bool   // Looted > 0 && Delta > 0: looted more than handed in
 }
 
 // Reconcile matches looted items (IN) against net guild deposits (OUT) by
@@ -164,7 +166,7 @@ func Reconcile(loots []loot.Entry, deposits []Deposit) []Row {
 			Looted:  in,
 			NetOut:  out,
 			Delta:   in - out,
-			Flagged: in-out > 0,
+			Flagged: in > 0 && in-out > 0,
 		})
 	}
 	// Flagged first (worst discrepancy on top), then by player and item for a
