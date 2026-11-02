@@ -417,3 +417,57 @@ func TestEngine_CorpseMoveItem(t *testing.T) {
 		t.Fatalf("untracked container move should not record loot: %+v", looted)
 	}
 }
+
+// TestEngine_CorpseMoveItemAcrossZones reproduces a real capture: the player dies
+// on their island, is sent back to the royal city (a real Join to another zone),
+// teleports back to the island (another Join), and only then opens the body and
+// takes the loot. The body must still be credited — zone changes must not wipe the
+// chest tracker, or the owner/slot mapping announced before the trip is lost.
+func TestEngine_CorpseMoveItemAcrossZones(t *testing.T) {
+	codes := protocol.DefaultCodes()
+	code := func(name string) uint16 {
+		c, ok := codes.EventCode(name)
+		if !ok {
+			t.Fatalf("missing event %s", name)
+		}
+		return c
+	}
+	op := func(name string) uint16 {
+		c, ok := codes.OperationCode(name)
+		if !ok {
+			t.Fatalf("missing op %s", name)
+		}
+		return c
+	}
+	join, _ := codes.OperationCode("Join")
+
+	var looted []loot.Entry
+	e := New(Config{
+		Codes:         codes,
+		Items:         items{566: {Index: 566, UniqueName: "T1_WOOD", Name: "Log"}},
+		OnLoot:        func(en loot.Entry) { looted = append(looted, en) },
+		OnDecodeError: func(name string, err error) { t.Errorf("decode error %s: %v", name, err) },
+	})
+
+	t0 := time.Unix(8000, 0)
+	feed := func(payload []byte, dt time.Duration) { e.Feed(capture.Packet{At: t0.Add(dt), Payload: payload}) }
+	cguid := guid(42)
+
+	// On the island: the body and its item are announced.
+	feed(photontest.Response(join, map[byte]any{0: int32(1), 2: "Me", 8: "@ISLAND@abc", 54: guid(9)}), 0)
+	feed(photontest.Event(code("NewLoot"), map[byte]any{0: int32(269), 3: "Me"}), time.Second)
+	feed(photontest.Event(code("NewSimpleItem"), map[byte]any{0: int32(247), 1: int16(566), 2: int16(5)}), time.Second)
+	// Death → royal city, then teleport back to the island (two real Joins).
+	feed(photontest.Response(join, map[byte]any{0: int32(2), 2: "Me", 8: "1000", 54: guid(9)}), 2*time.Second)
+	feed(photontest.Response(join, map[byte]any{0: int32(3), 2: "Me", 8: "@ISLAND@abc", 54: guid(9)}), 3*time.Second)
+	// Only now is the body opened (attach) and the item taken.
+	feed(photontest.Event(code("AttachItemContainer"), map[byte]any{0: int32(269), 1: cguid, 3: []int32{247}, 5: int16(1)}), 4*time.Second)
+	feed(photontest.Request(op("InventoryMoveItem"), map[byte]any{0: int32(0), 1: cguid, 3: int32(10), 4: guid(9)}), 5*time.Second)
+
+	if len(looted) != 1 {
+		t.Fatalf("expected body loot to survive the zone round-trip, got %d: %+v", len(looted), looted)
+	}
+	if g := looted[0]; g.LootedFrom != "Me" || g.ItemID != "T1_WOOD" || g.Quantity != 5 {
+		t.Fatalf("unexpected corpse loot across zones: %+v", g)
+	}
+}

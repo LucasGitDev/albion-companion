@@ -255,7 +255,13 @@ func (e *Engine) handle(m protocol.Message) {
 				e.fail(m.Name, err)
 			} else {
 				e.state.ApplyJoin(j)
-				e.chest.Reset() // object ids are per-zone
+				// NB: we deliberately do NOT reset the chest tracker on a zone change.
+				// A loot body announced in one zone is looted after the player leaves
+				// and returns (e.g. die → respawn in city → teleport back to the body):
+				// NewLoot/Attach fire in the first zone, the take in a later one. The
+				// reference tool (ao-loot-logger) keeps containers for the whole
+				// session for the same reason; collisions on reused object ids are
+				// rare and self-correcting (the item is consumed on take).
 				e.changed(TopicZone)
 				// Record the zone transition for the route graph (each Join carries
 				// the cluster id, Avalon roads included).
