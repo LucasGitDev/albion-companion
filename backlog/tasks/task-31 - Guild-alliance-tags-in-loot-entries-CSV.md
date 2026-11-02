@@ -1,11 +1,11 @@
 ---
 id: TASK-31
 title: Guild/alliance tags in loot entries + CSV
-status: To Do
+status: In Progress
 assignee:
-  - '@devlucasteles'
+  - '@claude'
 created_date: '2026-11-01 13:36'
-updated_date: '2026-11-01 20:29'
+updated_date: '2026-11-02 14:01'
 labels:
   - loot
   - itemdb

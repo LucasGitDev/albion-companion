@@ -17,8 +17,8 @@ func (f fakeItems) Resolve(i int) (itemdb.Item, bool) { it, ok := f[i]; return i
 
 func setup() (*Tracker, *game.State) {
 	st := game.NewState()
-	st.ApplyJoin(events.JoinResponse{ObjectID: 1, Name: "Me", GUID: "g-me", Location: "3008", Guild: "MyGuild"})
-	st.ApplyNewCharacter(events.NewCharacter{ObjectID: 2, Name: "Rat", Guild: "Thieves"})
+	st.ApplyJoin(events.JoinResponse{ObjectID: 1, Name: "Me", GUID: "g-me", Location: "3008", Guild: "MyGuild", Alliance: "MyAlli"})
+	st.ApplyNewCharacter(events.NewCharacter{ObjectID: 2, Name: "Rat", Guild: "Thieves", Alliance: "RatAlli"})
 	items := fakeItems{
 		2888: {Index: 2888, UniqueName: "T4_BAG", Name: "Adept's Bag"},
 		2043: {Index: 2043, UniqueName: "T1_TRASH", Name: "Trash"},
@@ -38,7 +38,10 @@ func TestTracker_RecordAndViews(t *testing.T) {
 	if len(all) != 3 { // trash hidden by default
 		t.Fatalf("entries = %d, want 3", len(all))
 	}
-	if all[1].LooterGuild != "Thieves" || all[1].FromGuild != "MyGuild" || all[1].InParty {
+	// Rat (guild Thieves / alliance RatAlli) looted Me (guild MyGuild / alliance
+	// MyAlli): both sides' guild AND alliance are attached from entity state.
+	if all[1].LooterGuild != "Thieves" || all[1].LooterAlliance != "RatAlli" ||
+		all[1].FromGuild != "MyGuild" || all[1].FromAlliance != "MyAlli" || all[1].InParty {
 		t.Fatalf("enrichment wrong: %+v", all[1])
 	}
 
@@ -66,5 +69,29 @@ func TestTracker_UnknownItemAndCSV(t *testing.T) {
 	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
 	if len(lines) != 2 || !strings.HasPrefix(lines[0], "timestamp_utc;looted_by__alliance") {
 		t.Fatalf("csv:\n%s", buf.String())
+	}
+}
+
+// TestCSV_GuildAllianceColumns proves the ao-loot-logger columns carry both
+// sides' guild AND alliance for a player-on-player loot (TASK-31), so the export
+// stays drop-in compatible with the AO Loot Logger Viewer.
+func TestCSV_GuildAllianceColumns(t *testing.T) {
+	tr, st := setup()
+	at := time.Date(2026, 10, 31, 12, 0, 0, 0, time.UTC)
+	tr.Record(events.GrabbedLoot{Looter: "Rat", LootedFrom: "Me", ItemIndex: 2888, Quantity: 1}, at, st)
+
+	var buf bytes.Buffer
+	if err := tr.WriteCSV(&buf, Filter{}); err != nil {
+		t.Fatal(err)
+	}
+	row := strings.Split(strings.TrimSpace(buf.String()), "\n")[1]
+	cols := strings.Split(row, ";")
+	// header: timestamp, looted_by__alliance, looted_by__guild, looted_by__name,
+	// item_id, item_name, quantity, looted_from__alliance, looted_from__guild, looted_from__name
+	if cols[1] != "RatAlli" || cols[2] != "Thieves" || cols[3] != "Rat" {
+		t.Fatalf("looter columns = %q", cols)
+	}
+	if cols[7] != "MyAlli" || cols[8] != "MyGuild" || cols[9] != "Me" {
+		t.Fatalf("looted-from columns = %q", cols)
 	}
 }
