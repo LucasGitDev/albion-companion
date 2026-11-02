@@ -1,7 +1,7 @@
 ---
 id: TASK-34
 title: Route graph of visited zones (incl. Avalon roads)
-status: In Review
+status: Done
 assignee:
   - '@claude'
 created_date: '2026-11-01 13:36'
