@@ -1,10 +1,11 @@
 ---
 id: TASK-51
 title: Loot reconciliation (IN sniff × OUT guild-vault export) — anti-theft
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@claude'
 created_date: '2026-11-02 19:54'
-updated_date: '2026-11-02 19:54'
+updated_date: '2026-11-02 19:57'
 labels:
   - loot
   - app
@@ -22,9 +23,9 @@ Goal: after a group runs content, verify every player deposited their looted ite
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 IN aggregation: loot entries grouped by (looter, itemId) with summed quantity, over all players seen in the zone
-- [ ] #2 OUT import: parser for the real guild-vault export format (to be fixed against a user-provided sample; no guessing)
-- [ ] #3 Reconcile per (player, itemId): report IN qty, OUT qty, and delta; flag IN>OUT (undeposited / potential theft)
+- [x] #1 IN aggregation: loot entries grouped by (looter, itemId) with summed quantity, over all players seen in the zone
+- [x] #2 OUT import: parser for the real guild-vault export format (to be fixed against a user-provided sample; no guessing)
+- [x] #3 Reconcile per (player, itemId): report IN qty, OUT qty, and delta; flag IN>OUT (undeposited / potential theft)
 - [ ] #4 UI surface showing the per-player reconciliation with discrepancies highlighted (states: empty/no export, loaded, mismatch)
 <!-- AC:END -->
 
@@ -32,4 +33,6 @@ Goal: after a group runs content, verify every player deposited their looted ite
 
 <!-- SECTION:NOTES:BEGIN -->
 BLOCKED on AC#2: need a real sample of the guild-vault / guild-account export the user can produce (file or paste) to fix the parser format. Do not write the OUT parser until the sample is in hand. IN side (AC#1) can proceed independently (loot.Entry already has Looter/ItemID/Quantity).
+
+Core landed: internal/reconcile. ParseGuildExport handles the real export format (TSV, quoted fields, header 'Data/Jogador/Item/Encantamento/Qualidade/Quantidade', MM/DD/YYYY timestamps, signed Quantidade = +deposit/-withdraw) with a 'from' datetime filter (user request). Reconcile matches IN (loot.Entry) x OUT per (player, localized item name), summing over enchant/quality (IN does not record those yet), excluding silver; Delta=Looted-NetOut, Flagged when Looted>NetOut, worst-first ordering. Table tests off the real sample pass. AC#4 (UI surface) still open; service wiring + UI tab next.
 <!-- SECTION:NOTES:END -->
