@@ -214,6 +214,32 @@ export interface DungeonView {
   total: number
 }
 
+export interface RouteVisit {
+  zone: string
+  at: string
+}
+
+export interface RouteNode {
+  zone: string
+  visits: number
+  firstAt: string
+  lastAt: string
+}
+
+export interface RouteEdge {
+  from: string
+  to: string
+  count: number
+  lastAt: string
+}
+
+export interface RouteView {
+  path: RouteVisit[] | null
+  nodes: RouteNode[] | null
+  edges: RouteEdge[] | null
+  totalVisits: number
+}
+
 export interface ChestLogEntry {
   at: string
   kind: 'withdraw' | 'deposit'
@@ -305,6 +331,8 @@ declare global {
           ResetGather(): Promise<void>
           ChestLogView(recent: number): Promise<ChestLogView>
           ResetChestLog(): Promise<void>
+          RouteView(recent: number): Promise<RouteView>
+          ResetRoute(): Promise<void>
           HistoryList(): Promise<SessionMeta[] | null>
           HistoryLoad(id: string): Promise<SessionDetail>
           DeleteSession(id: string): Promise<void>

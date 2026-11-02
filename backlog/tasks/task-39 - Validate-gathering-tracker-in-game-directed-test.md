@@ -1,13 +1,14 @@
 ---
 id: TASK-39
 title: Validate gathering tracker in-game (directed test)
-status: To Do
+status: In Progress
 assignee:
   - '@devlucasteles'
 created_date: '2026-11-01 15:26'
+updated_date: '2026-11-02 13:58'
 labels: []
 dependencies: []
-ordinal: 39000
+ordinal: 16100
 ---
 
 ## Description
