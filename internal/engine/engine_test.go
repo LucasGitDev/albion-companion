@@ -85,7 +85,8 @@ func TestEngine_EndToEnd(t *testing.T) {
 	if len(tl) != 4 {
 		t.Fatalf("timeline len = %d, want 4: %+v", len(tl), tl)
 	}
-	if tl[0].Kind != "loot" || tl[0].Item != "Adept's Bag" || tl[0].Quantity != 3 {
+	// The timeline shows the localized display name (PT), matching the loot views.
+	if tl[0].Kind != "loot" || tl[0].Item != "Bolsa do Adepto" || tl[0].Quantity != 3 {
 		t.Errorf("timeline[0] = %+v", tl[0])
 	}
 	if tl[1].Kind != "party_joined" || tl[1].Player != "Friend" {

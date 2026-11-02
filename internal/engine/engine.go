@@ -314,13 +314,26 @@ func (e *Engine) recordChestTake(itemObjectID int64, at time.Time) {
 	e.changed(TopicLoot)
 	e.chestLog.Add(chestlog.Entry{
 		At: entry.At, Kind: chestlog.KindWithdraw, Container: entry.LootedFrom,
-		ItemID: entry.ItemID, ItemName: entry.ItemName, Quantity: entry.Quantity,
+		ItemID: entry.ItemID, ItemName: displayName(entry), Quantity: entry.Quantity,
 	})
 	e.changed(TopicChestLog)
 	e.pushTL(timeline.Event{
 		At: entry.At, Kind: timeline.KindLoot, Player: entry.Looter,
-		Source: entry.LootedFrom, Item: entry.ItemName, ItemID: entry.ItemID, Quantity: entry.Quantity,
+		Source: entry.LootedFrom, Item: displayName(entry), ItemID: entry.ItemID, Quantity: entry.Quantity,
 	})
+}
+
+// displayName is the localized item name with sensible fallbacks (localized →
+// English → id), so secondary views (chest log, timeline) show the same
+// translated name as the loot views instead of a raw item id.
+func displayName(e loot.Entry) string {
+	if e.ItemLocalName != "" {
+		return e.ItemLocalName
+	}
+	if e.ItemName != "" {
+		return e.ItemName
+	}
+	return e.ItemID
 }
 
 func (e *Engine) handleEvent(m protocol.Message) {
@@ -359,7 +372,7 @@ func (e *Engine) handleEvent(m protocol.Message) {
 		if entry.IsSilver {
 			tev.Kind, tev.Silver = timeline.KindSilver, entry.Silver
 		} else {
-			tev.Kind, tev.Item, tev.ItemID, tev.Quantity = timeline.KindLoot, entry.ItemName, entry.ItemID, entry.Quantity
+			tev.Kind, tev.Item, tev.ItemID, tev.Quantity = timeline.KindLoot, displayName(entry), entry.ItemID, entry.Quantity
 		}
 		e.pushTL(tev)
 	case events.EvHealthUpdate:
