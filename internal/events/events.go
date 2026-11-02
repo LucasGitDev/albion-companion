@@ -159,11 +159,12 @@ type GrabbedLoot struct {
 func (g GrabbedLoot) IsFromMob() bool { return strings.Contains(g.LootedFrom, "@MOB") }
 
 // SilverAmount converts the silver quantity from Albion's FixPoint (÷10000).
-// A pickup is fractional on the wire when split across the party (e.g. 7.5); the
-// game HUD truncates each drop, so we floor per pickup. Flooring here (not only
-// at display) keeps per-player and session totals equal to the sum of the drops
-// the player saw (7 + 31 = 38, never floor(7.5 + 31.5) = 39).
-func (g GrabbedLoot) SilverAmount() float64 { return math.Floor(float64(g.Quantity) / 10000) }
+// Kept EXACT (fractional), matching StatisticsAnalysis's FixPoint accounting: the
+// game accumulates the fractional drops internally, so the true silver gained is
+// the sum of the exact values, floored once for display (floor(7.83 + 31.17) =
+// 39, not floor(7.83) + floor(31.17) = 38). Per-drop display still floors via the
+// UI's fmtSilver / the CLI, matching the floored "+7" combat text.
+func (g GrabbedLoot) SilverAmount() float64 { return float64(g.Quantity) / 10000 }
 
 func DecodeGrabbedLoot(p protocol.Params) (GrabbedLoot, error) {
 	var r GrabbedLoot

@@ -12,6 +12,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"math"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -80,7 +81,7 @@ func main() {
 		Combat: combat.Options{PartyOnly: *partyOnly},
 		OnLoot: func(e loot.Entry) {
 			if e.IsSilver {
-				fmt.Printf("[loot] %s %s +%.0f silver\n", e.At.Format("15:04:05"), e.Looter, e.Silver)
+				fmt.Printf("[loot] %s %s +%.0f silver\n", e.At.Format("15:04:05"), e.Looter, math.Floor(e.Silver))
 				return
 			}
 			fmt.Printf("[loot] %s %s x%d %s (%s) from %s\n", e.At.Format("15:04:05"), e.Looter, e.Quantity, e.ItemName, e.ItemID, e.LootedFrom)
@@ -173,7 +174,7 @@ func printSummary(eng *engine.Engine, partyOnly bool) {
 	}
 	fmt.Fprintln(w, "LOOT\tPLAYER\tITEMS\tSILVER\tPICKUPS\t")
 	for _, p := range eng.Loot().ByPlayer(loot.Filter{PartyOnly: partyOnly}) {
-		fmt.Fprintf(w, "\t%s\t%d\t%.0f\t%d\t\n", p.Name, p.Items, p.Silver, p.Pickups)
+		fmt.Fprintf(w, "\t%s\t%d\t%.0f\t%d\t\n", p.Name, p.Items, math.Floor(p.Silver), p.Pickups)
 	}
 	w.Flush()
 
