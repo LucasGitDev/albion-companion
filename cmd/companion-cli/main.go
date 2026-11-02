@@ -28,6 +28,7 @@ import (
 	"github.com/LucasGitDev/albion-companion/internal/itemdb"
 	"github.com/LucasGitDev/albion-companion/internal/loot"
 	"github.com/LucasGitDev/albion-companion/internal/protocol"
+	"github.com/LucasGitDev/albion-companion/internal/reconcile"
 )
 
 func main() {
@@ -46,6 +47,8 @@ func main() {
 		csvOut     = flag.String("csv", "", "on exit, write loot CSV (ao-loot-logger format) here")
 		partyOnly  = flag.Bool("party", true, "party-only filter for loot/DPS")
 		every      = flag.Duration("every", 5*time.Second, "summary interval (0 = only at exit)")
+		reconcTSV  = flag.String("reconcile", "", "on exit, reconcile looted items against a guild-vault export (TSV) and print per-player discrepancies")
+		reconcFrom = flag.String("since", "", "with -reconcile: ignore export rows before this time (MM/DD/YYYY HH:MM:SS)")
 	)
 	flag.Parse()
 
@@ -157,6 +160,9 @@ func main() {
 		exitIf(f.Close())
 		fmt.Fprintf(os.Stderr, "loot csv: %s\n", *csvOut)
 	}
+	if *reconcTSV != "" {
+		exitIf(printReconcile(eng, *partyOnly, *reconcTSV, *reconcFrom))
+	}
 	if errors.Is(err, capture.ErrPermission) {
 		fmt.Fprintln(os.Stderr, "hint: run with sudo, or grant access to /dev/bpf* (macOS) / CAP_NET_RAW (Linux). See backlog doc: Platforms and capture permissions")
 	}
@@ -198,6 +204,46 @@ func formatParams(p protocol.Params) string {
 		fmt.Fprintf(&b, "%d:%v ", k, p[byte(k)])
 	}
 	return b.String()
+}
+
+// printReconcile loads a guild-vault export, reconciles it against the looted
+// items in this session, and prints the per-(player,item) discrepancies —
+// flagged rows (looted more than deposited) first.
+func printReconcile(eng *engine.Engine, partyOnly bool, exportPath, since string) error {
+	var from time.Time
+	if since != "" {
+		t, err := time.Parse("01/02/2006 15:04:05", since)
+		if err != nil {
+			return fmt.Errorf("bad -since %q (want MM/DD/YYYY HH:MM:SS): %w", since, err)
+		}
+		from = t
+	}
+	f, err := os.Open(exportPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	deps, err := reconcile.ParseGuildExport(f, from)
+	if err != nil {
+		return err
+	}
+	rows := reconcile.Reconcile(eng.Loot().Entries(loot.Filter{PartyOnly: partyOnly}), deps)
+
+	fmt.Printf("\nRECONCILE  (export rows=%d)\n", len(deps))
+	tw := tabwriter.NewWriter(os.Stdout, 0, 2, 2, ' ', 0)
+	fmt.Fprintln(tw, "FLAG\tPLAYER\tITEM\tLOOTED\tDEPOSITED\tDELTA")
+	var flagged int
+	for _, r := range rows {
+		flag := ""
+		if r.Flagged {
+			flag = "!!"
+			flagged++
+		}
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%d\t%d\t%d\n", flag, r.Player, r.Item, r.Looted, r.NetOut, r.Delta)
+	}
+	tw.Flush()
+	fmt.Printf("flagged (looted > deposited): %d of %d rows\n", flagged, len(rows))
+	return nil
 }
 
 func defaultCacheDir() string {
