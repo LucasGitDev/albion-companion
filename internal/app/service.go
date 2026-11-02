@@ -483,6 +483,7 @@ type RatesView struct {
 	Silver rates.Metric `json:"silver"`
 	Respec rates.Metric `json:"respec"`
 	Might  rates.Metric `json:"might"`
+	Favor  rates.Metric `json:"favor"`
 }
 
 func (s *Service) RatesView() RatesView {
@@ -493,6 +494,7 @@ func (s *Service) RatesView() RatesView {
 		Silver: r.Silver,
 		Respec: r.Respec,
 		Might:  r.Might,
+		Favor:  r.Favor,
 	}
 }
 

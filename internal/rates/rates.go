@@ -44,6 +44,7 @@ type Tracker struct {
 	silver metric
 	respec metric
 	might  metric
+	favor  metric
 }
 
 func New() *Tracker { return &Tracker{} }
@@ -70,6 +71,13 @@ func (t *Tracker) AddMight(v float64, at time.Time) {
 	t.mu.Unlock()
 }
 
+// AddFavor records favor gained (MightAndFavorReceived, local-only).
+func (t *Tracker) AddFavor(v float64, at time.Time) {
+	t.mu.Lock()
+	t.favor.add(v, at)
+	t.mu.Unlock()
+}
+
 // Metric is an immutable view of one currency: session total and actual rate.
 type Metric struct {
 	Total   float64   `json:"total"`
@@ -83,6 +91,7 @@ type Snapshot struct {
 	Silver Metric `json:"silver"`
 	Respec Metric `json:"respec"`
 	Might  Metric `json:"might"`
+	Favor  Metric `json:"favor"`
 }
 
 func (t *Tracker) Snapshot() Snapshot {
@@ -92,12 +101,13 @@ func (t *Tracker) Snapshot() Snapshot {
 		Silver: t.silver.snapshot(),
 		Respec: t.respec.snapshot(),
 		Might:  t.might.snapshot(),
+		Favor:  t.favor.snapshot(),
 	}
 }
 
 func (t *Tracker) Reset() {
 	t.mu.Lock()
-	t.silver, t.respec, t.might = metric{}, metric{}, metric{}
+	t.silver, t.respec, t.might, t.favor = metric{}, metric{}, metric{}, metric{}
 	t.mu.Unlock()
 }
 

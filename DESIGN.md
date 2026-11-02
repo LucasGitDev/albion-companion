@@ -31,6 +31,8 @@
 | `--input` | `222 12% 20%` | Bordas de input |
 | `--ring` | `41 92% 55%` | Anel de foco (ouro) |
 
+**Rates (aba DPS):** fame e silver usam o acento ouro (`--primary`); respec, might e favor ficam neutros (`text-foreground` / `text-muted-foreground`). Mantém um só acento forte por linha.
+
 Regra: **um acento por tela.** Ouro domina Loot/fame; ember domina DPS. Todo o resto
 é neutro tingido (nunca cinza puro — todos os neutros carregam a matiz `222`).
 Exceção: a **Timeline** é um feed multi-categoria (como uma legenda) e mapeia cada tipo
