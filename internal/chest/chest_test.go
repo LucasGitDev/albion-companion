@@ -55,3 +55,30 @@ func TestTracker_Reset(t *testing.T) {
 		t.Fatal("reset should clear chest/item state")
 	}
 }
+
+func TestTakeSlot(t *testing.T) {
+	tr := New()
+	tr.NewContainer(269, "corpse")
+	tr.NewItem(events.ItemObject{ObjectID: 247, ItemIndex: 566, Quantity: 5})
+	tr.Attach(events.ItemContainer{ObjectID: 269, GUID: "g", Slots: []int64{247, 0}})
+
+	// Empty slot, out-of-range, and unknown container → not ok.
+	if _, ok := tr.TakeSlot("g", 1); ok {
+		t.Fatal("empty slot should be ok=false")
+	}
+	if _, ok := tr.TakeSlot("g", 9); ok {
+		t.Fatal("out-of-range slot should be ok=false")
+	}
+	if _, ok := tr.TakeSlot("unknown", 0); ok {
+		t.Fatal("unknown container should be ok=false")
+	}
+	// Real take.
+	take, ok := tr.TakeSlot("g", 0)
+	if !ok || take.ChestName != "corpse" || take.ItemIndex != 566 || take.Quantity != 5 {
+		t.Fatalf("take = %+v ok=%v", take, ok)
+	}
+	// Consumed: a second take of the same slot is empty.
+	if _, ok := tr.TakeSlot("g", 0); ok {
+		t.Fatal("item should be consumed after take")
+	}
+}

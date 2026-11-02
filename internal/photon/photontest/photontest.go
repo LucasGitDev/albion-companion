@@ -41,13 +41,12 @@ func Response(opCode uint16, params map[byte]any) []byte {
 	return packet(3, 1, append(body, Table(p)...))
 }
 
-// Request returns a full UDP payload carrying one operation request. The op
-// code is the leading byte of the command body (as the parser reads it), so it
-// must fit in a byte; param 253 is also set so the decoder resolves it either way.
+// Request returns a full UDP payload carrying one operation request. The op code
+// goes in param 253 (the decoder resolves it from there, as for responses).
 func Request(opCode uint16, params map[byte]any) []byte {
 	p := clone(params)
 	p[253] = int16(opCode)
-	return packet(2, 1, append([]byte{byte(opCode)}, Table(p)...))
+	return packet(2, 1, Table(p))
 }
 
 // Table encodes a Protocol18 parameter table (keys sorted for determinism).

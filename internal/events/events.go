@@ -22,6 +22,10 @@ const (
 	// UI, which sends no per-item InventoryPutItem.
 	OpInventoryMoveGivenItems = "InventoryMoveGivenItems"
 
+	// OpInventoryMoveItem is the single-item slot-based move request (taking one
+	// item out of a loot body / chest opened as a container).
+	OpInventoryMoveItem = "InventoryMoveItem"
+
 	EvLeave             = "Leave"
 	EvNewCharacter      = "NewCharacter"
 	EvHealthUpdate      = "HealthUpdate"
@@ -575,6 +579,7 @@ func DecodeItemObject(ev string, p protocol.Params) (ItemObject, error) {
 // (SA: AttachItemContainerEvent.cs: 0 objectId, 3 slot array of item object ids).
 type ItemContainer struct {
 	ObjectID int64
+	GUID     string  // param 1: the container's GUID (matches InventoryMoveItem's ContainerGuid)
 	Slots    []int64 // item object ids; 0 = empty slot
 }
 
@@ -587,7 +592,28 @@ func DecodeAttachItemContainer(p protocol.Params) (ItemContainer, error) {
 	if !ok {
 		return ItemContainer{}, missing(EvAttachItemContainer, "Slots", 3)
 	}
-	return ItemContainer{ObjectID: id, Slots: slots}, nil
+	guid, _ := p.GUID(1)
+	return ItemContainer{ObjectID: id, GUID: guid, Slots: slots}, nil
+}
+
+// InventoryMove is a slot-based move the local player makes between a container
+// and their inventory (SA: InventoryMoveItemRequest.cs — 0 ContainerSlot,
+// 1 ContainerGuid, 3 InventorySlot, 4 UserInteractGuid). Taking from a loot
+// body / chest shows up here as a move out of the container slot.
+type InventoryMove struct {
+	ContainerSlot int
+	ContainerGUID string
+	UserGUID      string
+}
+
+func DecodeInventoryMoveItem(p protocol.Params) (InventoryMove, error) {
+	guid, ok := p.GUID(1)
+	if !ok {
+		return InventoryMove{}, missing(OpInventoryMoveItem, "ContainerGuid", 1)
+	}
+	slot, _ := p.Int64(0)
+	user, _ := p.GUID(4)
+	return InventoryMove{ContainerSlot: int(slot), ContainerGUID: guid, UserGUID: user}, nil
 }
 
 // InventoryPut is an item entering an inventory (SA: InventoryPutItemEvent.cs:

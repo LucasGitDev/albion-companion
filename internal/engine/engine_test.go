@@ -360,3 +360,60 @@ func TestEngine_DungeonChestTakeAll(t *testing.T) {
 		t.Fatalf("chest log total = %d want 2", cl.Total)
 	}
 }
+
+// TestEngine_CorpseMoveItem covers taking an item out of a loot body / chest via
+// the slot-based InventoryMoveItem request (op), used for corpse bags and chests
+// opened as containers — distinct from InventoryPutItem and the take-all request.
+func TestEngine_CorpseMoveItem(t *testing.T) {
+	codes := protocol.DefaultCodes()
+	code := func(name string) uint16 {
+		c, ok := codes.EventCode(name)
+		if !ok {
+			t.Fatalf("missing event %s", name)
+		}
+		return c
+	}
+	op := func(name string) uint16 {
+		c, ok := codes.OperationCode(name)
+		if !ok {
+			t.Fatalf("missing op %s", name)
+		}
+		return c
+	}
+	join, _ := codes.OperationCode("Join")
+
+	var looted []loot.Entry
+	e := New(Config{
+		Codes:         codes,
+		Items:         items{566: {Index: 566, UniqueName: "T1_WOOD", Name: "Log"}},
+		OnLoot:        func(en loot.Entry) { looted = append(looted, en) },
+		OnDecodeError: func(name string, err error) { t.Errorf("decode error %s: %v", name, err) },
+	})
+
+	t0 := time.Unix(7000, 0)
+	feed := func(payload []byte, dt time.Duration) { e.Feed(capture.Packet{At: t0.Add(dt), Payload: payload}) }
+	cguid := guid(42) // the container (corpse bag) GUID
+
+	feed(photontest.Response(join, map[byte]any{0: int32(1), 2: "Me", 8: "1000", 54: guid(9)}), 0)
+	feed(photontest.Event(code("NewLoot"), map[byte]any{0: int32(269), 3: "1plimplim"}), time.Second) // corpse body
+	feed(photontest.Event(code("NewSimpleItem"), map[byte]any{0: int32(247), 1: int16(566), 2: int16(5)}), time.Second)
+	// Container attached: GUID (param1) + slot array (param3): slot 0 = item 247.
+	feed(photontest.Event(code("AttachItemContainer"), map[byte]any{0: int32(269), 1: cguid, 3: []int32{247}, 5: int16(1)}), time.Second)
+	// Take item from slot 0 of that container.
+	feed(photontest.Request(op("InventoryMoveItem"), map[byte]any{0: int32(0), 1: cguid, 3: int32(10), 4: guid(9)}), 2*time.Second)
+
+	if st := e.Stats(); st.DecodeErrors != 0 {
+		t.Fatalf("decode errors = %d", st.DecodeErrors)
+	}
+	if len(looted) != 1 {
+		t.Fatalf("expected 1 corpse item via InventoryMoveItem, got %d: %+v", len(looted), looted)
+	}
+	if g := looted[0]; g.Looter != "Me" || g.LootedFrom != "1plimplim" || g.ItemID != "T1_WOOD" || g.Quantity != 5 {
+		t.Fatalf("unexpected corpse loot: %+v", g)
+	}
+	// A deposit into an untracked container (unknown GUID/slot) records nothing.
+	feed(photontest.Request(op("InventoryMoveItem"), map[byte]any{0: int32(3), 1: guid(99), 3: int32(1), 4: guid(9)}), 3*time.Second)
+	if len(looted) != 1 {
+		t.Fatalf("untracked container move should not record loot: %+v", looted)
+	}
+}

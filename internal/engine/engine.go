@@ -280,15 +280,28 @@ func (e *Engine) handle(m protocol.Message) {
 // chests are emptied with a single InventoryMoveGivenItems "take all" request
 // (no per-item InventoryPutItem), so that path is handled here.
 func (e *Engine) handleRequest(m protocol.Message) {
-	if m.Name != events.OpInventoryMoveGivenItems {
-		return
-	}
-	mv, err := events.DecodeInventoryMoveGivenItems(m.Params)
-	if err != nil {
-		return
-	}
-	for _, objID := range mv.ItemObjectIDs {
-		e.recordChestTake(objID, m.At)
+	switch m.Name {
+	case events.OpInventoryMoveGivenItems:
+		mv, err := events.DecodeInventoryMoveGivenItems(m.Params)
+		if err != nil {
+			return
+		}
+		for _, objID := range mv.ItemObjectIDs {
+			e.recordChestTake(objID, m.At)
+		}
+	case events.OpInventoryMoveItem:
+		// A single item moved out of a container slot. SA gates this on both the
+		// container and the interacting-user GUIDs being present; we resolve the
+		// item from the tracked container's slot and record it only if that
+		// container is a known chest / loot body (deposits into untracked
+		// containers resolve to nothing and are ignored).
+		mv, err := events.DecodeInventoryMoveItem(m.Params)
+		if err != nil || mv.UserGUID == "" {
+			return
+		}
+		if take, ok := e.chest.TakeSlot(mv.ContainerGUID, mv.ContainerSlot); ok {
+			e.recordTake(take, m.At)
+		}
 	}
 }
 
@@ -296,10 +309,14 @@ func (e *Engine) handleRequest(m protocol.Message) {
 // / loot container as loot (and into the personal chest log). No-op for item ids
 // that aren't from a tracked chest.
 func (e *Engine) recordChestTake(itemObjectID int64, at time.Time) {
-	take, ok := e.chest.Take(itemObjectID)
-	if !ok {
-		return
+	if take, ok := e.chest.Take(itemObjectID); ok {
+		e.recordTake(take, at)
 	}
+}
+
+// recordTake turns a resolved chest/body take into a loot entry, the chest log
+// and the timeline.
+func (e *Engine) recordTake(take chest.Take, at time.Time) {
 	g := events.GrabbedLoot{
 		Looter:     e.state.LocalPlayer().Name,
 		LootedFrom: take.ChestName,

@@ -476,3 +476,20 @@ func TestDecodeInventoryMoveGivenItems(t *testing.T) {
 		t.Fatal("want missing ItemObjectIds error")
 	}
 }
+
+func TestDecodeInventoryMoveItem(t *testing.T) {
+	// ContainerSlot arrives as any int width; ContainerGuid (param1) is required.
+	for _, slot := range []any{byte(4), int16(4), int32(4), int64(4)} {
+		mv, err := DecodeInventoryMoveItem(protocol.Params{0: slot, 1: guid(42), 3: int32(10), 4: guid(9)})
+		if err != nil {
+			t.Fatalf("slot %T: %v", slot, err)
+		}
+		if mv.ContainerSlot != 4 || mv.ContainerGUID == "" || mv.UserGUID == "" {
+			t.Fatalf("slot %T => %+v", slot, mv)
+		}
+	}
+	// Missing ContainerGuid is an error.
+	if _, err := DecodeInventoryMoveItem(protocol.Params{0: int32(1)}); err == nil {
+		t.Fatal("want missing ContainerGuid error")
+	}
+}
