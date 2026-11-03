@@ -15,7 +15,6 @@ import (
 	"github.com/LucasGitDev/albion-companion/internal/chestlog"
 	"github.com/LucasGitDev/albion-companion/internal/combat"
 	"github.com/LucasGitDev/albion-companion/internal/fame"
-	"github.com/LucasGitDev/albion-companion/internal/gather"
 	"github.com/LucasGitDev/albion-companion/internal/itemdb"
 	"github.com/LucasGitDev/albion-companion/internal/loot"
 	"github.com/LucasGitDev/albion-companion/internal/prices"
@@ -187,7 +186,7 @@ func (a *App) ResetFame()                                { a.svc.ResetFame() }
 func (a *App) FameView() fame.Snapshot                   { return a.svc.FameView() }
 func (a *App) RatesView() app.RatesView                  { return a.svc.RatesView() }
 func (a *App) ResetRates()                               { a.svc.ResetRates() }
-func (a *App) GatherView() gather.Snapshot               { return a.svc.GatherView() }
+func (a *App) GatherView() app.GatherView                { return a.svc.GatherView() }
 func (a *App) ResetGather()                              { a.svc.ResetGather() }
 func (a *App) ChestLogView(recent int) chestlog.Snapshot { return a.svc.ChestLogView(recent) }
 func (a *App) ResetChestLog()                            { a.svc.ResetChestLog() }
