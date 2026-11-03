@@ -43,16 +43,17 @@ type Emitter func(event string, payload any)
 type SourceFactory func() ([]capture.Source, error)
 
 type Options struct {
-	Codes         *protocol.Codes
-	Items         loot.ItemResolver
-	Sources       SourceFactory // default: live capture on all physical interfaces
-	Throttle      time.Duration // min interval between *:changed events (default 250ms)
-	Emit          Emitter
-	PartyOnlyLoot bool
-	Combat        combat.Options
-	Prices        *prices.Client    // optional: price client (nil = built with defaults)
-	Recorder      *capture.Recorder // optional: record every captured packet to an .aorec
-	SessionsDir   string            // optional: persist finished sessions here (empty = no history)
+	Codes          *protocol.Codes
+	Items          loot.ItemResolver
+	Sources        SourceFactory // default: live capture on all physical interfaces
+	Throttle       time.Duration // min interval between *:changed events (default 250ms)
+	Emit           Emitter
+	PartyOnlyLoot  bool
+	Combat         combat.Options
+	Prices         *prices.Client    // optional: price client (nil = built with defaults)
+	Recorder       *capture.Recorder // optional: record every captured packet to an .aorec
+	SessionsDir    string            // optional: persist finished sessions here (empty = no history)
+	PricesCacheDir string            // optional: persist the price cache here (empty = memory only)
 }
 
 type CaptureStatus struct {
@@ -102,7 +103,10 @@ func NewService(opts Options) *Service {
 		// Prices land asynchronously; nudge the UI to re-pull the loot view so
 		// values fill in without a user action. OnUpdate runs off a background
 		// goroutine, so this never blocks the engine.
-		s.prices = prices.New(prices.Options{OnUpdate: func() { s.opts.Emit("loot:changed", nil) }})
+		s.prices = prices.New(prices.Options{
+			CacheDir: opts.PricesCacheDir,
+			OnUpdate: func() { s.opts.Emit("loot:changed", nil) },
+		})
 	}
 	s.eng = engine.New(engine.Config{
 		Codes:    opts.Codes,
@@ -221,6 +225,8 @@ type ValueView struct {
 	RegionSource  string           `json:"regionSource"`  // "default" | "detected" | "manual"
 	Available     bool             `json:"available"`     // at least one item has a price
 	Pending       bool             `json:"pending"`       // some prices are still being fetched
+	RateLimited   bool             `json:"rateLimited"`   // AO Data is throttling us (429); backing off
+	RetryAfterSec int              `json:"retryAfterSec"` // seconds until the backoff lifts (when rateLimited)
 	Total         int64            `json:"total"`         // estimated silver value of looted items
 	SilverPerHour float64          `json:"silverPerHour"` // (item value + looted silver) per session hour
 	PerPlayer     map[string]int64 `json:"perPlayer"`     // looter -> estimated item value
@@ -248,24 +254,48 @@ func (s *Service) reconcileRegion() {
 	}
 }
 
-// valueView computes the estimated value of the given (already filtered)
-// entries. It reads prices from cache only and schedules missing ones in the
-// background; it never blocks on the network.
-func (s *Service) valueView(entries []loot.Entry) ValueView {
+// priceMeta is the price-service state shared by the loot and gather value
+// views: which region, and whether estimates are available / still loading /
+// being throttled. Lets both views render the same "offline vs rate-limited vs
+// fetching" states without duplicating the status logic.
+type priceMeta struct {
+	region        prices.Region
+	regionSource  string
+	available     bool
+	pending       bool
+	rateLimited   bool
+	retryAfterSec int
+}
+
+// lookupPrices resolves unit prices for the given item ids from cache (never
+// blocking on the network) and reports the price-service state. Missing ids are
+// scheduled for a background fetch by the client, unless it is rate-limited.
+func (s *Service) lookupPrices(ids []string) (map[string]int64, priceMeta) {
 	s.reconcileRegion()
 	region := s.prices.Region()
 	s.mu.Lock()
 	src := s.regionSource
 	s.mu.Unlock()
 
-	v := ValueView{
-		Region:       region.Key,
-		RegionLabel:  region.Label,
-		RegionSource: src,
-		PerPlayer:    map[string]int64{},
-		PerItem:      map[string]int64{},
+	perItem, complete := s.prices.Lookup(ids)
+	m := priceMeta{
+		region:       region,
+		regionSource: src,
+		available:    len(perItem) > 0,
+		pending:      !complete,
 	}
+	if st := s.prices.Status(); st.RateLimited {
+		m.rateLimited = true
+		m.retryAfterSec = st.RetryAfterSec
+		m.pending = false // not fetching while backing off
+	}
+	return perItem, m
+}
 
+// valueView computes the estimated value of the given (already filtered)
+// entries. It reads prices from cache only and schedules missing ones in the
+// background; it never blocks on the network.
+func (s *Service) valueView(entries []loot.Entry) ValueView {
 	ids := make([]string, 0, len(entries))
 	seen := map[string]bool{}
 	var lootedSilver float64
@@ -281,12 +311,20 @@ func (s *Service) valueView(entries []loot.Entry) ValueView {
 		ids = append(ids, e.ItemID)
 	}
 
-	priceByID, complete := s.prices.Lookup(ids)
-	v.PerItem = priceByID
-	v.Priced = len(priceByID)
-	v.Missing = len(ids) - len(priceByID)
-	v.Pending = !complete
-	v.Available = len(priceByID) > 0
+	priceByID, m := s.lookupPrices(ids)
+	v := ValueView{
+		Region:        m.region.Key,
+		RegionLabel:   m.region.Label,
+		RegionSource:  m.regionSource,
+		Available:     m.available,
+		Pending:       m.pending,
+		RateLimited:   m.rateLimited,
+		RetryAfterSec: m.retryAfterSec,
+		PerPlayer:     map[string]int64{},
+		PerItem:       priceByID,
+		Priced:        len(priceByID),
+		Missing:       len(ids) - len(priceByID),
+	}
 
 	for _, e := range entries {
 		if e.IsSilver {
@@ -444,8 +482,68 @@ func (s *Service) ResetRates() { s.eng.Rates().Reset(); s.opts.Emit("rates:chang
 // ResetGather clears the gathered-resource totals.
 func (s *Service) ResetGather() { s.eng.Gather().Reset(); s.opts.Emit("gather:changed", nil) }
 
-// GatherView is the current session's gathered resources, by item and total.
-func (s *Service) GatherView() gather.Snapshot { return s.eng.Gather().Snapshot() }
+// GatherValue is the estimated market value of the gathered resources, from the
+// Albion Online Data project. Mirrors ValueView's status fields so the Gather
+// tab can show the same offline / rate-limited / fetching states as loot value.
+type GatherValue struct {
+	Region        string           `json:"region"`
+	RegionLabel   string           `json:"regionLabel"`
+	RegionSource  string           `json:"regionSource"`
+	Available     bool             `json:"available"`
+	Pending       bool             `json:"pending"`
+	RateLimited   bool             `json:"rateLimited"`
+	RetryAfterSec int              `json:"retryAfterSec"`
+	Total         int64            `json:"total"`   // estimated silver value of all gathered resources
+	PerItem       map[string]int64 `json:"perItem"` // uniqueName -> estimated unit price (silver)
+	Priced        int              `json:"priced"`
+	Missing       int              `json:"missing"`
+}
+
+// GatherView is the current session's gathered resources: per-item totals, a
+// newest-first harvest timeline (from the engine) and an estimated market value
+// (best-effort, external). The gather.Snapshot fields are flattened into the
+// JSON object; `value` carries the price estimate.
+type GatherView struct {
+	gather.Snapshot
+	Value GatherValue `json:"value"`
+}
+
+// GatherView builds the gathered-resources view with an estimated silver value
+// per resource and overall, reusing the same price client (and region
+// detection) as the loot value. It never blocks on the network.
+func (s *Service) GatherView() GatherView {
+	snap := s.eng.Gather().Snapshot()
+
+	ids := make([]string, 0, len(snap.Items))
+	seen := map[string]bool{}
+	for _, it := range snap.Items {
+		if it.UniqueName == "" || seen[it.UniqueName] {
+			continue
+		}
+		seen[it.UniqueName] = true
+		ids = append(ids, it.UniqueName)
+	}
+
+	perItem, m := s.lookupPrices(ids)
+	val := GatherValue{
+		Region:        m.region.Key,
+		RegionLabel:   m.region.Label,
+		RegionSource:  m.regionSource,
+		Available:     m.available,
+		Pending:       m.pending,
+		RateLimited:   m.rateLimited,
+		RetryAfterSec: m.retryAfterSec,
+		PerItem:       perItem,
+		Priced:        len(perItem),
+		Missing:       len(ids) - len(perItem),
+	}
+	for _, it := range snap.Items {
+		if p, ok := perItem[it.UniqueName]; ok {
+			val.Total += p * it.Amount
+		}
+	}
+	return GatherView{Snapshot: snap, Value: val}
+}
 
 // ResetChestLog clears the personal chest-activity log.
 func (s *Service) ResetChestLog() { s.eng.ChestLog().Reset(); s.opts.Emit("chestlog:changed", nil) }
@@ -582,12 +680,12 @@ func (s *Service) ExportLootCSV(w io.Writer) error {
 // into the store's opaque detail blob and returned verbatim to the History tab,
 // which renders it read-only with the same components as the live views.
 type SessionDetail struct {
-	Meta   store.Meta      `json:"meta"`
-	Loot   LootView        `json:"loot"`
-	Combat CombatView      `json:"combat"`
-	Rates  RatesView       `json:"rates"`
-	Gather gather.Snapshot `json:"gather"`
-	Fame   fame.Snapshot   `json:"fame"`
+	Meta   store.Meta    `json:"meta"`
+	Loot   LootView      `json:"loot"`
+	Combat CombatView    `json:"combat"`
+	Rates  RatesView     `json:"rates"`
+	Gather GatherView    `json:"gather"`
+	Fame   fame.Snapshot `json:"fame"`
 }
 
 // lootViewFull is an unfiltered loot view (all players, trash included) used for

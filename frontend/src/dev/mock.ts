@@ -133,6 +133,8 @@ function lootView(recent: number): LootView {
     regionSource: priceRegionSource,
     available: pricesAvailable && total > 0,
     pending: false,
+    rateLimited: false,
+    retryAfterSec: 0,
     total,
     silverPerHour: total * 13.2,
     perPlayer,
@@ -345,12 +347,62 @@ export function installMock() {
                   { itemIndex: 611, amount: 22, uniqueName: 'T6_FISH_FRESHWATER_ALL', name: 'Albion Perch' },
                 ]
           const total = items.reduce((n, it) => n + it.amount, 0)
+          // Rough per-unit silver by resource, so the mock shows a value column.
+          const unit: Record<string, number> = {
+            T6_WOOD: 190,
+            T6_ORE: 240,
+            T6_FIBER: 210,
+            T6_HIDE: 260,
+            // T6_ROCK intentionally absent → "no market data" (not a misleading 0)
+            T6_FISH_FRESHWATER_ALL: 85,
+          }
+          // Match the backend: no per-item prices at all when prices are
+          // unavailable (available is derived from this being non-empty).
+          const perItem: Record<string, number> = {}
+          let valueTotal = 0
+          if (pricesAvailable) {
+            for (const it of items) {
+              const p = unit[it.uniqueName]
+              if (p) {
+                perItem[it.uniqueName] = p
+                valueTotal += p * it.amount
+              }
+            }
+          }
+          const priced = Object.keys(perItem).length
+          // Synthesize a newest-first timeline from the aggregate items.
+          const base = new Date(sessionStart).getTime()
+          const timeline = items
+            .flatMap((it, i) =>
+              Array.from({ length: Math.min(6, Math.max(1, Math.round(it.amount / 60))) }, (_, k) => ({
+                at: new Date(base + (i * 6 + k) * 47_000).toISOString(),
+                itemIndex: it.itemIndex,
+                amount: Math.max(1, Math.round(it.amount / 8)),
+                uniqueName: it.uniqueName,
+                name: it.name,
+              })),
+            )
+            .reverse()
           return {
             items,
             total,
             count: items.length === 0 ? 0 : 97,
             perHour: perHourOf(total),
             since: sessionStart,
+            timeline: items.length === 0 ? [] : timeline,
+            value: {
+              region: priceRegion,
+              regionLabel: regionLabels[priceRegion] ?? priceRegion,
+              regionSource: priceRegionSource,
+              available: pricesAvailable && priced > 0,
+              pending: false,
+              rateLimited: false,
+              retryAfterSec: 0,
+              total: valueTotal,
+              perItem,
+              priced,
+              missing: items.length - priced,
+            },
           }
         },
         ResetGather: async () => {

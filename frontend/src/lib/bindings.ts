@@ -40,6 +40,8 @@ export type {
   DungeonType,
   GatherView,
   GatherItem,
+  GatherEvent,
+  GatherValue,
   ChestLogView,
   ChestLogEntry,
   RouteView,

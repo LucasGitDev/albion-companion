@@ -15,15 +15,28 @@ type ItemResolver interface {
 	Resolve(index int) (itemdb.Item, bool)
 }
 
+// maxTimeline bounds the retained harvest history. A long session can produce
+// thousands of harvests; the UI only shows a recent feed, so older events are
+// dropped oldest-first. Totals (byItem/total/count) are unaffected.
+const maxTimeline = 1000
+
+// event is one recorded harvest, kept to build the timeline feed.
+type event struct {
+	at     time.Time
+	index  int
+	amount int64
+}
+
 // Tracker is the running gathered-resource total. Safe for concurrent use.
 type Tracker struct {
-	mu     sync.RWMutex
-	byItem map[int]int64 // items.txt index → total amount
-	total  int64
-	count  int
-	first  time.Time
-	last   time.Time
-	items  ItemResolver
+	mu       sync.RWMutex
+	byItem   map[int]int64 // items.txt index → total amount
+	total    int64
+	count    int
+	first    time.Time
+	last     time.Time
+	timeline []event // chronological, bounded to maxTimeline (oldest dropped)
+	items    ItemResolver
 }
 
 func New() *Tracker { return &Tracker{byItem: map[int]int64{}} }
@@ -49,6 +62,12 @@ func (t *Tracker) Add(index int, amount int64, at time.Time) {
 		t.first = at
 	}
 	t.last = at
+	t.timeline = append(t.timeline, event{at: at, index: index, amount: amount})
+	if len(t.timeline) > maxTimeline {
+		// Drop the oldest; copy to a fresh slice so the backing array does not
+		// grow without bound across a long session.
+		t.timeline = append([]event(nil), t.timeline[len(t.timeline)-maxTimeline:]...)
+	}
 }
 
 // Item is one gathered resource line. UniqueName/Name are filled when the item
@@ -60,31 +79,50 @@ type Item struct {
 	Name       string `json:"name"`
 }
 
-// Snapshot is an immutable view, items sorted by amount desc.
+// Event is one harvest in the timeline feed (newest first in a Snapshot).
+type Event struct {
+	At         time.Time `json:"at"`
+	ItemIndex  int       `json:"itemIndex"`
+	Amount     int64     `json:"amount"`
+	UniqueName string    `json:"uniqueName"`
+	Name       string    `json:"name"`
+}
+
+// Snapshot is an immutable view, items sorted by amount desc and a newest-first
+// timeline of individual harvests.
 type Snapshot struct {
-	Items   []Item    `json:"items"`
-	Total   int64     `json:"total"`
-	Count   int       `json:"count"`
-	PerHour float64   `json:"perHour"`
-	Since   time.Time `json:"since"`
+	Items    []Item    `json:"items"`
+	Total    int64     `json:"total"`
+	Count    int       `json:"count"`
+	PerHour  float64   `json:"perHour"`
+	Since    time.Time `json:"since"`
+	Timeline []Event   `json:"timeline"`
 }
 
 func (t *Tracker) Snapshot() Snapshot {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
+	// resolve fills localized/unique names for an item index (empty when the
+	// resolver has not loaded the item yet).
+	resolve := func(idx int) (unique, name string) {
+		if t.items == nil {
+			return "", ""
+		}
+		res, ok := t.items.Resolve(idx)
+		if !ok {
+			return "", ""
+		}
+		name = res.Name
+		if res.LocalName != "" {
+			name = res.LocalName
+		}
+		return res.UniqueName, name
+	}
+
 	items := make([]Item, 0, len(t.byItem))
 	for idx, amt := range t.byItem {
 		it := Item{ItemIndex: idx, Amount: amt}
-		if t.items != nil {
-			if res, ok := t.items.Resolve(idx); ok {
-				it.UniqueName = res.UniqueName
-				if res.LocalName != "" {
-					it.Name = res.LocalName
-				} else {
-					it.Name = res.Name
-				}
-			}
-		}
+		it.UniqueName, it.Name = resolve(idx)
 		items = append(items, it)
 	}
 	sort.Slice(items, func(i, j int) bool {
@@ -93,7 +131,23 @@ func (t *Tracker) Snapshot() Snapshot {
 		}
 		return items[i].ItemIndex < items[j].ItemIndex
 	})
-	return Snapshot{Items: items, Total: t.total, Count: t.count, PerHour: perHour(t.total, t.first, t.last), Since: t.first}
+
+	timeline := make([]Event, 0, len(t.timeline))
+	for i := len(t.timeline) - 1; i >= 0; i-- { // newest first
+		e := t.timeline[i]
+		ev := Event{At: e.at, ItemIndex: e.index, Amount: e.amount}
+		ev.UniqueName, ev.Name = resolve(e.index)
+		timeline = append(timeline, ev)
+	}
+
+	return Snapshot{
+		Items:    items,
+		Total:    t.total,
+		Count:    t.count,
+		PerHour:  perHour(t.total, t.first, t.last),
+		Since:    t.first,
+		Timeline: timeline,
+	}
 }
 
 func perHour(total int64, first, last time.Time) float64 {
@@ -115,4 +169,5 @@ func (t *Tracker) Reset() {
 	t.count = 0
 	t.first = time.Time{}
 	t.last = time.Time{}
+	t.timeline = nil
 }

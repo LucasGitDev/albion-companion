@@ -44,6 +44,16 @@ export function Loot({ filter, setFilter }: { filter: LootFilter; setFilter: (f:
 
   const value = view?.value
   const pricesOn = !!value?.available
+  // Why prices are missing, most specific first: rate-limited (AO Data 429) →
+  // fetching → offline. Shown as the "Est. value" sub-label.
+  const priceStatus = (): string => {
+    if (value?.rateLimited) {
+      const m = Math.ceil((value.retryAfterSec ?? 0) / 60)
+      return m > 0 ? `Rate limited · retry ~${m}m` : 'Rate limited'
+    }
+    if (value?.pending) return 'Fetching prices…'
+    return 'Offline · no prices'
+  }
   // Estimated market value of a player's items (silver). "—" when prices are
   // unavailable (offline/loading) OR when this player's items have no price yet,
   // so a missing price is never shown as a misleading 0.
@@ -68,11 +78,13 @@ export function Loot({ filter, setFilter }: { filter: LootFilter; setFilter: (f:
           icon={TrendingUp}
           label="Est. value"
           value={pricesOn ? fmtSilver(value?.total ?? 0) : '—'}
-          sub={pricesOn ? undefined : value?.pending ? 'Fetching prices…' : 'Offline · no prices'}
+          sub={pricesOn ? undefined : priceStatus()}
           title={
             pricesOn
               ? `Estimated market value (${value?.regionLabel}) · ~${fmtSilver(value?.silverPerHour ?? 0)}/h`
-              : 'Prices unavailable — offline or still loading. Refresh in Settings.'
+              : value?.rateLimited
+                ? 'Albion Online Data is rate-limiting requests. Prices resume automatically after a short cooldown.'
+                : 'Prices unavailable — offline or still loading. Refresh in Settings.'
           }
         />
       </div>

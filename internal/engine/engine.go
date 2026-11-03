@@ -107,6 +107,9 @@ func New(cfg Config) *Engine {
 		dungeon:  dungeon.New(),
 		tl:       timeline.NewRing(cfg.TimelineCap),
 	}
+	if cfg.Items != nil {
+		e.gather.SetItems(cfg.Items)
+	}
 	e.dec = protocol.NewDecoder(cfg.Codes, e.handle)
 	return e
 }

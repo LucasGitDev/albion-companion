@@ -59,6 +59,8 @@ export interface ValueView {
   regionSource: 'default' | 'detected' | 'manual'
   available: boolean
   pending: boolean
+  rateLimited: boolean
+  retryAfterSec: number
   total: number
   silverPerHour: number
   perPlayer: Record<string, number>
@@ -286,12 +288,36 @@ export interface GatherItem {
   name: string
 }
 
+export interface GatherEvent {
+  at: string
+  itemIndex: number
+  amount: number
+  uniqueName: string
+  name: string
+}
+
+export interface GatherValue {
+  region: string
+  regionLabel: string
+  regionSource: 'default' | 'detected' | 'manual'
+  available: boolean
+  pending: boolean
+  rateLimited: boolean
+  retryAfterSec: number
+  total: number
+  perItem: Record<string, number>
+  priced: number
+  missing: number
+}
+
 export interface GatherView {
   items: GatherItem[] | null
   total: number
   count: number
   perHour: number
   since: string
+  timeline: GatherEvent[] | null
+  value: GatherValue
 }
 
 export interface CodesInfo {
