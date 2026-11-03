@@ -277,7 +277,7 @@ func TestRateLimitServesStaleCache(t *testing.T) {
 
 func TestParseRetryAfter(t *testing.T) {
 	now := time.Unix(1000, 0)
-	if got := parseRetryAfter("30", now); !got.Equal(now.Add(30*time.Second)) {
+	if got := parseRetryAfter("30", now); !got.Equal(now.Add(30 * time.Second)) {
 		t.Errorf("seconds form = %v", got)
 	}
 	if got := parseRetryAfter("", now); !got.IsZero() {

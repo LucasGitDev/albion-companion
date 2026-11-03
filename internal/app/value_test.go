@@ -99,8 +99,8 @@ func TestGatherView_EstimatedValue(t *testing.T) {
 
 	g := svc.Engine().Gather()
 	base := time.Unix(5000, 0)
-	g.Add(424, 10, base)                  // wood x10 @120 = 1200
-	g.Add(100, 4, base.Add(time.Minute))  // rock x4, no market
+	g.Add(424, 10, base)                   // wood x10 @120 = 1200
+	g.Add(100, 4, base.Add(time.Minute))   // rock x4, no market
 	g.Add(424, 5, base.Add(2*time.Minute)) // wood x5 more → 15 total @120 = 1800
 
 	// Cold: no value yet, but the snapshot (items + timeline) is already there.

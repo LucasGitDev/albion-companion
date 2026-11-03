@@ -43,17 +43,17 @@ type Emitter func(event string, payload any)
 type SourceFactory func() ([]capture.Source, error)
 
 type Options struct {
-	Codes         *protocol.Codes
-	Items         loot.ItemResolver
-	Sources       SourceFactory // default: live capture on all physical interfaces
-	Throttle      time.Duration // min interval between *:changed events (default 250ms)
-	Emit          Emitter
-	PartyOnlyLoot bool
-	Combat        combat.Options
-	Prices        *prices.Client    // optional: price client (nil = built with defaults)
-	Recorder      *capture.Recorder // optional: record every captured packet to an .aorec
-	SessionsDir   string            // optional: persist finished sessions here (empty = no history)
-	PricesCacheDir string           // optional: persist the price cache here (empty = memory only)
+	Codes          *protocol.Codes
+	Items          loot.ItemResolver
+	Sources        SourceFactory // default: live capture on all physical interfaces
+	Throttle       time.Duration // min interval between *:changed events (default 250ms)
+	Emit           Emitter
+	PartyOnlyLoot  bool
+	Combat         combat.Options
+	Prices         *prices.Client    // optional: price client (nil = built with defaults)
+	Recorder       *capture.Recorder // optional: record every captured packet to an .aorec
+	SessionsDir    string            // optional: persist finished sessions here (empty = no history)
+	PricesCacheDir string            // optional: persist the price cache here (empty = memory only)
 }
 
 type CaptureStatus struct {
@@ -680,12 +680,12 @@ func (s *Service) ExportLootCSV(w io.Writer) error {
 // into the store's opaque detail blob and returned verbatim to the History tab,
 // which renders it read-only with the same components as the live views.
 type SessionDetail struct {
-	Meta   store.Meta      `json:"meta"`
-	Loot   LootView        `json:"loot"`
-	Combat CombatView      `json:"combat"`
-	Rates  RatesView       `json:"rates"`
-	Gather GatherView     `json:"gather"`
-	Fame   fame.Snapshot   `json:"fame"`
+	Meta   store.Meta    `json:"meta"`
+	Loot   LootView      `json:"loot"`
+	Combat CombatView    `json:"combat"`
+	Rates  RatesView     `json:"rates"`
+	Gather GatherView    `json:"gather"`
+	Fame   fame.Snapshot `json:"fame"`
 }
 
 // lootViewFull is an unfiltered loot view (all players, trash included) used for

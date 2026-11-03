@@ -56,10 +56,10 @@ func (a *App) startup(ctx context.Context) {
 		}
 	}
 	opts := app.Options{
-		Codes:         a.codes,
-		Throttle:      250 * time.Millisecond,
-		PartyOnlyLoot: true,
-		Combat:        combat.Options{PartyOnly: true},
+		Codes:          a.codes,
+		Throttle:       250 * time.Millisecond,
+		PartyOnlyLoot:  true,
+		Combat:         combat.Options{PartyOnly: true},
 		SessionsDir:    sessionsDir(),
 		PricesCacheDir: itemsCacheDir(),
 		Emit:           func(event string, payload any) { runtime.EventsEmit(a.ctx, event, payload) },
