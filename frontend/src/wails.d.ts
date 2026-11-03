@@ -59,6 +59,8 @@ export interface ValueView {
   regionSource: 'default' | 'detected' | 'manual'
   available: boolean
   pending: boolean
+  rateLimited: boolean
+  retryAfterSec: number
   total: number
   silverPerHour: number
   perPlayer: Record<string, number>

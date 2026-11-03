@@ -61,8 +61,9 @@ func (a *App) startup(ctx context.Context) {
 		Throttle:      250 * time.Millisecond,
 		PartyOnlyLoot: true,
 		Combat:        combat.Options{PartyOnly: true},
-		SessionsDir:   sessionsDir(),
-		Emit:          func(event string, payload any) { runtime.EventsEmit(a.ctx, event, payload) },
+		SessionsDir:    sessionsDir(),
+		PricesCacheDir: itemsCacheDir(),
+		Emit:           func(event string, payload any) { runtime.EventsEmit(a.ctx, event, payload) },
 	}
 	// ALBION_COMPANION_RECORD=<path|dir> records every captured packet to a
 	// timestamped .aorec so a live test session can be replayed and correlated

@@ -3,6 +3,7 @@ package prices
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -191,5 +192,154 @@ func TestChunk(t *testing.T) {
 	got := chunk([]string{"a", "b", "c", "d", "e"}, 2)
 	if len(got) != 3 || len(got[2]) != 1 {
 		t.Fatalf("chunk = %v", got)
+	}
+}
+
+// codeDoer returns a fixed status code with optional headers, recording how many
+// requests it saw, to drive the 429 backoff tests deterministically.
+type codeDoer struct {
+	code    int
+	headers map[string]string
+	mu      sync.Mutex
+	calls   int
+}
+
+func (d *codeDoer) Do(*http.Request) (*http.Response, error) {
+	d.mu.Lock()
+	d.calls++
+	d.mu.Unlock()
+	h := http.Header{}
+	for k, v := range d.headers {
+		h.Set(k, v)
+	}
+	return &http.Response{
+		StatusCode: d.code,
+		Status:     http.StatusText(d.code),
+		Header:     h,
+		Body:       io.NopCloser(strings.NewReader("")),
+	}, nil
+}
+
+func (d *codeDoer) count() int {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.calls
+}
+
+func TestRateLimitBackoff(t *testing.T) {
+	now := time.Unix(1000, 0)
+	doer := &codeDoer{code: http.StatusTooManyRequests, headers: map[string]string{"Retry-After": "120"}}
+	c := New(Options{HTTP: doer, Region: West, Now: func() time.Time { return now }})
+
+	// A refresh hits 429 and records the backoff from Retry-After.
+	if err := c.Refresh(context.Background(), []string{"T4_BAG"}); err == nil {
+		t.Fatal("expected a rate-limit error")
+	}
+	st := c.Status()
+	if !st.RateLimited || st.RetryAfterSec != 120 {
+		t.Fatalf("status = %+v, want rateLimited with ~120s", st)
+	}
+
+	// While limited, Lookup must NOT schedule another fetch (no new request) and
+	// returns no prices for an uncached item.
+	before := doer.count()
+	if prices, _ := c.Lookup([]string{"T5_SOUL"}); len(prices) != 0 {
+		t.Fatalf("rate-limited cold lookup returned prices: %v", prices)
+	}
+	time.Sleep(50 * time.Millisecond) // give any (wrongly) scheduled goroutine a chance
+	if doer.count() != before {
+		t.Fatalf("Lookup fired a fetch while rate-limited: %d -> %d", before, doer.count())
+	}
+
+	// After the backoff window the client is free again.
+	now = now.Add(121 * time.Second)
+	if c.Status().RateLimited {
+		t.Fatal("backoff should have lifted")
+	}
+}
+
+func TestRateLimitServesStaleCache(t *testing.T) {
+	now := time.Unix(1000, 0)
+	ok := testServer(t, nil)
+	c := New(Options{HTTP: ok.Client(), Region: regionAt(ok.URL), TTL: time.Minute, Now: func() time.Time { return now }})
+	if err := c.Refresh(context.Background(), []string{"T4_BAG"}); err != nil {
+		t.Fatal(err)
+	}
+	// Expire the entry, then enter a rate-limited state.
+	now = now.Add(2 * time.Minute)
+	c.setBackoff(now.Add(time.Minute))
+	// Stale price is still served (better than nothing) while limited.
+	prices, _ := c.Lookup([]string{"T4_BAG"})
+	if prices["T4_BAG"] != 1200 {
+		t.Fatalf("stale lookup while limited = %v, want cached 1200", prices)
+	}
+}
+
+func TestParseRetryAfter(t *testing.T) {
+	now := time.Unix(1000, 0)
+	if got := parseRetryAfter("30", now); !got.Equal(now.Add(30*time.Second)) {
+		t.Errorf("seconds form = %v", got)
+	}
+	if got := parseRetryAfter("", now); !got.IsZero() {
+		t.Errorf("empty = %v, want zero", got)
+	}
+	if got := parseRetryAfter("garbage", now); !got.IsZero() {
+		t.Errorf("garbage = %v, want zero", got)
+	}
+	httpDate := "Wed, 21 Oct 2026 07:28:00 GMT"
+	if got := parseRetryAfter(httpDate, now); got.IsZero() {
+		t.Errorf("http-date form should parse, got zero")
+	}
+}
+
+func TestDiskCacheRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	now := time.Unix(1_000_000, 0)
+	srv := testServer(t, nil)
+
+	// First client fetches and persists.
+	c1 := New(Options{HTTP: srv.Client(), Region: regionAt(srv.URL), CacheDir: dir, Now: func() time.Time { return now }})
+	if err := c1.Refresh(context.Background(), []string{"T4_BAG"}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Second client (simulated restart) with an offline doer must serve the
+	// persisted price without any network call.
+	c2 := New(Options{HTTP: errDoer{}, Region: regionAt(srv.URL), CacheDir: dir, Now: func() time.Time { return now }})
+	prices, complete := c2.Lookup([]string{"T4_BAG"})
+	if !complete || prices["T4_BAG"] != 1200 {
+		t.Fatalf("restart lookup = %v,%v, want cached 1200 complete", prices, complete)
+	}
+}
+
+func TestDiskCacheDropsExpired(t *testing.T) {
+	dir := t.TempDir()
+	base := time.Unix(1_000_000, 0)
+	srv := testServer(t, nil)
+	c1 := New(Options{HTTP: srv.Client(), Region: regionAt(srv.URL), CacheDir: dir, TTL: time.Minute, Now: func() time.Time { return base }})
+	if err := c1.Refresh(context.Background(), []string{"T4_BAG"}); err != nil {
+		t.Fatal(err)
+	}
+	// Restart well after the TTL: the persisted entry is too old to load.
+	later := base.Add(time.Hour)
+	c2 := New(Options{HTTP: errDoer{}, Region: regionAt(srv.URL), CacheDir: dir, TTL: time.Minute, Now: func() time.Time { return later }})
+	if _, complete := c2.Lookup([]string{"T4_BAG"}); complete {
+		t.Fatal("expired persisted entry should not be loaded")
+	}
+}
+
+func TestSendsUserAgent(t *testing.T) {
+	var gotUA string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotUA = r.Header.Get("User-Agent")
+		_, _ = w.Write([]byte(pricesJSON))
+	}))
+	defer srv.Close()
+	c := New(Options{HTTP: srv.Client(), Region: regionAt(srv.URL)})
+	if err := c.Refresh(context.Background(), []string{"T4_BAG"}); err != nil {
+		t.Fatal(err)
+	}
+	if gotUA == "" || gotUA == "Go-http-client/1.1" {
+		t.Fatalf("User-Agent = %q, want a descriptive app UA", gotUA)
 	}
 }

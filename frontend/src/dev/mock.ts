@@ -133,6 +133,8 @@ function lootView(recent: number): LootView {
     regionSource: priceRegionSource,
     available: pricesAvailable && total > 0,
     pending: false,
+    rateLimited: false,
+    retryAfterSec: 0,
     total,
     silverPerHour: total * 13.2,
     perPlayer,

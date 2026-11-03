@@ -53,6 +53,7 @@ type Options struct {
 	Prices        *prices.Client    // optional: price client (nil = built with defaults)
 	Recorder      *capture.Recorder // optional: record every captured packet to an .aorec
 	SessionsDir   string            // optional: persist finished sessions here (empty = no history)
+	PricesCacheDir string           // optional: persist the price cache here (empty = memory only)
 }
 
 type CaptureStatus struct {
@@ -102,7 +103,10 @@ func NewService(opts Options) *Service {
 		// Prices land asynchronously; nudge the UI to re-pull the loot view so
 		// values fill in without a user action. OnUpdate runs off a background
 		// goroutine, so this never blocks the engine.
-		s.prices = prices.New(prices.Options{OnUpdate: func() { s.opts.Emit("loot:changed", nil) }})
+		s.prices = prices.New(prices.Options{
+			CacheDir: opts.PricesCacheDir,
+			OnUpdate: func() { s.opts.Emit("loot:changed", nil) },
+		})
 	}
 	s.eng = engine.New(engine.Config{
 		Codes:    opts.Codes,
@@ -221,6 +225,8 @@ type ValueView struct {
 	RegionSource  string           `json:"regionSource"`  // "default" | "detected" | "manual"
 	Available     bool             `json:"available"`     // at least one item has a price
 	Pending       bool             `json:"pending"`       // some prices are still being fetched
+	RateLimited   bool             `json:"rateLimited"`   // AO Data is throttling us (429); backing off
+	RetryAfterSec int              `json:"retryAfterSec"` // seconds until the backoff lifts (when rateLimited)
 	Total         int64            `json:"total"`         // estimated silver value of looted items
 	SilverPerHour float64          `json:"silverPerHour"` // (item value + looted silver) per session hour
 	PerPlayer     map[string]int64 `json:"perPlayer"`     // looter -> estimated item value
@@ -287,6 +293,11 @@ func (s *Service) valueView(entries []loot.Entry) ValueView {
 	v.Missing = len(ids) - len(priceByID)
 	v.Pending = !complete
 	v.Available = len(priceByID) > 0
+	if st := s.prices.Status(); st.RateLimited {
+		v.RateLimited = true
+		v.RetryAfterSec = st.RetryAfterSec
+		v.Pending = false // not fetching while backing off
+	}
 
 	for _, e := range entries {
 		if e.IsSilver {
