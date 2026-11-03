@@ -356,13 +356,17 @@ export function installMock() {
             // T6_ROCK intentionally absent → "no market data" (not a misleading 0)
             T6_FISH_FRESHWATER_ALL: 85,
           }
+          // Match the backend: no per-item prices at all when prices are
+          // unavailable (available is derived from this being non-empty).
           const perItem: Record<string, number> = {}
           let valueTotal = 0
-          for (const it of items) {
-            const p = unit[it.uniqueName]
-            if (p) {
-              perItem[it.uniqueName] = p
-              valueTotal += p * it.amount
+          if (pricesAvailable) {
+            for (const it of items) {
+              const p = unit[it.uniqueName]
+              if (p) {
+                perItem[it.uniqueName] = p
+                valueTotal += p * it.amount
+              }
             }
           }
           const priced = Object.keys(perItem).length
