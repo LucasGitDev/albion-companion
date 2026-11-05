@@ -18,6 +18,12 @@ export interface CaptureStatus {
   hint?: string
   stats: Stats
   codesOutdated: boolean
+  replay: boolean
+  replayPlaying: boolean
+  replaySpeed: number
+  replayElapsedSec: number
+  replayTotalSec: number
+  replayLabel: string
 }
 
 export interface LootEntry {
@@ -268,6 +274,7 @@ export interface SessionMeta {
   me: string
   label?: string
   type?: string
+  recordingPath?: string
   lootCount: number
   silver: number
   fame: number
@@ -438,6 +445,12 @@ declare global {
           SetRecordConfig(cfg: RecordConfig): Promise<void>
           RecordingsInfo(): Promise<RecordingsInfo>
           OpenRecordingsDir(): Promise<void>
+          ReplaySession(id: string): Promise<void>
+          ReplayRecording(): Promise<string>
+          PauseReplay(): Promise<void>
+          ResumeReplay(): Promise<void>
+          SetReplaySpeed(speed: number): Promise<void>
+          StopReplay(): Promise<void>
           SetSessionInfo(label: string, type: string): Promise<void>
           StartSession(label: string, type: string): Promise<void>
           ChestLogView(recent: number): Promise<ChestLogView>

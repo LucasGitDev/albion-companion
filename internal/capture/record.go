@@ -7,8 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -66,11 +68,74 @@ func (r *Recorder) Close() error {
 	return r.f.Close()
 }
 
+// ReplayControl drives an in-progress replay: live speed changes, pause/resume,
+// and a per-packet progress callback. Zero value is not usable; use
+// NewReplayControl. Safe for concurrent use.
+type ReplayControl struct {
+	mu        sync.Mutex
+	cond      *sync.Cond
+	paused    bool
+	stopped   bool
+	speedBits atomic.Uint64 // math.Float64bits of the speed multiplier (0 = max)
+	// OnProgress is called with each packet's recorded time as it is played.
+	OnProgress func(at time.Time)
+}
+
+func NewReplayControl(speed float64) *ReplayControl {
+	c := &ReplayControl{}
+	c.cond = sync.NewCond(&c.mu)
+	c.SetSpeed(speed)
+	return c
+}
+
+func (c *ReplayControl) SetSpeed(s float64) { c.speedBits.Store(math.Float64bits(s)) }
+func (c *ReplayControl) Speed() float64     { return math.Float64frombits(c.speedBits.Load()) }
+
+func (c *ReplayControl) Pause() {
+	c.mu.Lock()
+	c.paused = true
+	c.mu.Unlock()
+}
+
+func (c *ReplayControl) Resume() {
+	c.mu.Lock()
+	c.paused = false
+	c.mu.Unlock()
+	c.cond.Broadcast()
+}
+
+func (c *ReplayControl) Paused() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.paused
+}
+
+// Stop wakes any paused wait so the replay goroutine can exit (used alongside
+// cancelling the context).
+func (c *ReplayControl) Stop() {
+	c.mu.Lock()
+	c.stopped = true
+	c.mu.Unlock()
+	c.cond.Broadcast()
+}
+
+// wait blocks while paused; returns false if the replay was stopped.
+func (c *ReplayControl) wait() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for c.paused && !c.stopped {
+		c.cond.Wait()
+	}
+	return !c.stopped
+}
+
 // ReplaySource plays an .aorec file. Speed 0 = as fast as possible,
-// 1 = real time, 2 = twice as fast, etc.
+// 1 = real time, 2 = twice as fast, etc. When Control is set it overrides Speed
+// and allows live pause/resume/speed changes and progress reporting.
 type ReplaySource struct {
-	Path  string
-	Speed float64
+	Path    string
+	Speed   float64
+	Control *ReplayControl
 }
 
 func (s ReplaySource) Name() string { return "replay:" + s.Path }
@@ -95,8 +160,15 @@ func (s ReplaySource) Run(ctx context.Context, out chan<- Packet) error {
 		if err != nil {
 			return fmt.Errorf("%s: %w", s.Path, err)
 		}
-		if s.Speed > 0 && !prev.IsZero() {
-			if d := time.Duration(float64(p.At.Sub(prev)) / s.Speed); d > 0 {
+		if s.Control != nil && !s.Control.wait() {
+			return nil // stopped while paused
+		}
+		speed := s.Speed
+		if s.Control != nil {
+			speed = s.Control.Speed()
+		}
+		if speed > 0 && !prev.IsZero() {
+			if d := time.Duration(float64(p.At.Sub(prev)) / speed); d > 0 {
 				select {
 				case <-time.After(d):
 				case <-ctx.Done():
@@ -110,6 +182,41 @@ func (s ReplaySource) Run(ctx context.Context, out chan<- Packet) error {
 		case <-ctx.Done():
 			return nil
 		}
+		if s.Control != nil && s.Control.OnProgress != nil {
+			s.Control.OnProgress(p.At)
+		}
+	}
+}
+
+// AorecSpan scans a recording's headers and returns the first and last packet
+// times and the packet count, without decoding payloads. Used to show replay
+// progress (elapsed vs total).
+func AorecSpan(path string) (first, last time.Time, count int, err error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	r := bufio.NewReader(f)
+	magic := make([]byte, len(recMagic))
+	if _, e := io.ReadFull(r, magic); e != nil || string(magic) != recMagic {
+		err = fmt.Errorf("%s: not an .aorec file", path)
+		return
+	}
+	for {
+		p, e := readRecord(r)
+		if errors.Is(e, io.EOF) {
+			return
+		}
+		if e != nil {
+			err = fmt.Errorf("%s: %w", path, e)
+			return
+		}
+		if count == 0 {
+			first = p.At
+		}
+		last = p.At
+		count++
 	}
 }
 

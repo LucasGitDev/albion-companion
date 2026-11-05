@@ -218,6 +218,28 @@ func (a *App) KnownPlayers() []string                   { return a.svc.KnownPlay
 func (a *App) RecordConfig() app.RecordConfig           { return a.svc.RecordConfig() }
 func (a *App) SetRecordConfig(cfg app.RecordConfig)     { a.svc.SetRecordConfig(cfg) }
 func (a *App) RecordingsInfo() app.RecordingsInfo       { return a.svc.RecordingsInfo() }
+func (a *App) ReplaySession(id string) error            { return a.svc.ReplaySession(id) }
+func (a *App) PauseReplay()                             { a.svc.PauseReplay() }
+func (a *App) ResumeReplay()                            { a.svc.ResumeReplay() }
+func (a *App) SetReplaySpeed(speed float64)             { a.svc.SetReplaySpeed(speed) }
+func (a *App) StopReplay()                              { a.svc.StopReplay() }
+
+// ReplayRecording opens a native .aorec picker and plays it back as a replay.
+// Returns the chosen file's base name, or "" if cancelled.
+func (a *App) ReplayRecording() (string, error) {
+	path, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+		Title:   "Replay a recording",
+		Filters: []runtime.FileFilter{{DisplayName: "Albion recording (*.aorec)", Pattern: "*.aorec"}},
+	})
+	if err != nil || path == "" {
+		return "", err
+	}
+	name := filepath.Base(path)
+	if err := a.svc.StartReplay(path, name); err != nil {
+		return "", err
+	}
+	return name, nil
+}
 
 // OpenRecordingsDir reveals the recordings folder in the OS file manager.
 func (a *App) OpenRecordingsDir() error {

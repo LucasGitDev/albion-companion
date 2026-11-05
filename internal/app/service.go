@@ -19,6 +19,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/LucasGitDev/albion-companion/internal/capture"
@@ -67,6 +68,14 @@ type CaptureStatus struct {
 	Hint          string       `json:"hint,omitempty"` // e.g. permission instructions
 	Stats         engine.Stats `json:"stats"`
 	CodesOutdated bool         `json:"codesOutdated"` // too many unknown codes → codes.json likely stale after a patch
+
+	// Replay (History time machine) — set while a recording is playing back.
+	Replay           bool    `json:"replay"`
+	ReplayPlaying    bool    `json:"replayPlaying"`
+	ReplaySpeed      float64 `json:"replaySpeed"`
+	ReplayElapsedSec int     `json:"replayElapsedSec"`
+	ReplayTotalSec   int     `json:"replayTotalSec"`
+	ReplayLabel      string  `json:"replayLabel"`
 }
 
 type Service struct {
@@ -94,6 +103,16 @@ type Service struct {
 
 	recCfg RecordConfig      // auto-record settings (loaded from ConfigDir)
 	curRec *capture.Recorder // current per-capture recording (nil when not recording)
+
+	// replay (History time machine): playing a recording back through the live
+	// engine. Guarded by mu except replayAtNano (atomic, updated per packet).
+	replaying       bool
+	replayCtl       *capture.ReplayControl
+	replayCancel    context.CancelFunc
+	replayLabel     string
+	replayFirstNano int64
+	replayLastNano  int64
+	replayAtNano    atomic.Int64
 }
 
 func NewService(opts Options) *Service {
@@ -151,6 +170,11 @@ func (s *Service) StartCapture() (CaptureStatus, error) {
 		st := s.statusLocked()
 		s.mu.Unlock()
 		return st, nil
+	}
+	if s.replaying {
+		st := s.statusLocked()
+		s.mu.Unlock()
+		return st, errors.New("a replay is in progress; stop it before capturing")
 	}
 	sources, err := s.opts.Sources()
 	if err != nil {
@@ -214,6 +238,24 @@ func (s *Service) statusLocked() CaptureStatus {
 	st := s.status
 	st.Stats = s.eng.Stats()
 	st.CodesOutdated = codesOutdated(st.Stats)
+	if s.replaying {
+		st.Replay = true
+		st.ReplayLabel = s.replayLabel
+		if s.replayCtl != nil {
+			st.ReplayPlaying = !s.replayCtl.Paused()
+			st.ReplaySpeed = s.replayCtl.Speed()
+		}
+		total := s.replayLastNano - s.replayFirstNano
+		el := s.replayAtNano.Load() - s.replayFirstNano
+		if el < 0 {
+			el = 0
+		}
+		if total > 0 && el > total {
+			el = total
+		}
+		st.ReplayTotalSec = int(total / 1e9)
+		st.ReplayElapsedSec = int(el / 1e9)
+	}
 	return st
 }
 
@@ -804,14 +846,20 @@ func (s *Service) saveSession() {
 	if start.IsZero() {
 		return
 	}
-	s.persistSession(start, time.Now(), label, typ)
+	s.mu.Lock()
+	recPath := ""
+	if s.curRec != nil {
+		recPath = s.curRec.Path()
+	}
+	s.mu.Unlock()
+	s.persistSession(start, time.Now(), label, typ, recPath)
 }
 
 // persistSession builds and writes a session with explicit bounds. Live capture
 // passes (start, now); reprocessing a recording passes the recording's own
 // times so History shows the real date. No-op when history is disabled or
 // nothing was captured.
-func (s *Service) persistSession(start, end time.Time, label, typ string) {
+func (s *Service) persistSession(start, end time.Time, label, typ, recordingPath string) {
 	s.mu.Lock()
 	st := s.store
 	s.mu.Unlock()
@@ -830,17 +878,18 @@ func (s *Service) persistSession(start, end time.Time, label, typ string) {
 
 	gs := s.eng.State()
 	meta := store.Meta{
-		ID:        store.NewID(start),
-		StartedAt: start,
-		EndedAt:   end,
-		Zone:      gs.Location(),
-		Me:        gs.LocalPlayer().Name,
-		Label:     label,
-		Type:      typ,
-		LootCount: lv.Total,
-		Silver:    rv.Silver.Total,
-		Fame:      fv.Total,
-		Damage:    cv.Total,
+		ID:            store.NewID(start),
+		StartedAt:     start,
+		EndedAt:       end,
+		Zone:          gs.Location(),
+		Me:            gs.LocalPlayer().Name,
+		Label:         label,
+		Type:          typ,
+		RecordingPath: recordingPath,
+		LootCount:     lv.Total,
+		Silver:        rv.Silver.Total,
+		Fame:          fv.Total,
+		Damage:        cv.Total,
 	}
 	// Persist the full forensic views too (timeline/chest log/dungeons were
 	// previously live-only and lost on save).
@@ -900,7 +949,7 @@ func (s *Service) ReprocessAorec(path, label, typ string) error {
 		start = time.Now()
 		end = start
 	}
-	sub.persistSession(start, end, strings.TrimSpace(label), strings.TrimSpace(typ))
+	sub.persistSession(start, end, strings.TrimSpace(label), strings.TrimSpace(typ), path)
 	s.opts.Emit("history:changed", nil)
 	return nil
 }

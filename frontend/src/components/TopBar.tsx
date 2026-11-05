@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Play, Square, Activity, MapPin, User, AlertTriangle, Sparkles, Tag, FlagTriangleRight } from 'lucide-react'
+import { Play, Square, Activity, MapPin, User, AlertTriangle, Sparkles, Tag, FlagTriangleRight, Pause, History as HistoryIcon } from 'lucide-react'
 import { cn, fmt } from '@/lib/utils'
 import { api, type CaptureStatus, type PartyView, type FameView, type SessionInfo } from '@/lib/bindings'
 import { useTopic } from '@/hooks/useTopic'
@@ -19,9 +19,19 @@ export function TopBar({
   const { data: fame } = useTopic<FameView>(api.fameView, ['fame:changed', 'zone:changed'])
 
   const running = status?.running ?? false
+  const replay = status?.replay ?? false
   const stats = status?.stats
   const errs = stats?.decodeErrors ?? 0
   const toggleCapture = () => void (running ? api.stop() : api.start())
+
+  // During a replay the capture control is replaced by the replay transport.
+  if (replay) {
+    return (
+      <header className="flex items-center gap-3 border-b border-warning/40 bg-warning/[0.06] px-4 py-2.5">
+        <ReplayTransport status={status} />
+      </header>
+    )
+  }
 
   return (
     <header className="flex items-center gap-3 border-b border-border bg-surface/40 px-4 py-2.5">
@@ -272,6 +282,80 @@ function SessionControl() {
       )}
     </div>
   )
+}
+
+const REPLAY_SPEEDS = [1, 2, 4, 8, 0] // 0 = max
+
+function ReplayTransport({ status }: { status: CaptureStatus | null }) {
+  const playing = status?.replayPlaying ?? false
+  const speed = status?.replaySpeed ?? 8
+  const elapsed = status?.replayElapsedSec ?? 0
+  const total = status?.replayTotalSec ?? 0
+  const pct = total > 0 ? Math.min(100, Math.round((elapsed / total) * 100)) : 0
+
+  return (
+    <div className="flex min-w-0 flex-1 items-center gap-3">
+      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-warning/15 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-warning">
+        <HistoryIcon className="size-3.5" /> {playing ? 'Replay' : 'Paused'}
+      </span>
+      <button
+        onClick={() => void (playing ? api.pauseReplay() : api.resumeReplay())}
+        aria-label={playing ? 'Pause replay' : 'Resume replay'}
+        className="grid size-7 shrink-0 place-items-center rounded-md border border-muted-foreground bg-elevated text-foreground transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {playing ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
+      </button>
+
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        <span className="tnum shrink-0 text-xs text-muted-foreground">{fmtDuration(elapsed)}</span>
+        <div
+          role="progressbar"
+          aria-label="Replay progress"
+          aria-valuemin={0}
+          aria-valuemax={total}
+          aria-valuenow={elapsed}
+          className="relative h-1.5 min-w-0 flex-1 overflow-hidden rounded-full border border-muted-foreground bg-muted"
+        >
+          <div className="absolute inset-y-0 left-0 rounded-full bg-warning transition-[width] duration-200 motion-reduce:transition-none" style={{ width: `${pct}%` }} />
+        </div>
+        <span className="tnum shrink-0 text-xs text-muted-foreground">{fmtDuration(total)}</span>
+      </div>
+
+      <label className="sr-only" htmlFor="replay-speed">
+        Replay speed
+      </label>
+      <select
+        id="replay-speed"
+        value={speed}
+        onChange={(e) => void api.setReplaySpeed(Number(e.target.value))}
+        className="shrink-0 rounded-md border border-muted-foreground bg-elevated px-2 py-1 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {REPLAY_SPEEDS.map((s) => (
+          <option key={s} value={s}>
+            {s === 0 ? 'Max' : `${s}×`}
+          </option>
+        ))}
+      </select>
+
+      {status?.replayLabel && <span className="hidden max-w-[22ch] shrink-0 truncate text-xs text-muted-foreground lg:block">{status.replayLabel}</span>}
+
+      <button
+        onClick={() => void api.stopReplay()}
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-muted-foreground px-2.5 py-1 text-xs text-foreground transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <Square className="size-3" /> Stop
+      </button>
+    </div>
+  )
+}
+
+function fmtDuration(sec: number): string {
+  const s = Math.max(0, Math.floor(sec))
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const ss = s % 60
+  const mm = `${m}`.padStart(h > 0 ? 2 : 1, '0')
+  return (h > 0 ? `${h}:${mm}` : `${mm}`) + ':' + `${ss}`.padStart(2, '0')
 }
 
 function Chip({ icon: Icon, value, empty }: { icon: typeof MapPin; value?: string; empty: string }) {
