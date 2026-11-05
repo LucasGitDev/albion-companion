@@ -1,10 +1,11 @@
 ---
 id: TASK-65
 title: 'Aorec-first session persistence (JSON = aggregator, raw = source of truth)'
-status: To Do
+status: Done
 assignee:
   - '@devlucasteles'
 created_date: '2026-11-05 15:06'
+updated_date: '2026-11-05 17:22'
 labels:
   - app
   - ui
@@ -22,11 +23,17 @@ With recordings kept by default, make the raw .aorec the source of truth and red
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Saved SessionDetail JSON is slimmed to meta + aggregates; heavy per-event detail is no longer written for new sessions
-- [ ] #2 Opening a session derives full detail by headless-reprocessing its .aorec (fast, off the UI thread) with a loading state
-- [ ] #3 Old sessions with inline detail still render without reprocessing (backward compatible)
-- [ ] #4 No .aorec (off/pruned): the UI clearly shows full detail is unavailable; aggregates still show
-- [ ] #5 Retention/pruning a recording is reflected (detail becomes unavailable) without breaking the history list
-- [ ] #6 UI follows DESIGN.md; loading/empty/error states; ui-reviewer at 1440px no criticals
-- [ ] #7 Tests cover slim persistence + on-demand detail derivation from a fixture .aorec + no-aorec fallback
+- [x] #1 Saved SessionDetail JSON is slimmed to meta + aggregates; heavy per-event detail is no longer written for new sessions
+- [x] #2 Opening a session derives full detail by headless-reprocessing its .aorec (fast, off the UI thread) with a loading state
+- [x] #3 Old sessions with inline detail still render without reprocessing (backward compatible)
+- [x] #4 No .aorec (off/pruned): the UI clearly shows full detail is unavailable; aggregates still show
+- [x] #5 Retention/pruning a recording is reflected (detail becomes unavailable) without breaking the history list
+- [x] #6 UI follows DESIGN.md; loading/empty/error states; ui-reviewer at 1440px no criticals
+- [x] #7 Tests cover slim persistence + on-demand detail derivation from a fixture .aorec + no-aorec fallback
 <!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Aorec-first session persistence (safe): when a usable .aorec recording was kept, persistSession writes only the aggregates (meta + loot/combat/rates/fame/gather totals + dungeons) and marks the session Aggregated; the heavy forensic detail (full loot feed, timeline, chest log, chest drops) is rebuilt on demand by HistoryDetail, which headless-replays the recording. With NO recording the full detail is kept inline so proof is never lost; old sessions (full inline) are unaffected. If the recording was pruned, HistoryDetail returns aggregates with DetailAvailable=false. Frontend History panel loads aggregates instantly then derives the heavy sections with a top status line (loading / retry-on-error / unavailable warning), no layout jump. Verified: 3 aorec-first table tests (slim->derive, no-recording-inline, availability) + 40 app tests + make check EXIT=0; ui-reviewer no criticals, mediums fixed (empty-state gated, Retry reuses loadDetail + disabled-while-loading via status swap, status moved to top, role=status on unavailable, 24px retry target, flicker removed, motion-safe spinner).
+<!-- SECTION:FINAL_SUMMARY:END -->
