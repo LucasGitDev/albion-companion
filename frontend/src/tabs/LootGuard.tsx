@@ -1,9 +1,9 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ShieldAlert, Download, Plus, X, Check, AlertTriangle, Info, UserCheck, Coins } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Loading, ErrorState } from '@/components/ui/states'
 import { ItemIcon } from '@/components/ItemIcon'
-import { api, type GuardConfig, type GuardSuspect, type GuardGrab } from '@/lib/bindings'
+import { api, on, type GuardConfig, type GuardSuspect, type GuardGrab } from '@/lib/bindings'
 import { useTopic } from '@/hooks/useTopic'
 import { cn, fmtSilver } from '@/lib/utils'
 
@@ -162,25 +162,80 @@ function RosterEditor({
   onSave: (c: GuardConfig) => Promise<boolean>
 }) {
   const [draft, setDraft] = useState('')
+  const [known, setKnown] = useState<string[]>([])
+  const [open, setOpen] = useState(false)
+  const [active, setActive] = useState(-1) // highlighted suggestion index
   const inputRef = useRef<HTMLInputElement>(null)
+  const blurTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
   const collectors = cfg.collectors ?? []
 
-  const add = () => {
-    const name = draft.trim()
-    if (!name) return
-    if (collectors.some((c) => c.toLowerCase() === name.toLowerCase())) {
-      setDraft('')
+  // Known nicks accumulate across sessions; refresh on mount and as loot flows.
+  useEffect(() => {
+    const load = () => api.knownPlayers().then(setKnown).catch(() => {})
+    load()
+    const offs = ['guard:changed', 'loot:new', 'loot:changed', 'party:changed'].map((e) => on(e, load))
+    return () => {
+      offs.forEach((off) => off())
+      if (blurTimer.current) clearTimeout(blurTimer.current)
+    }
+  }, [])
+
+  const taken = new Set(collectors.map((c) => c.toLowerCase()))
+  const q = draft.trim().toLowerCase()
+  const suggestions = known
+    .filter((n) => !taken.has(n.toLowerCase()) && (q === '' ? true : n.toLowerCase().includes(q)))
+    .slice(0, 8)
+  const showList = open && suggestions.length > 0
+  const isDup = q !== '' && collectors.some((c) => c.toLowerCase() === q)
+  // A non-empty query that matches nothing new is a brand-new name: hint that.
+  const showNewHint = open && q !== '' && suggestions.length === 0 && !isDup
+
+  // Keep the keyboard-highlighted option scrolled into view in the listbox.
+  useEffect(() => {
+    if (active >= 0) document.getElementById(`guard-nick-${active}`)?.scrollIntoView({ block: 'nearest' })
+  }, [active])
+
+  const commit = (name: string) => {
+    const n = name.trim()
+    if (!n) return
+    if (collectors.some((c) => c.toLowerCase() === n.toLowerCase())) {
+      // Already allowed — keep the text so the "already in the list" hint shows.
+      setOpen(false)
+      setActive(-1)
       return
     }
-    // Keep the draft until the save confirms; restore it (and focus) on failure
-    // so the user never loses a name to a silent error.
     setDraft('')
-    onSave({ ...cfg, collectors: [...collectors, name] }).then((ok) => {
-      if (!ok) setDraft(name)
+    setOpen(false)
+    setActive(-1)
+    // Restore (and refocus) only on a save failure, so a name is never lost to a
+    // silent error.
+    onSave({ ...cfg, collectors: [...collectors, n] }).then((ok) => {
+      if (!ok) setDraft(n)
       inputRef.current?.focus()
     })
   }
+  const add = () => commit(active >= 0 && suggestions[active] ? suggestions[active] : draft)
   const remove = (name: string) => onSave({ ...cfg, collectors: collectors.filter((c) => c !== name) })
+
+  const onKey = (e: React.KeyboardEvent) => {
+    if (e.nativeEvent.isComposing) return // don't act mid IME composition
+    if (e.key === 'ArrowDown' && suggestions.length) {
+      e.preventDefault()
+      setOpen(true)
+      setActive((i) => (i + 1) % suggestions.length)
+    } else if (e.key === 'ArrowUp' && suggestions.length) {
+      e.preventDefault()
+      setOpen(true)
+      setActive((i) => (i <= 0 ? suggestions.length - 1 : i - 1))
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      add()
+    } else if (e.key === 'Escape') {
+      setOpen(false)
+      setActive(-1)
+    }
+  }
 
   return (
     <div className="flex flex-col gap-2.5 rounded-xl border border-border bg-surface/60 p-3.5">
@@ -209,20 +264,74 @@ function RosterEditor({
         {collectors.length === 0 && <span className="text-xs text-muted-foreground">none yet</span>}
       </div>
 
-      <div className="flex items-center gap-2">
-        <input
-          ref={inputRef}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && add()}
-          aria-label="Player name to allow"
-          placeholder="Add a player name…"
-          className="min-w-0 flex-1 rounded-md border border-muted-foreground bg-elevated px-2.5 py-1.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
-        />
+      <div className="flex items-start gap-2">
+        <div className="relative min-w-0 flex-1">
+          <input
+            ref={inputRef}
+            value={draft}
+            onChange={(e) => {
+              setDraft(e.target.value)
+              setOpen(true)
+              setActive(-1)
+            }}
+            onFocus={() => setOpen(true)}
+            onBlur={() => {
+              blurTimer.current = setTimeout(() => setOpen(false), 120)
+            }}
+            onKeyDown={onKey}
+            role="combobox"
+            aria-expanded={showList}
+            aria-controls={showList ? 'guard-nick-list' : undefined}
+            aria-autocomplete="list"
+            aria-activedescendant={active >= 0 ? `guard-nick-${active}` : undefined}
+            aria-label="Player name to allow"
+            placeholder="Add a player name…"
+            className="w-full rounded-md border border-muted-foreground bg-elevated px-2.5 py-1.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
+          />
+          {showList && (
+            <ul
+              id="guard-nick-list"
+              role="listbox"
+              aria-label="Known players"
+              className="absolute left-0 right-0 top-full z-10 mt-1 max-h-56 overflow-y-auto rounded-md border border-border bg-popover py-1 shadow-xl shadow-black/40"
+            >
+              {suggestions.map((n, i) => (
+                <li
+                  key={n}
+                  id={`guard-nick-${i}`}
+                  role="option"
+                  aria-selected={i === active}
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    commit(n)
+                  }}
+                  onMouseEnter={() => setActive(i)}
+                  className={cn(
+                    'cursor-pointer truncate px-2.5 py-1.5 text-sm',
+                    i === active ? 'bg-primary text-primary-foreground' : 'text-popover-foreground',
+                  )}
+                >
+                  <Match name={n} q={q} active={i === active} />
+                </li>
+              ))}
+            </ul>
+          )}
+          {showNewHint && (
+            <div className="absolute left-0 right-0 top-full z-10 mt-1 rounded-md border border-border bg-popover px-2.5 py-1.5 text-xs text-muted-foreground shadow-xl shadow-black/40">
+              New name — press Enter to add “{draft.trim()}”
+            </div>
+          )}
+          <span role="status" aria-live="polite" className="sr-only">
+            {showList ? `${suggestions.length} suggestion${suggestions.length === 1 ? '' : 's'}` : ''}
+          </span>
+        </div>
         <Button size="sm" variant="outline" onClick={add} disabled={!draft.trim() || saving}>
           <Plus /> Add
         </Button>
       </div>
+      <p aria-live="polite" className="-mt-1 min-h-4 text-xs text-muted-foreground">
+        {isDup ? `“${draft.trim()}” is already in the list.` : ''}
+      </p>
 
       <div className="flex flex-wrap gap-2 pt-0.5">
         <Toggle
@@ -249,22 +358,40 @@ function RosterEditor({
   )
 }
 
-function Toggle({ on, onClick, label, disabled }: { on: boolean; onClick: () => void; label: string; disabled?: boolean }) {
+// Match highlights the typed substring inside a suggested nick. On the active
+// (keyboard-highlighted) row the text is already on a gold background, so the
+// match is shown by weight+underline rather than a competing color.
+function Match({ name, q, active }: { name: string; q: string; active: boolean }) {
+  if (!q) return <>{name}</>
+  const i = name.toLowerCase().indexOf(q)
+  if (i < 0) return <>{name}</>
+  return (
+    <>
+      {name.slice(0, i)}
+      <span className={cn('font-semibold underline decoration-1 underline-offset-2', !active && 'text-foreground')}>
+        {name.slice(i, i + q.length)}
+      </span>
+      {name.slice(i + q.length)}
+    </>
+  )
+}
+
+function Toggle({ on: isOn, onClick, label, disabled }: { on: boolean; onClick: () => void; label: string; disabled?: boolean }) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
       role="switch"
-      aria-checked={on}
+      aria-checked={isOn}
       className={cn(
         'inline-flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-xs transition-colors focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 motion-reduce:transition-none',
-        on
+        isOn
           ? 'border-primary/40 bg-primary/10 text-foreground'
           : 'border-border bg-elevated text-muted-foreground hover:text-foreground',
       )}
     >
-      <span className={cn('relative h-3.5 w-6 rounded-full transition-colors motion-reduce:transition-none', on ? 'bg-primary' : 'bg-muted-foreground')}>
-        <span className={cn('absolute top-0.5 size-2.5 rounded-full bg-background transition-all motion-reduce:transition-none', on ? 'left-3' : 'left-0.5')} />
+      <span className={cn('relative h-3.5 w-6 rounded-full transition-colors motion-reduce:transition-none', isOn ? 'bg-primary' : 'bg-muted-foreground')}>
+        <span className={cn('absolute top-0.5 size-2.5 rounded-full bg-background transition-all motion-reduce:transition-none', isOn ? 'left-3' : 'left-0.5')} />
       </span>
       {label}
     </button>
