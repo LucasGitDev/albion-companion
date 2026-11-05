@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"sync"
 	"time"
 
@@ -83,6 +84,8 @@ type Service struct {
 
 	store        *store.Store // nil when SessionsDir is unset
 	sessionStart time.Time    // start of the current capture session (for persistence)
+	sessionLabel string       // user-set label for the current session
+	sessionType  string       // user-set type for the current session (avalon/group/…)
 
 	guardCfg GuardConfig   // Loot Guard anti-theft roster (loaded from ConfigDir)
 	known    *knownPlayers // accumulating registry of observed player nicks
@@ -691,12 +694,71 @@ func (s *Service) ExportLootCSV(w io.Writer) error {
 // into the store's opaque detail blob and returned verbatim to the History tab,
 // which renders it read-only with the same components as the live views.
 type SessionDetail struct {
-	Meta   store.Meta    `json:"meta"`
-	Loot   LootView      `json:"loot"`
-	Combat CombatView    `json:"combat"`
-	Rates  RatesView     `json:"rates"`
-	Gather GatherView    `json:"gather"`
-	Fame   fame.Snapshot `json:"fame"`
+	Meta     store.Meta        `json:"meta"`
+	Loot     LootView          `json:"loot"`
+	Combat   CombatView        `json:"combat"`
+	Rates    RatesView         `json:"rates"`
+	Gather   GatherView        `json:"gather"`
+	Fame     fame.Snapshot     `json:"fame"`
+	Timeline TimelineView      `json:"timeline"`
+	ChestLog chestlog.Snapshot `json:"chestLog"`
+	Dungeon  DungeonView       `json:"dungeon"`
+}
+
+// SessionInfo is the user-facing label/type of the current session plus whether
+// a capture session is active (has a start time).
+type SessionInfo struct {
+	Label  string `json:"label"`
+	Type   string `json:"type"`
+	Active bool   `json:"active"`
+}
+
+// SessionInfo returns the current session's label/type.
+func (s *Service) SessionInfo() SessionInfo {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return SessionInfo{Label: s.sessionLabel, Type: s.sessionType, Active: !s.sessionStart.IsZero()}
+}
+
+// SetSessionInfo labels the CURRENT session without changing its bounds, so the
+// save on stop records the user's name/type for it.
+func (s *Service) SetSessionInfo(label, typ string) {
+	s.mu.Lock()
+	s.sessionLabel = strings.TrimSpace(label)
+	s.sessionType = strings.TrimSpace(typ)
+	s.mu.Unlock()
+	s.opts.Emit("session:changed", nil)
+}
+
+// StartSession delimits a new named session. It persists the session so far (if
+// it captured anything), resets every tracker, and re-bases the session start
+// to now with the given label/type — so a user can mark the start of a dungeon
+// run inside one continuous capture. Explicit bounds like this override the
+// capture-run heuristic.
+func (s *Service) StartSession(label, typ string) {
+	s.saveSession() // flush whatever was captured under the previous label
+	s.resetAll()
+	s.mu.Lock()
+	s.sessionStart = time.Now()
+	s.sessionLabel = strings.TrimSpace(label)
+	s.sessionType = strings.TrimSpace(typ)
+	s.mu.Unlock()
+	s.opts.Emit("session:changed", nil)
+	s.opts.Emit("history:changed", nil)
+}
+
+// resetAll clears every per-session tracker (used when delimiting a new
+// session). Each Reset emits its own topic so the UI refreshes.
+func (s *Service) resetAll() {
+	s.ResetLoot()
+	s.ResetCombat()
+	s.ResetFame()
+	s.ResetRates()
+	s.ResetTimeline()
+	s.ResetGather()
+	s.ResetChestLog()
+	s.ResetRoute()
+	s.ResetDungeons()
 }
 
 // lootViewFull is an unfiltered loot view (all players, trash included) used for
@@ -718,6 +780,8 @@ func (s *Service) saveSession() {
 	s.mu.Lock()
 	st := s.store
 	start := s.sessionStart
+	label := s.sessionLabel
+	typ := s.sessionType
 	s.sessionStart = time.Time{}
 	s.mu.Unlock()
 	if st == nil || start.IsZero() {
@@ -740,12 +804,19 @@ func (s *Service) saveSession() {
 		EndedAt:   time.Now(),
 		Zone:      gs.Location(),
 		Me:        gs.LocalPlayer().Name,
+		Label:     label,
+		Type:      typ,
 		LootCount: lv.Total,
 		Silver:    rv.Silver.Total,
 		Fame:      fv.Total,
 		Damage:    cv.Total,
 	}
-	detail, err := json.Marshal(SessionDetail{Meta: meta, Loot: lv, Combat: cv, Rates: rv, Gather: gv, Fame: fv})
+	// Persist the full forensic views too (timeline/chest log/dungeons were
+	// previously live-only and lost on save).
+	detail, err := json.Marshal(SessionDetail{
+		Meta: meta, Loot: lv, Combat: cv, Rates: rv, Gather: gv, Fame: fv,
+		Timeline: s.TimelineView(0), ChestLog: s.eng.ChestLog().Snapshot(0), Dungeon: s.DungeonView(),
+	})
 	if err != nil {
 		return
 	}

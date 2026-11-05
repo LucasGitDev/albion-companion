@@ -21,6 +21,8 @@ type Meta struct {
 	EndedAt   time.Time `json:"endedAt"`
 	Zone      string    `json:"zone"`
 	Me        string    `json:"me"`
+	Label     string    `json:"label,omitempty"` // user-set session name (optional)
+	Type      string    `json:"type,omitempty"`  // user-set session type (avalon/group/…)
 	LootCount int       `json:"lootCount"`
 	Silver    float64   `json:"silver"`
 	Fame      float64   `json:"fame"`

@@ -37,6 +37,7 @@ const itemPool = [
   { itemId: 'T6_ARTEFACT_2H_HALBERD_MORGANA', itemName: "Master's Morgana Halberd Head", itemLocalName: 'Cabeça de Alabarda Morgana do Mestre', price: 86_500 },
 ]
 
+let sessionInfo = { label: 'Avalonian Dungeon', type: 'avalon', active: true }
 let priceRegion = 'west'
 let priceRegionSource: 'default' | 'detected' | 'manual' = 'detected'
 let pricesAvailable = true // toggle via ?state=noprices to preview the offline value state
@@ -476,6 +477,18 @@ export function installMock() {
           emit('guard:changed')
         },
         ExportLootGuardCSV: async () => '/Users/you/Downloads/albion-loot-guard-dev.csv',
+        SessionInfo: async () => sessionInfo,
+        SetSessionInfo: async (label: string, type: string) => {
+          sessionInfo = { ...sessionInfo, label, type }
+          emit('session:changed')
+        },
+        StartSession: async (label: string, type: string) => {
+          sessionInfo = { label, type, active: true }
+          feed.length = 0
+          emit('session:changed')
+          emit('loot:changed')
+          emit('history:changed')
+        },
         KnownPlayers: async () =>
           // Observed nicks accumulated across sessions (suspects + squad + extras).
           [...new Set(['teolando', 'dragonplot', 'ThalisDON', ...members.map((m) => m.Name), 'Anellisa', 'GRENOK', 'karapima', 'Ecilon'])].sort((a, b) =>
@@ -485,17 +498,20 @@ export function installMock() {
           devState === 'empty'
             ? []
             : [
-                { id: '20261101-101500', startedAt: '2026-11-01T10:15:00Z', endedAt: '2026-11-01T11:02:00Z', zone: 'Morgana Dungeon (T6)', me: 'L0rdCap', lootCount: 184, silver: 412000, fame: 1_240_000, damage: 3_200_000 },
-                { id: '20261031-203000', startedAt: '2026-10-31T20:30:00Z', endedAt: '2026-10-31T21:48:00Z', zone: 'Avalon · Roads', me: 'L0rdCap', lootCount: 96, silver: 180500, fame: 640_000, damage: 1_050_000 },
+                { id: '20261101-101500', startedAt: '2026-11-01T10:15:00Z', endedAt: '2026-11-01T11:02:00Z', zone: 'Morgana Dungeon (T6)', me: 'L0rdCap', label: 'Morgana farm', type: 'group', lootCount: 184, silver: 412000, fame: 1_240_000, damage: 3_200_000 },
+                { id: '20261031-203000', startedAt: '2026-10-31T20:30:00Z', endedAt: '2026-10-31T21:48:00Z', zone: 'Avalon · Roads', me: 'L0rdCap', label: 'Avalon run', type: 'avalon', lootCount: 96, silver: 180500, fame: 640_000, damage: 1_050_000 },
                 { id: '20261030-190000', startedAt: '2026-10-30T19:00:00Z', endedAt: '2026-10-30T19:22:00Z', zone: 'Lymhurst', me: 'L0rdCap', lootCount: 12, silver: 9800, fame: 40_000, damage: 0 },
               ],
         HistoryLoad: async (id: string) => ({
-          meta: { id, startedAt: '2026-11-01T10:15:00Z', endedAt: '2026-11-01T11:02:00Z', zone: 'Morgana Dungeon (T6)', me: 'L0rdCap', lootCount: 184, silver: 412000, fame: 1_240_000, damage: 3_200_000 },
+          meta: { id, startedAt: '2026-11-01T10:15:00Z', endedAt: '2026-11-01T11:02:00Z', zone: 'Morgana Dungeon (T6)', me: 'L0rdCap', label: 'Morgana farm', type: 'group', lootCount: 184, silver: 412000, fame: 1_240_000, damage: 3_200_000 },
           loot: await window.go.main.App.LootView(1000),
           combat: await window.go.main.App.CombatView(),
           rates: await window.go.main.App.RatesView(),
           gather: await window.go.main.App.GatherView(),
           fame: await window.go.main.App.FameView(),
+          timeline: await window.go.main.App.TimelineView(1000),
+          chestLog: await window.go.main.App.ChestLogView(1000),
+          dungeon: await window.go.main.App.DungeonView(),
         }),
         DeleteSession: async () => {
           emit('history:changed')

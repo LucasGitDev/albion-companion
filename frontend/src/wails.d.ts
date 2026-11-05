@@ -266,10 +266,18 @@ export interface SessionMeta {
   endedAt: string
   zone: string
   me: string
+  label?: string
+  type?: string
   lootCount: number
   silver: number
   fame: number
   damage: number
+}
+
+export interface SessionInfo {
+  label: string
+  type: string
+  active: boolean
 }
 
 export interface SessionDetail {
@@ -279,6 +287,9 @@ export interface SessionDetail {
   rates: RatesView
   gather: GatherView
   fame: FameView
+  timeline: TimelineView
+  chestLog: ChestLogView
+  dungeon: DungeonView
 }
 
 export interface GatherItem {
@@ -407,6 +418,9 @@ declare global {
           SetLootGuardConfig(cfg: GuardConfig): Promise<void>
           ExportLootGuardCSV(): Promise<string>
           KnownPlayers(): Promise<string[]>
+          SessionInfo(): Promise<SessionInfo>
+          SetSessionInfo(label: string, type: string): Promise<void>
+          StartSession(label: string, type: string): Promise<void>
           ChestLogView(recent: number): Promise<ChestLogView>
           ResetChestLog(): Promise<void>
           RouteView(recent: number): Promise<RouteView>

@@ -1,8 +1,9 @@
-import { useState } from 'react'
-import { Play, Square, Activity, MapPin, User, AlertTriangle, Sparkles } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Play, Square, Activity, MapPin, User, AlertTriangle, Sparkles, Tag, FlagTriangleRight } from 'lucide-react'
 import { cn, fmt } from '@/lib/utils'
-import { api, type CaptureStatus, type PartyView, type FameView } from '@/lib/bindings'
+import { api, type CaptureStatus, type PartyView, type FameView, type SessionInfo } from '@/lib/bindings'
 import { useTopic } from '@/hooks/useTopic'
+import { SESSION_TYPES, sessionTypeLabel } from '@/lib/sessionTypes'
 
 export function TopBar({
   status,
@@ -49,6 +50,8 @@ export function TopBar({
           </>
         )}
       </button>
+
+      <SessionControl />
 
       <div className="mx-1 h-5 w-px bg-border" />
 
@@ -112,6 +115,162 @@ export function TopBar({
         </span>
       </button>
     </header>
+  )
+}
+
+function SessionControl() {
+  const { data: info } = useTopic<SessionInfo>(api.sessionInfo, ['session:changed', 'capture:status'])
+  const [open, setOpen] = useState(false)
+  const [label, setLabel] = useState('')
+  const [type, setType] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState(false)
+  const seeded = useRef(false)
+  const chipRef = useRef<HTMLButtonElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
+
+  // Seed the form from the live session info the first time it arrives / reopens,
+  // and move focus into the dialog; restore focus to the chip on close.
+  useEffect(() => {
+    if (open && info && !seeded.current) {
+      setLabel(info.label ?? '')
+      setType(info.type ?? '')
+      seeded.current = true
+      requestAnimationFrame(() => inputRef.current?.focus())
+    }
+    if (!open) seeded.current = false
+  }, [open, info])
+
+  const close = () => {
+    setOpen(false)
+    setErr(false)
+    chipRef.current?.focus()
+  }
+  const run = (fn: () => Promise<void>) => {
+    setBusy(true)
+    setErr(false)
+    fn()
+      .then(() => close())
+      .catch(() => setErr(true))
+      .finally(() => setBusy(false))
+  }
+  const saveLabel = () => run(() => api.setSessionInfo(label, type))
+  const newSession = () => run(() => api.startSession(label, type))
+
+  const current = info?.label?.trim()
+  return (
+    <div className="relative">
+      <button
+        ref={chipRef}
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        title={current ? `Session: ${current}` : 'Name and tag this session (for history / evidence)'}
+        className={cn(
+          'inline-flex max-w-[28ch] items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition-colors hover:bg-accent',
+          current ? 'bg-elevated text-foreground' : 'text-muted-foreground',
+        )}
+      >
+        <Tag className={cn('size-3.5 shrink-0', current ? 'text-zone' : 'text-muted-foreground')} />
+        <span className="truncate">{current || 'Name session'}</span>
+        {info?.type && (
+          <span className="shrink-0 rounded-sm bg-elevated px-1 py-px text-[10px] font-medium uppercase tracking-wide text-muted-foreground ring-1 ring-inset ring-border">
+            {sessionTypeLabel(info.type)}
+          </span>
+        )}
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" aria-hidden="true" onClick={close} />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Session"
+            ref={dialogRef}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                e.stopPropagation()
+                close()
+              } else if (e.key === 'Tab') {
+                // Trap focus inside the modal dialog (APG).
+                const els = dialogRef.current?.querySelectorAll<HTMLElement>(
+                  'input, select, button, [tabindex]:not([tabindex="-1"])',
+                )
+                if (!els || els.length === 0) return
+                const first = els[0]
+                const last = els[els.length - 1]
+                if (e.shiftKey && document.activeElement === first) {
+                  e.preventDefault()
+                  last.focus()
+                } else if (!e.shiftKey && document.activeElement === last) {
+                  e.preventDefault()
+                  first.focus()
+                }
+              }
+            }}
+            className="absolute left-0 top-9 z-20 w-72 rounded-lg border border-border bg-popover p-3 shadow-xl shadow-black/40"
+          >
+            <div className="mb-2 text-xs font-medium text-foreground">Session</div>
+            <label htmlFor="session-label" className="mb-1 block text-[11px] text-muted-foreground">
+              Name
+            </label>
+            <input
+              id="session-label"
+              ref={inputRef}
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && saveLabel()}
+              placeholder="e.g. Avalonian run #3"
+              className="mb-2 w-full rounded-md border border-muted-foreground bg-elevated px-2.5 py-1.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            <label htmlFor="session-type" className="mb-1 block text-[11px] text-muted-foreground">
+              Type
+            </label>
+            <select
+              id="session-type"
+              value={type}
+              onChange={(e) => setType(e.target.value)}
+              className="mb-3 w-full rounded-md border border-muted-foreground bg-elevated px-2.5 py-1.5 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {SESSION_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={saveLabel}
+                disabled={busy}
+                aria-busy={busy}
+                className="flex-1 rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+              >
+                Apply to current
+              </button>
+              <button
+                onClick={newSession}
+                disabled={busy}
+                aria-busy={busy}
+                title="Save the current session to History and start a fresh one with this name (resets live stats)"
+                className="inline-flex items-center gap-1 rounded-md border border-muted-foreground px-2.5 py-1.5 text-xs text-foreground transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+              >
+                <FlagTriangleRight className="size-3.5" /> Save &amp; start new
+              </button>
+            </div>
+            {err && (
+              <p role="alert" className="mt-2 text-[11px] text-destructive">
+                Couldn't update the session — try again.
+              </p>
+            )}
+            <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+              “New” saves what's captured so far to History and starts a fresh session — use it to mark the start of a
+              dungeon.
+            </p>
+          </div>
+        </>
+      )}
+    </div>
   )
 }
 

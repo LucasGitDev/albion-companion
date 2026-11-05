@@ -6,6 +6,7 @@ import { ItemIcon } from '@/components/ItemIcon'
 import { api, type SessionMeta, type SessionDetail } from '@/lib/bindings'
 import { useTopic } from '@/hooks/useTopic'
 import { fmt, fmtSilver, cn } from '@/lib/utils'
+import { sessionTypeLabel } from '@/lib/sessionTypes'
 
 const dateFmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' })
 const timeFmt = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit' })
@@ -70,9 +71,17 @@ function SessionCard({ s, open, onToggle, onDeleted }: { s: SessionMeta; open: b
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-2">
             <MapPin className="size-3.5 shrink-0 text-zone" />
-            <span className="truncate font-display text-sm font-semibold tracking-tight">{s.zone || 'Unknown zone'}</span>
+            <span className="truncate font-display text-sm font-semibold tracking-tight">
+              {s.label?.trim() || s.zone || 'Unknown zone'}
+            </span>
+            {s.type && (
+              <span className="shrink-0 rounded-sm bg-elevated px-1.5 py-px text-[10px] font-medium uppercase tracking-wide text-muted-foreground ring-1 ring-inset ring-border">
+                {sessionTypeLabel(s.type)}
+              </span>
+            )}
           </span>
           <span className="mt-0.5 block text-xs text-muted-foreground">
+            {s.label?.trim() && s.zone ? <>{s.zone} · </> : null}
             {dateFmt.format(start)} · {timeFmt.format(start)} · {duration(s.startedAt, s.endedAt)}
             {s.me && <> · {s.me}</>}
           </span>
@@ -117,9 +126,15 @@ function SessionDetailPanel({ id, sessionId, onDeleted }: { id: string; sessionI
   const players = data.loot.players ?? []
   const items = data.loot.items ?? []
   const dps = (data.combat.rows ?? []).filter((r) => r.damage > 0)
+  const dungeons = data.dungeon?.records ?? []
+  const chestEntries = data.chestLog?.entries ?? []
+  const timelineEvents = data.timeline?.events ?? []
   const shownPlayers = players.slice(0, 8)
   const shownItems = items.slice(0, 12)
   const shownDps = dps.slice(0, 6)
+  const shownDungeons = dungeons.slice(0, 8)
+  const shownChest = chestEntries.slice(0, 12)
+  const shownTimeline = timelineEvents.slice(0, 30)
   const twoCol = shownPlayers.length > 0 && shownDps.length > 0
 
   const doExport = () => {
@@ -246,11 +261,129 @@ function SessionDetailPanel({ id, sessionId, onDeleted }: { id: string; sessionI
         </Section>
       )}
 
-      {shownPlayers.length === 0 && shownDps.length === 0 && shownItems.length === 0 && (
-        <div className="text-center text-sm text-muted-foreground">This session has no loot or combat recorded.</div>
+      {dungeons.length > 0 && (
+        <Section title="Dungeons" extra={dungeons.length > shownDungeons.length ? `+${dungeons.length - shownDungeons.length} more` : undefined}>
+          <div className="flex flex-col divide-y divide-border/40">
+            {shownDungeons.map((d) => (
+              <div key={d.id} className="flex items-center justify-between gap-3 py-1.5 text-sm">
+                <span className="min-w-0 truncate text-foreground">
+                  {d.name || d.cluster}
+                  {d.tier && <span className="ml-1.5 text-xs text-muted-foreground">{d.tier}</span>}
+                </span>
+                <span className="flex shrink-0 items-center gap-4 text-xs text-muted-foreground tnum">
+                  <span className="flex items-center gap-1">
+                    <Sparkles className="size-3" aria-hidden /> <span className="sr-only">fame</span>{fmt(d.fame)}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Package className="size-3" aria-hidden /> <span className="sr-only">loot</span>{fmt(d.loot)}
+                  </span>
+                  <span>{d.chests} {d.chests === 1 ? 'chest' : 'chests'}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </Section>
       )}
+
+      {chestEntries.length > 0 && (
+        <Section
+          title="Chest log"
+          extra={chestEntries.length > shownChest.length ? `+${chestEntries.length - shownChest.length} more` : undefined}
+        >
+          <div className="flex flex-col divide-y divide-border/40">
+            {shownChest.map((e, i) => (
+              <div key={`${e.itemId}-${e.at}-${i}`} className="flex items-center gap-3 py-1.5 text-sm">
+                <time className="tnum w-12 shrink-0 text-[11px] text-muted-foreground" dateTime={e.at}>
+                  {timeFmt.format(new Date(e.at))}
+                </time>
+                <ItemIcon itemId={e.itemId} size={22} className="shrink-0" alt="" />
+                <span className="min-w-0 flex-1 truncate text-foreground">
+                  <span className="tnum font-medium">
+                    {e.kind === 'deposit' ? '−' : '+'}
+                    {fmt(e.quantity)}
+                  </span>{' '}
+                  {e.itemName}
+                </span>
+                <span className="shrink-0 truncate text-[11px] text-muted-foreground" title={e.container}>
+                  {humanizeContainer(e.container)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
+
+      {timelineEvents.length > 0 && (
+        <Section
+          title="Event timeline"
+          extra={timelineEvents.length > shownTimeline.length ? `+${timelineEvents.length - shownTimeline.length} more` : undefined}
+        >
+          <ol className="flex flex-col divide-y divide-border/40">
+            {shownTimeline.map((ev, i) => (
+              <li key={`${ev.kind}-${ev.at}-${i}`} className="flex items-center gap-3 py-1.5 text-sm">
+                <time className="tnum w-12 shrink-0 text-[11px] text-muted-foreground" dateTime={ev.at}>
+                  {timeFmt.format(new Date(ev.at))}
+                </time>
+                <span className={cn('min-w-0 flex-1 truncate', timelineKindColor[ev.kind] ?? 'text-muted-foreground')}>
+                  {timelineText(ev)}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </Section>
+      )}
+
+      {shownPlayers.length === 0 &&
+        shownDps.length === 0 &&
+        shownItems.length === 0 &&
+        dungeons.length === 0 &&
+        chestEntries.length === 0 &&
+        timelineEvents.length === 0 && (
+          <div className="text-center text-sm text-muted-foreground">This session has no loot or combat recorded.</div>
+        )}
     </div>
   )
+}
+
+// Timeline event text color by category (mirrors the Timeline tab's accents).
+const timelineKindColor: Record<string, string> = {
+  loot: 'text-primary',
+  silver: 'text-primary',
+  fame: 'text-fame',
+  zone: 'text-zone',
+  kill: 'text-ember',
+}
+
+// Humanize a raw container / source id (TREASURE_COFFER_SOLO, @MOB_CULTIST) into
+// a readable label; the raw id stays in the title attribute.
+function humanizeContainer(raw: string): string {
+  if (!raw) return ''
+  return raw
+    .replace(/^@/, '')
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+function timelineText(ev: SessionDetail['timeline']['events'][number]): string {
+  switch (ev.kind) {
+    case 'loot':
+      return `${ev.player ?? '?'} looted ${ev.quantity ? `×${ev.quantity} ` : ''}${ev.item ?? ''}`.trim()
+    case 'silver':
+      return `${ev.player ?? '?'} +${fmtSilver(ev.silver ?? 0)} silver`
+    case 'fame':
+      return `${ev.player ?? '?'} +${fmt(ev.fame ?? 0)} fame`
+    case 'zone':
+      return `Entered ${ev.zone ?? 'a zone'}`
+    case 'party_joined':
+      return `${ev.player ?? '?'} joined the party`
+    case 'party_left':
+      return `${ev.player ?? '?'} left the party`
+    case 'kill':
+      return `${ev.killer ?? '?'} killed ${ev.player ?? '?'}`
+    default:
+      return ev.kind
+  }
 }
 
 function Section({ title, extra, children }: { title: string; extra?: string; children: React.ReactNode }) {
@@ -258,7 +391,7 @@ function Section({ title, extra, children }: { title: string; extra?: string; ch
     <div>
       <div className="mb-2 flex items-baseline justify-between">
         <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{title}</h3>
-        {extra && <span className="text-xs text-muted-foreground/70">{extra}</span>}
+        {extra && <span className="text-xs text-muted-foreground">{extra}</span>}
       </div>
       {children}
     </div>
