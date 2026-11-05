@@ -55,38 +55,68 @@ func (s *Service) StartReplay(path, label string) error {
 	if label == "" {
 		label = "recording"
 	}
+	s.replayLabel = label
+	s.replayPath = path
+	s.replayFirstNano = first.UnixNano()
+	s.replayLastNano = last.UnixNano()
+	s.launchLocked(defaultReplaySpeed, time.Time{})
+	s.mu.Unlock()
+	return nil
+}
+
+// launchLocked starts (or restarts, for a seek) the replay playback goroutine.
+// Caller holds s.mu and has set replayLabel/replayPath/first/last. skipUntil>0
+// fast-forwards to that time with UI emits suppressed (a seek).
+func (s *Service) launchLocked(speed float64, skipUntil time.Time) {
 	ctx, cancel := context.WithCancel(context.Background())
-	ctl := capture.NewReplayControl(defaultReplaySpeed)
+	ctl := capture.NewReplayControl(clampSpeed(speed))
 	ctl.OnProgress = func(at time.Time) { s.replayAtNano.Store(at.UnixNano()) }
+
+	first := time.Unix(0, s.replayFirstNano)
+	startAt := first
+	if !skipUntil.IsZero() {
+		startAt = skipUntil
+	}
+	done := make(chan struct{})
 	s.replaying = true
 	s.replayCtl = ctl
 	s.replayCancel = cancel
-	s.replayLabel = label
-	s.replayFirstNano = first.UnixNano()
-	s.replayLastNano = last.UnixNano()
-	s.replayAtNano.Store(first.UnixNano())
-	s.status = CaptureStatus{} // clear any stale live status
-	s.mu.Unlock()
+	s.replayDone = done
+	s.replayAtNano.Store(startAt.UnixNano())
+	s.replaySilent.Store(!skipUntil.IsZero()) // suppress emits while fast-forwarding
+	s.status = CaptureStatus{}
+	path := s.replayPath
 
-	// Fresh state so the replay builds from zero, like a live run.
-	s.resetAll()
-	s.opts.Emit("capture:status", s.Status())
-	s.opts.Emit("replay:changed", nil)
-
+	// Rebuild engine state from zero (resetAll locks s.mu internally, so do it
+	// after releasing — schedule via goroutine start below).
 	go func() {
-		src := capture.ReplaySource{Path: path, Control: ctl}
+		defer close(done)
+		s.resetAll()
+		src := capture.ReplaySource{
+			Path:      path,
+			Control:   ctl,
+			SkipUntil: skipUntil,
+			OnReachLive: func() {
+				s.replaySilent.Store(false)
+				s.opts.Emit("capture:status", s.Status())
+				s.opts.Emit("replay:changed", nil)
+			},
+		}
+		s.opts.Emit("capture:status", s.Status())
+		s.opts.Emit("replay:changed", nil)
 		_ = s.eng.Run(ctx, src)
 		s.mu.Lock()
-		s.replaying = false
-		s.replayCtl = nil
-		s.replayCancel = nil
+		if s.replayCtl == ctl { // only the current generation clears state
+			s.replaying = false
+			s.replayCtl = nil
+			s.replayCancel = nil
+			s.replaySilent.Store(false)
+		}
 		s.mu.Unlock()
 		s.opts.Emit("capture:status", s.Status())
 		s.opts.Emit("replay:changed", nil)
 	}()
 
-	// Progress heartbeat so the transport's elapsed time advances smoothly even
-	// between the engine's throttled change events.
 	go func() {
 		t := time.NewTicker(500 * time.Millisecond)
 		defer t.Stop()
@@ -99,7 +129,52 @@ func (s *Service) StartReplay(path, label string) error {
 			}
 		}
 	}()
-	return nil
+}
+
+// SeekReplay jumps the current replay to elapsedSec from the start by rebuilding
+// engine state up to that point (fast-forward) and resuming paced playback.
+func (s *Service) SeekReplay(elapsedSec float64) {
+	if elapsedSec < 0 {
+		elapsedSec = 0
+	}
+	s.mu.Lock()
+	if !s.replaying {
+		s.mu.Unlock()
+		return
+	}
+	total := time.Duration(s.replayLastNano-s.replayFirstNano) * time.Nanosecond
+	target := time.Duration(elapsedSec * float64(time.Second))
+	// Never seek all the way to EOF — that would end the replay and drop the
+	// transport. Keep playback alive just before the end instead.
+	if max := total - time.Second; target > max {
+		target = max
+	}
+	if target < 0 {
+		target = 0
+	}
+	speed := defaultReplaySpeed
+	if s.replayCtl != nil {
+		speed = s.replayCtl.Speed()
+	}
+	oldCtl, oldCancel, oldDone := s.replayCtl, s.replayCancel, s.replayDone
+	skipUntil := time.Unix(0, s.replayFirstNano).Add(target)
+	s.mu.Unlock()
+
+	// Fully stop the current generation (engine.Run refuses concurrent runs) so
+	// the fresh fast-forward starts on a clean engine.
+	if oldCtl != nil {
+		oldCtl.Stop()
+	}
+	if oldCancel != nil {
+		oldCancel()
+	}
+	if oldDone != nil {
+		<-oldDone
+	}
+
+	s.mu.Lock()
+	s.launchLocked(speed, skipUntil)
+	s.mu.Unlock()
 }
 
 // ReplaySession replays a saved session by its id, using the recording path

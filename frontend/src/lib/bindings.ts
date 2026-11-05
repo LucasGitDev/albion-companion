@@ -124,6 +124,7 @@ export const api = {
   pauseReplay: (): Promise<void> => app().PauseReplay(),
   resumeReplay: (): Promise<void> => app().ResumeReplay(),
   setReplaySpeed: (speed: number): Promise<void> => app().SetReplaySpeed(speed),
+  seekReplay: (elapsedSec: number): Promise<void> => app().SeekReplay(elapsedSec),
   stopReplay: (): Promise<void> => app().StopReplay(),
   chestLogView: (recent = 200): Promise<ChestLogView> => app().ChestLogView(recent),
   chestContentsView: (): Promise<ChestContentsView> => app().ChestContentsView(),

@@ -308,16 +308,7 @@ function ReplayTransport({ status }: { status: CaptureStatus | null }) {
 
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <span className="tnum shrink-0 text-xs text-muted-foreground">{fmtDuration(elapsed)}</span>
-        <div
-          role="progressbar"
-          aria-label="Replay progress"
-          aria-valuemin={0}
-          aria-valuemax={total}
-          aria-valuenow={elapsed}
-          className="relative h-1.5 min-w-0 flex-1 overflow-hidden rounded-full border border-muted-foreground bg-muted"
-        >
-          <div className="absolute inset-y-0 left-0 rounded-full bg-warning transition-[width] duration-200 motion-reduce:transition-none" style={{ width: `${pct}%` }} />
-        </div>
+        <ReplaySeekBar elapsed={elapsed} total={total} pct={pct} />
         <span className="tnum shrink-0 text-xs text-muted-foreground">{fmtDuration(total)}</span>
       </div>
 
@@ -345,6 +336,56 @@ function ReplayTransport({ status }: { status: CaptureStatus | null }) {
       >
         <Square className="size-3" /> Stop
       </button>
+    </div>
+  )
+}
+
+function ReplaySeekBar({ elapsed, total, pct }: { elapsed: number; total: number; pct: number }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const seekTo = (clientX: number) => {
+    const el = ref.current
+    if (!el || total <= 0) return
+    const r = el.getBoundingClientRect()
+    const frac = Math.min(1, Math.max(0, (clientX - r.left) / r.width))
+    void api.seekReplay(frac * total)
+  }
+  const onKey = (e: React.KeyboardEvent) => {
+    if (total <= 0) return
+    let next: number | null = null
+    if (e.key === 'ArrowRight') next = Math.min(total, elapsed + 5)
+    else if (e.key === 'ArrowLeft') next = Math.max(0, elapsed - 5)
+    else if (e.key === 'PageUp') next = Math.min(total, elapsed + total * 0.1)
+    else if (e.key === 'PageDown') next = Math.max(0, elapsed - total * 0.1)
+    else if (e.key === 'Home') next = 0
+    else if (e.key === 'End') next = total
+    if (next !== null) {
+      e.preventDefault()
+      void api.seekReplay(next)
+    }
+  }
+  return (
+    <div
+      ref={ref}
+      role="slider"
+      tabIndex={0}
+      aria-label="Replay position"
+      aria-valuemin={0}
+      aria-valuemax={Math.round(total)}
+      aria-valuenow={Math.round(elapsed)}
+      aria-valuetext={fmtDuration(elapsed)}
+      onClick={(e) => seekTo(e.clientX)}
+      onKeyDown={onKey}
+      className="group relative h-4 min-w-0 flex-1 cursor-pointer select-none focus-visible:outline-none"
+    >
+      <div className="absolute inset-x-0 top-1/2 h-1.5 -translate-y-1/2 overflow-hidden rounded-full border border-muted-foreground bg-muted group-focus-visible:ring-2 group-focus-visible:ring-ring">
+        <div className="absolute inset-y-0 left-0 rounded-full bg-warning transition-[width] duration-200 motion-reduce:transition-none" style={{ width: `${pct}%` }} />
+      </div>
+      {/* Thumb so the seek affordance is visible. */}
+      <span
+        aria-hidden
+        className="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full border border-warning bg-background opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 motion-reduce:transition-none"
+        style={{ left: `${pct}%` }}
+      />
     </div>
   )
 }

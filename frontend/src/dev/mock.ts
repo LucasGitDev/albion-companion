@@ -596,6 +596,11 @@ export function installMock() {
           emit('capture:status')
           emit('replay:changed')
         },
+        SeekReplay: async (sec: number) => {
+          replaySt.elapsed = Math.max(0, Math.min(replaySt.total, Math.round(sec)))
+          emit('capture:status')
+          emit('replay:changed')
+        },
         StopReplay: async () => stopReplayMock(),
         SessionInfo: async () => sessionInfo,
         SetSessionInfo: async (label: string, type: string) => {

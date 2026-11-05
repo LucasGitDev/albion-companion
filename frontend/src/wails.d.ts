@@ -470,6 +470,7 @@ declare global {
           PauseReplay(): Promise<void>
           ResumeReplay(): Promise<void>
           SetReplaySpeed(speed: number): Promise<void>
+          SeekReplay(elapsedSec: number): Promise<void>
           StopReplay(): Promise<void>
           SetSessionInfo(label: string, type: string): Promise<void>
           StartSession(label: string, type: string): Promise<void>
