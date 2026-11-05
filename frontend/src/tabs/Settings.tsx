@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { RefreshCw, FolderOpen, HardDrive, Save, Check, AlertTriangle } from 'lucide-react'
+import { RefreshCw, FolderOpen, FolderInput, HardDrive, Save, Check, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { api, on, type CodesInfo, type ItemDBInfo, type PriceRegion, type ValueView, type RecordingsInfo, type RecordConfig } from '@/lib/bindings'
@@ -169,6 +169,7 @@ function Recordings() {
   const [draft, setDraft] = useState<RecordConfig | null>(null)
   const [loadErr, setLoadErr] = useState(false)
   const [saveErr, setSaveErr] = useState(false)
+  const [folderErr, setFolderErr] = useState(false)
   const [saved, setSaved] = useState(false)
   const savedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
@@ -244,7 +245,7 @@ function Recordings() {
         {info?.override && (
           <p className="rounded-md border border-warning/30 bg-warning/10 px-2.5 py-1.5 text-xs text-warning">
             Recording is controlled by the <code className="font-mono">ALBION_COMPANION_RECORD</code> environment
-            variable; auto-record settings are paused.
+            variable; auto-record and folder settings are paused.
           </p>
         )}
 
@@ -273,15 +274,51 @@ function Recordings() {
         </div>
 
         <div className="flex items-center justify-between gap-3">
-          <span>Folder</span>
-          <Button size="sm" variant="outline" onClick={() => void api.openRecordingsDir()} disabled={!info?.dir}>
-            <FolderOpen /> Open folder
-          </Button>
+          <span id="rec-folder-label" className="text-foreground">
+            Folder
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={info?.override}
+              onClick={() => {
+                setFolderErr(false)
+                api.chooseRecordingsDir().catch(() => setFolderErr(true))
+              }}
+            >
+              <FolderInput /> Change…
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => void api.openRecordingsDir()} disabled={!info?.dir}>
+              <FolderOpen /> Open folder
+            </Button>
+          </div>
         </div>
         {info?.dir && (
-          <div tabIndex={0} role="note" aria-label="Recordings folder path" className="-mt-1 truncate font-mono text-xs text-muted-foreground/80 outline-none focus-visible:ring-2 focus-visible:ring-ring" title={info.dir}>
-            {info.dir}
+          <div className="-mt-1 flex items-center justify-between gap-3">
+            <code
+              tabIndex={0}
+              aria-labelledby="rec-folder-label"
+              className="min-w-0 flex-1 break-all font-mono text-xs text-muted-foreground/80 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              title={info.dir}
+            >
+              {info.dir}
+            </code>
+            {info.custom && !info.override && (
+              <button
+                onClick={() => void api.resetRecordingsDir()}
+                className="inline-flex min-h-6 shrink-0 items-center rounded px-1 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                Use default
+              </button>
+            )}
           </div>
+        )}
+        {folderErr && (
+          <p role="alert" className="-mt-1 flex items-center gap-1.5 text-xs text-foreground">
+            <AlertTriangle className="size-3.5 shrink-0 text-destructive" />
+            Couldn't change the folder — try again.
+          </p>
         )}
 
         <div className="flex items-center gap-2">

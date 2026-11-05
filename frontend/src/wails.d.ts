@@ -414,6 +414,7 @@ export interface RecordingsInfo {
   dir: string
   enabled: boolean
   override: boolean
+  custom: boolean
   count: number
   bytes: number
   config: RecordConfig
@@ -465,6 +466,8 @@ declare global {
           SetRecordConfig(cfg: RecordConfig): Promise<void>
           RecordingsInfo(): Promise<RecordingsInfo>
           OpenRecordingsDir(): Promise<void>
+          ChooseRecordingsDir(): Promise<string>
+          ResetRecordingsDir(): Promise<void>
           ReplaySession(id: string): Promise<void>
           ReplayRecording(): Promise<string>
           PauseReplay(): Promise<void>

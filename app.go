@@ -242,9 +242,23 @@ func (a *App) ReplayRecording() (string, error) {
 	return name, nil
 }
 
+// ChooseRecordingsDir opens a native directory picker and sets it as the
+// recordings folder. Returns the chosen path, or "" if cancelled.
+func (a *App) ChooseRecordingsDir() (string, error) {
+	dir, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{Title: "Choose recordings folder"})
+	if err != nil || dir == "" {
+		return "", err
+	}
+	a.svc.SetRecordingsDir(dir)
+	return dir, nil
+}
+
+// ResetRecordingsDir clears the custom folder, reverting to the app default.
+func (a *App) ResetRecordingsDir() { a.svc.SetRecordingsDir("") }
+
 // OpenRecordingsDir reveals the recordings folder in the OS file manager.
 func (a *App) OpenRecordingsDir() error {
-	dir := recordingsDir()
+	dir := a.svc.RecordingsInfo().Dir
 	if dir == "" {
 		return nil
 	}

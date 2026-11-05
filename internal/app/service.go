@@ -102,7 +102,7 @@ type Service struct {
 	guardCfg GuardConfig   // Loot Guard anti-theft roster (loaded from ConfigDir)
 	known    *knownPlayers // accumulating registry of observed player nicks
 
-	recCfg RecordConfig      // auto-record settings (loaded from ConfigDir)
+	prefs  Preferences       // app preferences (loaded from ConfigDir/preferences.json)
 	curRec *capture.Recorder // current per-capture recording (nil when not recording)
 
 	// replay (History time machine): playing a recording back through the live
@@ -135,7 +135,7 @@ func NewService(opts Options) *Service {
 	}
 	s.guardCfg = loadGuardConfig(opts.ConfigDir)
 	s.known = newKnownPlayers(opts.ConfigDir)
-	s.recCfg = loadRecordConfig(opts.ConfigDir)
+	s.prefs = loadPreferences(opts.ConfigDir)
 	s.prices = opts.Prices
 	if s.prices == nil {
 		// Prices land asynchronously; nudge the UI to re-pull the loot view so
