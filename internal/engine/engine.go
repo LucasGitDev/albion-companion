@@ -43,6 +43,7 @@ const (
 	TopicTimeline Topic = "timeline"
 	TopicDungeon  Topic = "dungeon"
 	TopicChestLog Topic = "chestlog"
+	TopicChest    Topic = "chest"
 	TopicRoute    Topic = "route"
 )
 
@@ -537,6 +538,7 @@ func (e *Engine) handleEvent(m protocol.Message) {
 	case events.EvAttachItemContainer:
 		if c, err := events.DecodeAttachItemContainer(m.Params); err == nil {
 			e.chest.Attach(c)
+			e.changed(TopicChest) // chest contents (what dropped) may have grown
 		}
 	case events.EvInventoryPutItem:
 		// A single item grabbed from a chest/body into the inventory (open-world

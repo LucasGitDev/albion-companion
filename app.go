@@ -257,6 +257,7 @@ func (a *App) SessionInfo() app.SessionInfo              { return a.svc.SessionI
 func (a *App) SetSessionInfo(label, typ string)          { a.svc.SetSessionInfo(label, typ) }
 func (a *App) StartSession(label, typ string)            { a.svc.StartSession(label, typ) }
 func (a *App) ChestLogView(recent int) chestlog.Snapshot { return a.svc.ChestLogView(recent) }
+func (a *App) ChestContentsView() app.ChestContentsView  { return a.svc.ChestContentsView() }
 func (a *App) ResetChestLog()                            { a.svc.ResetChestLog() }
 func (a *App) RouteView(recent int) route.Snapshot       { return a.svc.RouteView(recent) }
 func (a *App) ResetRoute()                               { a.svc.ResetRoute() }

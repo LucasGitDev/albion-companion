@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { Archive, Box, Info, RotateCcw, ArrowDownToLine } from 'lucide-react'
+import { Archive, Box, Info, RotateCcw, ArrowDownToLine, PackageOpen, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Loading, ErrorState } from '@/components/ui/states'
 import { ItemIcon } from '@/components/ItemIcon'
-import { api, type ChestLogEntry } from '@/lib/bindings'
+import { api, type ChestLogEntry, type ChestContainer } from '@/lib/bindings'
 import { useTopic } from '@/hooks/useTopic'
 import { fmt, cn } from '@/lib/utils'
 
@@ -66,8 +66,12 @@ export function ChestLog() {
         )}
       </div>
 
+      <ChestDrops />
+
+      <h2 className="font-display text-xs font-semibold uppercase tracking-wider text-muted-foreground">Your withdrawals</h2>
+
       {/* Honest scope note (TASK-14 / decision-7): local-only, withdrawals-only. */}
-      <div className="flex items-start gap-2 rounded-lg border border-border bg-elevated/40 px-3 py-2 text-sm text-muted-foreground">
+      <div className="-mt-2 flex items-start gap-2 rounded-lg border border-border bg-elevated/40 px-3 py-2 text-sm text-muted-foreground">
         <Info className="mt-0.5 size-4 shrink-0" />
         <span>Only your own withdrawals are visible. Deposits and other players' chest moves can't be tracked.</span>
       </div>
@@ -88,6 +92,98 @@ export function ChestLog() {
         </ul>
       )}
     </div>
+  )
+}
+
+// ChestDrops shows what each observed chest/bag contained, regardless of who
+// collected it (TASK-61). Contents are only on the wire when a chest is opened
+// near you, so coverage is partial, and a third-party taker is not attributable.
+function ChestDrops() {
+  const { data } = useTopic(() => api.chestContentsView(), ['chest:changed', 'zone:changed'])
+  const containers = data?.containers ?? []
+  if (containers.length === 0) return null
+  return (
+    <section className="flex flex-col gap-2">
+      <h2 className="font-display text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Chest drops · {containers.length}
+      </h2>
+      <div className="flex items-start gap-2 rounded-lg border border-border bg-elevated/40 px-3 py-2 text-sm text-muted-foreground">
+        <Info className="mt-0.5 size-4 shrink-0" />
+        <span className="max-w-[70ch]">
+          What each chest/bag dropped, even if nobody picked it up. Only chests opened near you are captured, and who took
+          a third party's chest isn't observable — only your own takes are marked.
+        </span>
+      </div>
+      <div className="grid gap-3 lg:grid-cols-2">
+        {containers.map((c, i) => (
+          <ChestCard key={`${c.name}-${i}`} c={c} />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+export function ChestCard({ c }: { c: ChestContainer }) {
+  const items = c.items ?? []
+  return (
+    <div className="flex flex-col gap-2 rounded-xl border border-border bg-surface/60 p-3">
+      <div className="flex items-baseline justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <PackageOpen className="size-3.5 shrink-0 text-primary/80" />
+          <span className="truncate text-sm font-medium text-foreground" title={c.name}>
+            {prettyChest(c.name)}
+          </span>
+          {chestTier(c.name) && (
+            <span className="shrink-0 rounded-sm bg-elevated px-1.5 py-px text-[10px] font-medium uppercase tracking-wide text-muted-foreground ring-1 ring-inset ring-border">
+              {chestTier(c.name)}
+            </span>
+          )}
+        </div>
+        <span className="shrink-0 text-xs text-muted-foreground">
+          {fmt(c.totalItems)} items{c.takenItems > 0 ? ` · ${fmt(c.takenItems)} taken` : ''}
+        </span>
+      </div>
+      <div role="list" className="flex flex-wrap gap-1.5">
+        {items.map((it, i) => (
+          <span
+            role="listitem"
+            key={`${it.itemId}-${i}`}
+            className={cn(
+              'inline-flex items-center gap-1 rounded-md py-0.5 pl-1 pr-1.5 text-xs',
+              it.taken ? 'bg-elevated/50 opacity-60' : 'bg-elevated text-foreground',
+            )}
+          >
+            <ItemIcon itemId={it.itemId} size={18} alt="" />
+            <span aria-hidden className="tnum font-medium">{fmt(it.quantity)}</span>
+            {it.taken && <Check aria-hidden className="size-3.5 text-muted-foreground" />}
+            <span className="sr-only">
+              {(it.itemName || it.itemId) + ', ' + fmt(it.quantity) + (it.taken ? ', taken' : '')}
+            </span>
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// chestTier extracts a rarity tag (Common/Uncommon/Rare/Epic/Legendary) from a
+// chest set name, for a neutral per-card badge so tiers are distinguishable.
+function chestTier(name: string): string {
+  const m = /_(COMMON|UNCOMMON|RARE|EPIC|LEGENDARY)/.exec(name)
+  return m ? m[1].charAt(0) + m[1].slice(1).toLowerCase() : ''
+}
+
+function prettyChest(name: string): string {
+  if (!name) return 'Chest'
+  if (name.startsWith('@MOB_')) return pretty(name.replace(/^@MOB_/, '')) + ' (bag)'
+  return pretty(
+    name
+      .replace(/^AVALON_ELITE_LOOTCHEST_SET_/, 'Avalon ')
+      .replace(/^TREASURE_/, '')
+      .replace(/_MERGED$/, '')
+      .replace(/_(COMMON|UNCOMMON|RARE|EPIC|LEGENDARY)\b/, '') // rarity shown as a badge
+      .replace(/(COMMON|UNCOMMON|RARE|EPIC|LEGENDARY)$/i, '')
+      .trim(),
   )
 }
 

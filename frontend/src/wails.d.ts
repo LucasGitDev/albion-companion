@@ -266,6 +266,25 @@ export interface ChestLogView {
   containers: number
 }
 
+export interface ChestItem {
+  itemId: string
+  itemName: string
+  quantity: number
+  taken: boolean
+}
+
+export interface ChestContainer {
+  name: string
+  items: ChestItem[] | null
+  totalItems: number
+  takenItems: number
+}
+
+export interface ChestContentsView {
+  containers: ChestContainer[] | null
+  total: number
+}
+
 export interface SessionMeta {
   id: string
   startedAt: string
@@ -297,6 +316,7 @@ export interface SessionDetail {
   timeline: TimelineView
   chestLog: ChestLogView
   dungeon: DungeonView
+  chestContents: ChestContentsView
 }
 
 export interface GatherItem {
@@ -454,6 +474,7 @@ declare global {
           SetSessionInfo(label: string, type: string): Promise<void>
           StartSession(label: string, type: string): Promise<void>
           ChestLogView(recent: number): Promise<ChestLogView>
+          ChestContentsView(): Promise<ChestContentsView>
           ResetChestLog(): Promise<void>
           RouteView(recent: number): Promise<RouteView>
           ResetRoute(): Promise<void>
