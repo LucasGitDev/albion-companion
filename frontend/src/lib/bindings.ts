@@ -101,6 +101,7 @@ export const api = {
   lootGuardConfig: (): Promise<GuardConfig> => app().LootGuardConfig(),
   setLootGuardConfig: (cfg: GuardConfig): Promise<void> => app().SetLootGuardConfig(cfg),
   exportLootGuardCSV: (): Promise<string> => app().ExportLootGuardCSV(),
+  knownPlayers: (): Promise<string[]> => app().KnownPlayers(),
   chestLogView: (recent = 200): Promise<ChestLogView> => app().ChestLogView(recent),
   resetChestLog: (): Promise<void> => app().ResetChestLog(),
   routeView: (recent = 500): Promise<RouteView> => app().RouteView(recent),

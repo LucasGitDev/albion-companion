@@ -84,7 +84,8 @@ type Service struct {
 	store        *store.Store // nil when SessionsDir is unset
 	sessionStart time.Time    // start of the current capture session (for persistence)
 
-	guardCfg GuardConfig // Loot Guard anti-theft roster (loaded from ConfigDir)
+	guardCfg GuardConfig   // Loot Guard anti-theft roster (loaded from ConfigDir)
+	known    *knownPlayers // accumulating registry of observed player nicks
 }
 
 func NewService(opts Options) *Service {
@@ -102,6 +103,7 @@ func NewService(opts Options) *Service {
 		s.store = store.New(opts.SessionsDir)
 	}
 	s.guardCfg = loadGuardConfig(opts.ConfigDir)
+	s.known = newKnownPlayers(opts.ConfigDir)
 	s.prices = opts.Prices
 	if s.prices == nil {
 		// Prices land asynchronously; nudge the UI to re-pull the loot view so
@@ -118,7 +120,12 @@ func NewService(opts Options) *Service {
 		Combat:   opts.Combat,
 		Recorder: opts.Recorder,
 		OnChange: s.onChange,
-		OnLoot:   func(e loot.Entry) { s.opts.Emit("loot:new", e) },
+		OnLoot: func(e loot.Entry) {
+			if e.Looter != "" {
+				s.known.add(e.Looter)
+			}
+			s.opts.Emit("loot:new", e)
+		},
 	})
 	return s
 }

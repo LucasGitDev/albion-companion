@@ -406,6 +406,7 @@ declare global {
           LootGuardConfig(): Promise<GuardConfig>
           SetLootGuardConfig(cfg: GuardConfig): Promise<void>
           ExportLootGuardCSV(): Promise<string>
+          KnownPlayers(): Promise<string[]>
           ChestLogView(recent: number): Promise<ChestLogView>
           ResetChestLog(): Promise<void>
           RouteView(recent: number): Promise<RouteView>

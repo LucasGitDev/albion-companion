@@ -203,6 +203,7 @@ func (a *App) ResetGather()                              { a.svc.ResetGather() }
 func (a *App) LootGuardView(recent int) app.GuardView    { return a.svc.LootGuardView(recent) }
 func (a *App) LootGuardConfig() app.GuardConfig          { return a.svc.LootGuardConfig() }
 func (a *App) SetLootGuardConfig(cfg app.GuardConfig)    { a.svc.SetLootGuardConfig(cfg) }
+func (a *App) KnownPlayers() []string                    { return a.svc.KnownPlayers() }
 func (a *App) ChestLogView(recent int) chestlog.Snapshot { return a.svc.ChestLogView(recent) }
 func (a *App) ResetChestLog()                            { a.svc.ResetChestLog() }
 func (a *App) RouteView(recent int) route.Snapshot       { return a.svc.RouteView(recent) }

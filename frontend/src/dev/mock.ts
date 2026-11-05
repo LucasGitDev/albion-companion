@@ -476,6 +476,11 @@ export function installMock() {
           emit('guard:changed')
         },
         ExportLootGuardCSV: async () => '/Users/you/Downloads/albion-loot-guard-dev.csv',
+        KnownPlayers: async () =>
+          // Observed nicks accumulated across sessions (suspects + squad + extras).
+          [...new Set(['teolando', 'dragonplot', 'ThalisDON', ...members.map((m) => m.Name), 'Anellisa', 'GRENOK', 'karapima', 'Ecilon'])].sort((a, b) =>
+            a.toLowerCase().localeCompare(b.toLowerCase()),
+          ),
         HistoryList: async () =>
           devState === 'empty'
             ? []
