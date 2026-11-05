@@ -317,9 +317,60 @@ function status(): CaptureStatus {
       error: 'pcap: en0: Operation not permitted (need read access to /dev/bpf*)',
       stats: { packets: 0, messages: 0, unknown: 0, decodeErrors: 0, encrypted: 0 },
       codesOutdated: false,
+      replay: false,
+      replayPlaying: false,
+      replaySpeed: 8,
+      replayElapsedSec: 0,
+      replayTotalSec: 0,
+      replayLabel: '',
     }
   }
-  return { running, sources: ['en0'], stats, codesOutdated: devState === 'stale' }
+  return {
+    running,
+    sources: ['en0'],
+    stats,
+    codesOutdated: devState === 'stale',
+    replay: replaySt.active,
+    replayPlaying: replaySt.playing,
+    replaySpeed: replaySt.speed,
+    replayElapsedSec: replaySt.elapsed,
+    replayTotalSec: replaySt.total,
+    replayLabel: replaySt.label,
+  }
+}
+
+const replaySt = { active: false, playing: false, speed: 8, elapsed: 0, total: 5880, label: '' }
+let replayTimer: ReturnType<typeof setInterval> | undefined
+function startReplayMock(label: string) {
+  replaySt.active = true
+  replaySt.playing = true
+  replaySt.speed = 8
+  replaySt.elapsed = 0
+  replaySt.label = label
+  running = false
+  emit('capture:status')
+  emit('replay:changed')
+  clearInterval(replayTimer)
+  replayTimer = setInterval(() => {
+    if (!replaySt.active) return
+    if (replaySt.playing) replaySt.elapsed = Math.min(replaySt.total, replaySt.elapsed + replaySt.speed)
+    emit('replay:progress')
+    emit('loot:changed')
+    if (replaySt.elapsed >= replaySt.total) {
+      replaySt.active = false
+      replaySt.playing = false
+      clearInterval(replayTimer)
+      emit('capture:status')
+      emit('replay:changed')
+    }
+  }, 500)
+}
+function stopReplayMock() {
+  replaySt.active = false
+  replaySt.playing = false
+  clearInterval(replayTimer)
+  emit('capture:status')
+  emit('replay:changed')
 }
 
 function partyView(): PartyView {
@@ -492,6 +543,27 @@ export function installMock() {
           config: recordCfg,
         }),
         OpenRecordingsDir: async () => {},
+        ReplaySession: async (id: string) => startReplayMock(id === '20261031-203000' ? 'Avalon run' : 'Morgana farm'),
+        ReplayRecording: async () => {
+          startReplayMock('albion-20261103-192657.aorec')
+          return 'albion-20261103-192657.aorec'
+        },
+        PauseReplay: async () => {
+          replaySt.playing = false
+          emit('capture:status')
+          emit('replay:changed')
+        },
+        ResumeReplay: async () => {
+          replaySt.playing = true
+          emit('capture:status')
+          emit('replay:changed')
+        },
+        SetReplaySpeed: async (s: number) => {
+          replaySt.speed = s
+          emit('capture:status')
+          emit('replay:changed')
+        },
+        StopReplay: async () => stopReplayMock(),
         SessionInfo: async () => sessionInfo,
         SetSessionInfo: async (label: string, type: string) => {
           sessionInfo = { ...sessionInfo, label, type }
@@ -513,8 +585,8 @@ export function installMock() {
           devState === 'empty'
             ? []
             : [
-                { id: '20261101-101500', startedAt: '2026-11-01T10:15:00Z', endedAt: '2026-11-01T11:02:00Z', zone: 'Morgana Dungeon (T6)', me: 'L0rdCap', label: 'Morgana farm', type: 'group', lootCount: 184, silver: 412000, fame: 1_240_000, damage: 3_200_000 },
-                { id: '20261031-203000', startedAt: '2026-10-31T20:30:00Z', endedAt: '2026-10-31T21:48:00Z', zone: 'Avalon · Roads', me: 'L0rdCap', label: 'Avalon run', type: 'avalon', lootCount: 96, silver: 180500, fame: 640_000, damage: 1_050_000 },
+                { id: '20261101-101500', startedAt: '2026-11-01T10:15:00Z', endedAt: '2026-11-01T11:02:00Z', zone: 'Morgana Dungeon (T6)', me: 'L0rdCap', label: 'Morgana farm', type: 'group', recordingPath: '/recordings/albion-20261101-101500.aorec', lootCount: 184, silver: 412000, fame: 1_240_000, damage: 3_200_000 },
+                { id: '20261031-203000', startedAt: '2026-10-31T20:30:00Z', endedAt: '2026-10-31T21:48:00Z', zone: 'Avalon · Roads', me: 'L0rdCap', label: 'Avalon run', type: 'avalon', recordingPath: '/recordings/albion-20261031-203000.aorec', lootCount: 96, silver: 180500, fame: 640_000, damage: 1_050_000 },
                 { id: '20261030-190000', startedAt: '2026-10-30T19:00:00Z', endedAt: '2026-10-30T19:22:00Z', zone: 'Lymhurst', me: 'L0rdCap', lootCount: 12, silver: 9800, fame: 40_000, damage: 0 },
               ],
         HistoryLoad: async (id: string) => ({

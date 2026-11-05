@@ -1,10 +1,11 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { Package, Coins, Sparkles, Swords, Clock, MapPin, Download, Trash2, ChevronRight, FileUp, AlertTriangle } from 'lucide-react'
+import { Package, Coins, Sparkles, Swords, Clock, MapPin, Download, Trash2, ChevronRight, FileUp, AlertTriangle, PlayCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Loading, ErrorState } from '@/components/ui/states'
 import { ItemIcon } from '@/components/ItemIcon'
 import { api, type SessionMeta, type SessionDetail } from '@/lib/bindings'
 import { useTopic } from '@/hooks/useTopic'
+import { useStatus } from '@/hooks/useStatus'
 import { fmt, fmtSilver, cn } from '@/lib/utils'
 import { sessionTypeLabel } from '@/lib/sessionTypes'
 
@@ -156,13 +157,15 @@ function SessionCard({ s, open, onToggle, onDeleted }: { s: SessionMeta; open: b
           <Metric icon={Swords} color="text-muted-foreground" label="Damage" value={fmt(s.damage)} />
         </span>
       </button>
-      {open && <SessionDetailPanel id={panelId} sessionId={s.id} onDeleted={onDeleted} />}
+      {open && <SessionDetailPanel id={panelId} sessionId={s.id} canReplay={!!s.recordingPath} onDeleted={onDeleted} />}
     </div>
   )
 }
 
-function SessionDetailPanel({ id, sessionId, onDeleted }: { id: string; sessionId: string; onDeleted: () => void }) {
+function SessionDetailPanel({ id, sessionId, canReplay, onDeleted }: { id: string; sessionId: string; canReplay: boolean; onDeleted: () => void }) {
   const { data, status, retry } = useTopic<SessionDetail>(() => api.historyLoad(sessionId), [], [sessionId])
+  const live = useStatus()
+  const [replayBusy, setReplayBusy] = useState(false)
   const [busy, setBusy] = useState(false)
   const [confirmDel, setConfirmDel] = useState(false)
   const [actionMsg, setActionMsg] = useState<{ kind: 'error' | 'ok'; text: string } | null>(null)
@@ -230,6 +233,31 @@ function SessionDetailPanel({ id, sessionId, onDeleted }: { id: string; sessionI
             {actionMsg.text}
           </span>
         )}
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={!canReplay || replayBusy || !!live?.running || !!live?.replay}
+          aria-busy={replayBusy}
+          title={
+            !canReplay
+              ? 'No recording saved for this session'
+              : live?.running
+                ? 'Stop live capture to replay'
+                : live?.replay
+                  ? 'A replay is already running'
+                  : 'Play this session back through the live views (time machine)'
+          }
+          onClick={() => {
+            setReplayBusy(true)
+            setActionMsg(null)
+            api
+              .replaySession(sessionId)
+              .catch(() => setActionMsg({ kind: 'error', text: 'Replay failed. Try again.' }))
+              .finally(() => setReplayBusy(false))
+          }}
+        >
+          <PlayCircle /> Replay
+        </Button>
         <Button size="sm" variant="outline" onClick={doExport}>
           <Download /> Export CSV
         </Button>

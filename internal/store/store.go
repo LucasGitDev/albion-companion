@@ -16,17 +16,18 @@ import (
 
 // Meta is the session header shown in the History list.
 type Meta struct {
-	ID        string    `json:"id"` // filename-safe start timestamp, e.g. 20060102-150405
-	StartedAt time.Time `json:"startedAt"`
-	EndedAt   time.Time `json:"endedAt"`
-	Zone      string    `json:"zone"`
-	Me        string    `json:"me"`
-	Label     string    `json:"label,omitempty"` // user-set session name (optional)
-	Type      string    `json:"type,omitempty"`  // user-set session type (avalon/group/…)
-	LootCount int       `json:"lootCount"`
-	Silver    float64   `json:"silver"`
-	Fame      float64   `json:"fame"`
-	Damage    int64     `json:"damage"`
+	ID            string    `json:"id"` // filename-safe start timestamp, e.g. 20060102-150405
+	StartedAt     time.Time `json:"startedAt"`
+	EndedAt       time.Time `json:"endedAt"`
+	Zone          string    `json:"zone"`
+	Me            string    `json:"me"`
+	Label         string    `json:"label,omitempty"`         // user-set session name (optional)
+	Type          string    `json:"type,omitempty"`          // user-set session type (avalon/group/…)
+	RecordingPath string    `json:"recordingPath,omitempty"` // .aorec this session was recorded to / rebuilt from (enables replay)
+	LootCount     int       `json:"lootCount"`
+	Silver        float64   `json:"silver"`
+	Fame          float64   `json:"fame"`
+	Damage        int64     `json:"damage"`
 }
 
 // record is the on-disk shape: header + opaque detail the app layer defines.
