@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -778,11 +779,24 @@ func (s *Service) lootViewFull() LootView {
 // the session captured nothing worth keeping.
 func (s *Service) saveSession() {
 	s.mu.Lock()
-	st := s.store
 	start := s.sessionStart
 	label := s.sessionLabel
 	typ := s.sessionType
 	s.sessionStart = time.Time{}
+	s.mu.Unlock()
+	if start.IsZero() {
+		return
+	}
+	s.persistSession(start, time.Now(), label, typ)
+}
+
+// persistSession builds and writes a session with explicit bounds. Live capture
+// passes (start, now); reprocessing a recording passes the recording's own
+// times so History shows the real date. No-op when history is disabled or
+// nothing was captured.
+func (s *Service) persistSession(start, end time.Time, label, typ string) {
+	s.mu.Lock()
+	st := s.store
 	s.mu.Unlock()
 	if st == nil || start.IsZero() {
 		return
@@ -801,7 +815,7 @@ func (s *Service) saveSession() {
 	meta := store.Meta{
 		ID:        store.NewID(start),
 		StartedAt: start,
-		EndedAt:   time.Now(),
+		EndedAt:   end,
 		Zone:      gs.Location(),
 		Me:        gs.LocalPlayer().Name,
 		Label:     label,
@@ -821,6 +835,57 @@ func (s *Service) saveSession() {
 		return
 	}
 	_ = st.Save(meta, detail) // best-effort; a write error must not crash capture
+}
+
+// ReprocessAorec replays a saved .aorec recording through a throwaway engine and
+// saves the result as a new History session, without touching live capture. The
+// session's times come from the recorded loot so History shows the real date;
+// an empty label defaults to the file name. Runs synchronously (the Wails
+// binding calls it off the UI thread).
+func (s *Service) ReprocessAorec(path, label, typ string) error {
+	if s.store == nil {
+		return fmt.Errorf("reprocess: history is disabled")
+	}
+	if strings.TrimSpace(path) == "" {
+		return fmt.Errorf("reprocess: no file given")
+	}
+	if strings.TrimSpace(label) == "" {
+		label = strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+	}
+
+	// A throwaway service with its own engine, writing to the same history
+	// store and sharing the price cache. A no-op emitter keeps replay churn off
+	// the live UI; we fire a single history:changed at the end.
+	sub := NewService(Options{
+		Codes:          s.opts.Codes,
+		Items:          s.opts.Items,
+		Prices:         s.prices,
+		SessionsDir:    s.opts.SessionsDir,
+		PricesCacheDir: s.opts.PricesCacheDir,
+		Throttle:       time.Hour,
+		Emit:           func(string, any) {},
+	})
+	if err := sub.eng.Run(context.Background(), capture.ReplaySource{Path: path}); err != nil {
+		return fmt.Errorf("reprocess: %w", err)
+	}
+
+	// Bound the session by the recorded loot times (fall back to the engine's
+	// session start / now when there was no loot).
+	start := sub.eng.Loot().StartedAt()
+	entries := sub.eng.Loot().Entries(loot.Filter{IncludeTrash: true})
+	end := start
+	for _, e := range entries {
+		if e.At.After(end) {
+			end = e.At
+		}
+	}
+	if start.IsZero() {
+		start = time.Now()
+		end = start
+	}
+	sub.persistSession(start, end, strings.TrimSpace(label), strings.TrimSpace(typ))
+	s.opts.Emit("history:changed", nil)
+	return nil
 }
 
 // HistoryList returns saved sessions, newest first (empty when disabled).

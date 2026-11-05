@@ -516,6 +516,12 @@ export function installMock() {
         DeleteSession: async () => {
           emit('history:changed')
         },
+        ReprocessAorec: async (label: string) => {
+          // Simulate a native file pick + replay; refresh History afterwards.
+          await new Promise((r) => setTimeout(r, 700))
+          emit('history:changed')
+          return label || 'albion-20261103-192657.aorec'
+        },
         ExportSessionCSV: async (id: string) => `/Users/you/Downloads/albion-session-${id}.csv`,
         ChestLogView: async () => {
           if (devState === 'empty') return { entries: [], total: 0, withdrawn: 0, deposited: 0, containers: 0 }

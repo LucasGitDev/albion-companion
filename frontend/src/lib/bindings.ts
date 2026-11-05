@@ -112,6 +112,7 @@ export const api = {
   routeView: (recent = 500): Promise<RouteView> => app().RouteView(recent),
   resetRoute: (): Promise<void> => app().ResetRoute(),
   historyList: (): Promise<SessionMeta[] | null> => app().HistoryList(),
+  reprocessAorec: (label = '', type = ''): Promise<string> => app().ReprocessAorec(label, type),
   historyLoad: (id: string): Promise<SessionDetail> => app().HistoryLoad(id),
   deleteSession: (id: string): Promise<void> => app().DeleteSession(id),
   exportSessionCSV: (id: string): Promise<string> => app().ExportSessionCSV(id),
