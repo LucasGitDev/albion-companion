@@ -7,6 +7,23 @@ StatisticsAnalysis and ao-loot-logger. It never touches the game client.
 
 > Status: engine + CLI working against synthetic sessions. Desktop UI (Wails) in progress.
 
+## Download (prebuilt)
+
+CI builds the desktop app for **macOS, Windows and Linux** on every push to
+`main` (see `.github/workflows/build.yml`). Grab a build from the **Actions** tab
+(artifacts, kept 14 days) or, for a tagged version (`git tag vX.Y.Z && git push
+--tags`), from the **Releases** page.
+
+Runtime requirements on the machine that runs the app:
+
+- **Windows**: install [Npcap](https://npcap.com) (default options) — the app
+  reads packets through it. Then run `albion-companion.exe`.
+- **Linux**: `libpcap`, `libgtk-3` and `libwebkit2gtk-4.1` (e.g.
+  `sudo apt install libpcap0.8 libgtk-3-0 libwebkit2gtk-4.1-0`). Grant capture
+  permission with `sudo setcap cap_net_raw,cap_net_admin=eip ./albion-companion`.
+- **macOS**: unzip the `.app`; give packet-capture permission (see below). The
+  build is unsigned, so first launch may need right-click → Open.
+
 ## Quick start (dev)
 
 ```bash
