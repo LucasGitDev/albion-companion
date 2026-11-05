@@ -8,6 +8,7 @@ import { useTopic } from '@/hooks/useTopic'
 import { useStatus } from '@/hooks/useStatus'
 import { fmt, fmtSilver, cn } from '@/lib/utils'
 import { sessionTypeLabel } from '@/lib/sessionTypes'
+import { ChestCard } from '@/tabs/ChestLog'
 
 const dateFmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' })
 const timeFmt = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit' })
@@ -194,6 +195,7 @@ function SessionDetailPanel({ id, sessionId, canReplay, onDeleted }: { id: strin
   const dps = (data.combat.rows ?? []).filter((r) => r.damage > 0)
   const dungeons = data.dungeon?.records ?? []
   const chestEntries = data.chestLog?.entries ?? []
+  const chestDrops = data.chestContents?.containers ?? []
   const timelineEvents = data.timeline?.events ?? []
   const shownPlayers = players.slice(0, 8)
   const shownItems = items.slice(0, 12)
@@ -376,6 +378,16 @@ function SessionDetailPanel({ id, sessionId, canReplay, onDeleted }: { id: strin
         </Section>
       )}
 
+      {chestDrops.length > 0 && (
+        <Section title="Chest drops" extra={`${chestDrops.length} container${chestDrops.length === 1 ? '' : 's'}`}>
+          <div className="grid gap-3 lg:grid-cols-2">
+            {chestDrops.map((c, i) => (
+              <ChestCard key={`${c.name}-${i}`} c={c} />
+            ))}
+          </div>
+        </Section>
+      )}
+
       {chestEntries.length > 0 && (
         <Section
           title="Chest log"
@@ -429,6 +441,7 @@ function SessionDetailPanel({ id, sessionId, canReplay, onDeleted }: { id: strin
         shownItems.length === 0 &&
         dungeons.length === 0 &&
         chestEntries.length === 0 &&
+        chestDrops.length === 0 &&
         timelineEvents.length === 0 && (
           <div className="text-center text-sm text-muted-foreground">This session has no loot or combat recorded.</div>
         )}

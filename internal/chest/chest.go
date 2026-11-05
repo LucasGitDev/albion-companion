@@ -18,6 +18,29 @@ type Take struct {
 	Quantity  int64
 }
 
+// Content is one item seen inside a container, with whether it was taken. It is
+// recorded regardless of collection, so "what dropped" survives even when the
+// local player never grabbed it.
+type Content struct {
+	ItemIndex int   `json:"itemIndex"`
+	Quantity  int64 `json:"quantity"`
+	Taken     bool  `json:"taken"`
+}
+
+// Container is a chest / loot bag and the items it held.
+type Container struct {
+	Name  string    `json:"name"` // unique name (chest) or body name (corpse bag)
+	Items []Content `json:"items"`
+}
+
+// containerAgg accumulates a container's contents (keyed by item objectId so a
+// re-announce updates in place). Not cleared on take — only marked.
+type containerAgg struct {
+	name  string
+	items map[int64]*Content
+	order []int64 // item objectId insertion order for stable output
+}
+
 // Tracker stitches chest/item/container events. Safe for concurrent use, though
 // the engine drives it from the single decode goroutine.
 type Tracker struct {
@@ -26,6 +49,10 @@ type Tracker struct {
 	items      map[int64]events.ItemObject // item objectId → {index, qty}
 	chestItems map[int64]string            // item objectId → chest name (only items known to be in a chest)
 	bySlot     map[string][]int64          // tracked-container GUID → item objectId per slot (for slot-based takes)
+
+	contents  map[int64]*containerAgg // chest objectId → observed contents (non-consuming)
+	order     []int64                 // chest objectId insertion order
+	itemChest map[int64]int64         // item objectId → chest objectId (for marking takes)
 }
 
 func New() *Tracker {
@@ -34,6 +61,8 @@ func New() *Tracker {
 		items:      map[int64]events.ItemObject{},
 		chestItems: map[int64]string{},
 		bySlot:     map[string][]int64{},
+		contents:   map[int64]*containerAgg{},
+		itemChest:  map[int64]int64{},
 	}
 }
 
@@ -51,6 +80,16 @@ func (t *Tracker) NewItem(it events.ItemObject) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.items[it.ObjectID] = it
+	// If this item was already attached to a chest before being declared, fill
+	// its recorded contents now.
+	if objID, ok := t.itemChest[it.ObjectID]; ok {
+		if agg := t.contents[objID]; agg != nil {
+			if c := agg.items[it.ObjectID]; c != nil {
+				c.ItemIndex = it.ItemIndex
+				c.Quantity = it.Quantity
+			}
+		}
+	}
 }
 
 // Attach links a container's slots to item objects. Only containers that were
@@ -65,9 +104,27 @@ func (t *Tracker) Attach(c events.ItemContainer) {
 	if !isChest {
 		return
 	}
+	agg := t.contents[c.ObjectID]
+	if agg == nil {
+		agg = &containerAgg{name: name, items: map[int64]*Content{}}
+		t.contents[c.ObjectID] = agg
+		t.order = append(t.order, c.ObjectID)
+	}
 	for _, itemID := range c.Slots {
-		if itemID != 0 {
-			t.chestItems[itemID] = name
+		if itemID == 0 {
+			continue
+		}
+		t.chestItems[itemID] = name
+		// Record the item's contents (what dropped), independent of any take.
+		if _, seen := agg.items[itemID]; !seen {
+			ct := &Content{}
+			if it, ok := t.items[itemID]; ok {
+				ct.ItemIndex = it.ItemIndex
+				ct.Quantity = it.Quantity
+			}
+			agg.items[itemID] = ct
+			agg.order = append(agg.order, itemID)
+			t.itemChest[itemID] = c.ObjectID
 		}
 	}
 	if c.GUID != "" {
@@ -75,6 +132,29 @@ func (t *Tracker) Attach(c events.ItemContainer) {
 		copy(slots, c.Slots)
 		t.bySlot[c.GUID] = slots
 	}
+}
+
+// ContentsSnapshot returns every container observed this zone and the items it
+// held, in observation order, marking which were taken. Items are reported even
+// if nobody collected them.
+func (t *Tracker) ContentsSnapshot() []Container {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	out := make([]Container, 0, len(t.order))
+	for _, objID := range t.order {
+		agg := t.contents[objID]
+		if agg == nil {
+			continue
+		}
+		items := make([]Content, 0, len(agg.order))
+		for _, itemID := range agg.order {
+			if c := agg.items[itemID]; c != nil {
+				items = append(items, *c)
+			}
+		}
+		out = append(out, Container{Name: agg.name, Items: items})
+	}
+	return out
 }
 
 // TakeSlot reports the pickup when the local player moves the item in slot
@@ -112,6 +192,15 @@ func (t *Tracker) Take(itemObjectID int64) (Take, bool) {
 	if !known {
 		return Take{}, false
 	}
+	// Mark the item taken in the contents record (do not delete — "what dropped"
+	// must survive the take).
+	if objID, ok := t.itemChest[itemObjectID]; ok {
+		if agg := t.contents[objID]; agg != nil {
+			if c := agg.items[itemObjectID]; c != nil {
+				c.Taken = true
+			}
+		}
+	}
 	delete(t.chestItems, itemObjectID)
 	delete(t.items, itemObjectID)
 	return Take{ChestName: chestName, ItemIndex: it.ItemIndex, Quantity: it.Quantity}, true
@@ -124,4 +213,7 @@ func (t *Tracker) Reset() {
 	t.items = map[int64]events.ItemObject{}
 	t.chestItems = map[int64]string{}
 	t.bySlot = map[string][]int64{}
+	t.contents = map[int64]*containerAgg{}
+	t.order = nil
+	t.itemChest = map[int64]int64{}
 }

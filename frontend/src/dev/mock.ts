@@ -247,6 +247,39 @@ function combatView(): CombatView {
 const devState = new URLSearchParams(location.search).get('state')
 if (devState === 'noprices') pricesAvailable = false
 
+function chestContentsMock() {
+  if (devState === 'empty') return { containers: [], total: 0 }
+  const mk = (id: string, name: string, qty: number, taken: boolean) => ({ itemId: id, itemName: name, quantity: qty, taken })
+  const containers = [
+    {
+      name: 'AVALON_ELITE_LOOTCHEST_SET_RARE',
+      items: [
+        mk('T7_RUNE', 'Runa do Grão-Mestre', 3, false),
+        mk('T6_SOUL', 'Alma do Mestre', 2, true),
+        mk('T5_RELIC', 'Relíquia do Perito', 1, false),
+        mk('T6_ARTEFACT_2H_HALBERD_MORGANA', 'Cabeça de Alabarda Morgana do Mestre', 1, true),
+        mk('QUESTITEM_TOKEN_AVALON', 'Energia Avaloniana', 6, false),
+        mk('T5_SKILLBOOK_STANDARD', 'Tomo de Visão do Perito', 2, false),
+        mk('T6_RUNE', 'Runa do Mestre', 4, true),
+        mk('TREASURE_TRIBAL_RARITY2', 'Talismã de Osso', 1, false),
+      ],
+      totalItems: 20,
+      takenItems: 7,
+    },
+    {
+      name: 'AVALON_ELITE_LOOTCHEST_SET_UNCOMMON',
+      items: [
+        mk('T5_RUNE', 'Runa do Perito', 4, false),
+        mk('T4_RUNE', 'Runa do Adepto', 9, false),
+        mk('T4_SOUL', 'Alma do Adepto', 2, false),
+      ],
+      totalItems: 15,
+      takenItems: 0,
+    },
+  ]
+  return { containers, total: containers.length }
+}
+
 // ---- Loot Guard (anti-theft) mock -----------------------------------------
 // The local player (L0rdCap) is the scout/collector; everyone else grabbing
 // *items* (not silver) is flagged. Canned to mirror a real capture: two heavy
@@ -599,6 +632,7 @@ export function installMock() {
           timeline: await window.go.main.App.TimelineView(1000),
           chestLog: await window.go.main.App.ChestLogView(1000),
           dungeon: await window.go.main.App.DungeonView(),
+          chestContents: await window.go.main.App.ChestContentsView(),
         }),
         DeleteSession: async () => {
           emit('history:changed')
@@ -634,6 +668,7 @@ export function installMock() {
         ResetChestLog: async () => {
           emit('chestlog:changed')
         },
+        ChestContentsView: async () => chestContentsMock(),
         RouteView: async () => {
           if (devState === 'empty') return { path: [], nodes: [], edges: [], totalVisits: 0 }
           const now = Date.now()

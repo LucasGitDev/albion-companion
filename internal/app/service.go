@@ -636,6 +636,60 @@ func (s *Service) ChestLogView(recent int) chestlog.Snapshot {
 	return s.eng.ChestLog().Snapshot(recent)
 }
 
+// ChestItemView is one item a chest/bag held, with whether it was taken.
+type ChestItemView struct {
+	ItemID   string `json:"itemId"`   // unique name (for the icon), empty if unresolved
+	ItemName string `json:"itemName"` // localized display name
+	Quantity int64  `json:"quantity"`
+	Taken    bool   `json:"taken"`
+}
+
+// ChestContainerView is a chest / loot bag and the items it dropped.
+type ChestContainerView struct {
+	Name       string          `json:"name"`
+	Items      []ChestItemView `json:"items"`
+	TotalItems int64           `json:"totalItems"`
+	TakenItems int64           `json:"takenItems"`
+}
+
+// ChestContentsView lists what every observed container dropped this session,
+// regardless of who (if anyone) collected it. Chest contents are only on the
+// wire when the chest is opened near the capturing client, so coverage is
+// partial; a third-party taker is not observable (only the local player's own
+// takes are marked).
+type ChestContentsView struct {
+	Containers []ChestContainerView `json:"containers"`
+	Total      int                  `json:"total"` // number of containers
+}
+
+func (s *Service) ChestContentsView() ChestContentsView {
+	snap := s.eng.Chest().ContentsSnapshot()
+	v := ChestContentsView{Containers: make([]ChestContainerView, 0, len(snap))}
+	for _, c := range snap {
+		cv := ChestContainerView{Name: c.Name, Items: make([]ChestItemView, 0, len(c.Items))}
+		for _, it := range c.Items {
+			iv := ChestItemView{Quantity: it.Quantity, Taken: it.Taken}
+			if s.opts.Items != nil {
+				if res, ok := s.opts.Items.Resolve(it.ItemIndex); ok {
+					iv.ItemID = res.UniqueName
+					iv.ItemName = res.LocalName
+					if iv.ItemName == "" {
+						iv.ItemName = res.Name
+					}
+				}
+			}
+			cv.Items = append(cv.Items, iv)
+			cv.TotalItems += it.Quantity
+			if it.Taken {
+				cv.TakenItems += it.Quantity
+			}
+		}
+		v.Containers = append(v.Containers, cv)
+	}
+	v.Total = len(v.Containers)
+	return v
+}
+
 // FameView is the current session fame totals and rate.
 func (s *Service) FameView() fame.Snapshot { return s.eng.Fame().Snapshot() }
 
@@ -747,15 +801,16 @@ func (s *Service) ExportLootCSV(w io.Writer) error {
 // into the store's opaque detail blob and returned verbatim to the History tab,
 // which renders it read-only with the same components as the live views.
 type SessionDetail struct {
-	Meta     store.Meta        `json:"meta"`
-	Loot     LootView          `json:"loot"`
-	Combat   CombatView        `json:"combat"`
-	Rates    RatesView         `json:"rates"`
-	Gather   GatherView        `json:"gather"`
-	Fame     fame.Snapshot     `json:"fame"`
-	Timeline TimelineView      `json:"timeline"`
-	ChestLog chestlog.Snapshot `json:"chestLog"`
-	Dungeon  DungeonView       `json:"dungeon"`
+	Meta          store.Meta        `json:"meta"`
+	Loot          LootView          `json:"loot"`
+	Combat        CombatView        `json:"combat"`
+	Rates         RatesView         `json:"rates"`
+	Gather        GatherView        `json:"gather"`
+	Fame          fame.Snapshot     `json:"fame"`
+	Timeline      TimelineView      `json:"timeline"`
+	ChestLog      chestlog.Snapshot `json:"chestLog"`
+	Dungeon       DungeonView       `json:"dungeon"`
+	ChestContents ChestContentsView `json:"chestContents"`
 }
 
 // SessionInfo is the user-facing label/type of the current session plus whether
@@ -896,6 +951,7 @@ func (s *Service) persistSession(start, end time.Time, label, typ, recordingPath
 	detail, err := json.Marshal(SessionDetail{
 		Meta: meta, Loot: lv, Combat: cv, Rates: rv, Gather: gv, Fame: fv,
 		Timeline: s.TimelineView(0), ChestLog: s.eng.ChestLog().Snapshot(0), Dungeon: s.DungeonView(),
+		ChestContents: s.ChestContentsView(),
 	})
 	if err != nil {
 		return
