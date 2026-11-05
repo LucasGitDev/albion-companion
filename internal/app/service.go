@@ -1081,7 +1081,14 @@ func (s *Service) WriteSessionCSV(w io.Writer, id string) error {
 func (s *Service) onChange(t engine.Topic) {
 	s.mu.Lock()
 	s.pending[t] = true
-	if time.Since(s.lastFlush) < s.opts.Throttle {
+	throttle := s.opts.Throttle
+	if s.replaying {
+		// Coalesce harder during replay: at high speed thousands of packets fly
+		// by, and re-pulling every view view on each change would flood the UI
+		// bridge. A coarser cadence keeps playback smooth without freezing.
+		throttle = 500 * time.Millisecond
+	}
+	if time.Since(s.lastFlush) < throttle {
 		s.mu.Unlock()
 		return
 	}

@@ -284,7 +284,7 @@ function SessionControl() {
   )
 }
 
-const REPLAY_SPEEDS = [1, 2, 4, 8, 0] // 0 = max
+const REPLAY_SPEEDS = [1, 2, 4, 8, 16, 32, 64] // bounded; always paced off recorded timing
 
 function ReplayTransport({ status }: { status: CaptureStatus | null }) {
   const playing = status?.replayPlaying ?? false
@@ -332,7 +332,7 @@ function ReplayTransport({ status }: { status: CaptureStatus | null }) {
       >
         {REPLAY_SPEEDS.map((s) => (
           <option key={s} value={s}>
-            {s === 0 ? 'Max' : `${s}×`}
+            {s}×
           </option>
         ))}
       </select>

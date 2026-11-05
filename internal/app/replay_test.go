@@ -31,28 +31,49 @@ func TestReplayLifecycle(t *testing.T) {
 	if err := svc.StartReplay(fixtureAorec(), "Test replay"); err != nil {
 		t.Fatalf("start replay: %v", err)
 	}
-	svc.SetReplaySpeed(0) // max speed so the test finishes fast
+	svc.SetReplaySpeed(maxReplaySpeed) // as fast as the (bounded, paced) playback allows
 
 	if st := svc.Status(); !st.Replay || st.ReplayLabel != "Test replay" {
 		t.Fatalf("status during replay = %+v", st)
 	}
 
-	// Wait for the replay goroutine to drain the file.
-	deadline := time.Now().Add(15 * time.Second)
-	for svc.Status().Replay {
+	// Playback is intentionally paced (never a tight loop), so don't wait for the
+	// whole file — just confirm it makes progress, then stop it.
+	deadline := time.Now().Add(10 * time.Second)
+	for svc.Engine().Stats().Packets == 0 {
 		if time.Now().After(deadline) {
 			svc.StopReplay()
-			t.Fatal("replay did not finish in time")
+			t.Fatal("replay made no progress")
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
-
-	// The engine processed packets, and replaying never saved a session.
-	if svc.Engine().Stats().Packets == 0 {
-		t.Fatal("expected packets to be processed during replay")
-	}
+	// Replaying never persists a session (non-destructive).
 	if metas, _ := svc.HistoryList(); len(metas) != 0 {
 		t.Fatalf("replay must not persist a session, got %d", len(metas))
+	}
+
+	svc.StopReplay()
+	stopBy := time.Now().Add(10 * time.Second)
+	for svc.Status().Replay {
+		if time.Now().After(stopBy) {
+			t.Fatal("replay did not stop")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if metas, _ := svc.HistoryList(); len(metas) != 0 {
+		t.Fatalf("replay must not persist a session after stop, got %d", len(metas))
+	}
+}
+
+func TestClampSpeed(t *testing.T) {
+	if clampSpeed(0) != maxReplaySpeed || clampSpeed(-5) != maxReplaySpeed {
+		t.Fatal("0/negative should clamp to the bounded max (never unbounded)")
+	}
+	if clampSpeed(1000) != maxReplaySpeed {
+		t.Fatal("above max should clamp")
+	}
+	if clampSpeed(8) != 8 {
+		t.Fatal("in-range speed should pass through")
 	}
 }
 
