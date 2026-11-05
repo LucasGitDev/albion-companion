@@ -152,6 +152,7 @@ func (s ReplaySource) Run(ctx context.Context, out chan<- Packet) error {
 		return fmt.Errorf("%s: not an .aorec file", s.Path)
 	}
 	var prev time.Time
+	sinceSleep := 0 // packets processed since the last time we yielded
 	for {
 		p, err := readRecord(r)
 		if errors.Is(err, io.EOF) {
@@ -167,16 +168,32 @@ func (s ReplaySource) Run(ctx context.Context, out chan<- Packet) error {
 		if s.Control != nil {
 			speed = s.Control.Speed()
 		}
+		slept := false
 		if speed > 0 && !prev.IsZero() {
 			if d := time.Duration(float64(p.At.Sub(prev)) / speed); d > 0 {
 				select {
 				case <-time.After(d):
+					slept = true
 				case <-ctx.Done():
 					return nil
 				}
 			}
 		}
 		prev = p.At
+		// Safety yield: bursts of same-timestamp packets (delta 0) and very high
+		// speeds would otherwise be a tight CPU loop that can starve the UI/OS.
+		// Yield briefly every maxBurst packets whenever we haven't slept, so the
+		// scheduler always gets air regardless of speed.
+		if slept {
+			sinceSleep = 0
+		} else if sinceSleep++; sinceSleep >= replayMaxBurst {
+			sinceSleep = 0
+			select {
+			case <-time.After(time.Millisecond):
+			case <-ctx.Done():
+				return nil
+			}
+		}
 		select {
 		case out <- p:
 		case <-ctx.Done():
@@ -187,6 +204,10 @@ func (s ReplaySource) Run(ctx context.Context, out chan<- Packet) error {
 		}
 	}
 }
+
+// replayMaxBurst bounds how many packets replay processes without yielding, so
+// same-timestamp bursts and high speeds never peg a core / freeze the UI.
+const replayMaxBurst = 256
 
 // AorecSpan scans a recording's headers and returns the first and last packet
 // times and the packet count, without decoding payloads. Used to show replay

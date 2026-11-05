@@ -15,6 +15,18 @@ import (
 
 const defaultReplaySpeed = 8.0
 
+// clampSpeed keeps playback in a safe, always-paced range: never 0 (unbounded
+// tight loop) and never above maxReplaySpeed.
+func clampSpeed(speed float64) float64 {
+	if speed <= 0 {
+		return maxReplaySpeed
+	}
+	if speed > maxReplaySpeed {
+		return maxReplaySpeed
+	}
+	return speed
+}
+
 // StartReplay resets the live state and begins playing the .aorec at `path`.
 // `label` is shown in the replay banner. It is refused while capturing or while
 // another replay is active.
@@ -131,10 +143,12 @@ func (s *Service) ResumeReplay() {
 	}
 }
 
+// maxReplaySpeed bounds playback so a very high speed still paces off the
+// recorded timing (never an unbounded tight loop).
+const maxReplaySpeed = 64.0
+
 func (s *Service) SetReplaySpeed(speed float64) {
-	if speed < 0 {
-		speed = 0
-	}
+	speed = clampSpeed(speed)
 	s.mu.Lock()
 	ctl := s.replayCtl
 	s.mu.Unlock()
