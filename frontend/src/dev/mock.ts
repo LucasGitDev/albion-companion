@@ -92,7 +92,7 @@ function pushLoot() {
       isSilver: false,
       silver: 0,
     })
-    pushTL({ at: feed[0].at, kind: 'loot', player: who, item: it.itemName, itemId: it.itemId, quantity: feed[0].quantity, source: feed[0].lootedFrom })
+    pushTL({ at: feed[0].at, kind: 'loot', player: who, item: it.itemLocalName, itemId: it.itemId, quantity: feed[0].quantity, source: feed[0].lootedFrom })
   }
   feed.splice(120)
   emit('loot:new')
