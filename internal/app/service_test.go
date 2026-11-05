@@ -65,7 +65,7 @@ func TestService_CaptureAndViews(t *testing.T) {
 	if len(cv.Rows) != 1 || cv.Rows[0].Damage != 500 || cv.Rows[0].Share != 100 {
 		t.Fatalf("combat view = %+v", cv)
 	}
-	if pv := svc.PartyView(); pv.Me != "Me" || pv.Location != "4300" {
+	if pv := svc.PartyView(); pv.Me != "Me" || pv.Location != "Arthur's Rest" {
 		t.Fatalf("party view = %+v", pv)
 	}
 	mu.Lock()
@@ -119,7 +119,7 @@ func TestService_SessionPersistence(t *testing.T) {
 		t.Fatalf("expected 1 persisted session, got %d: %+v", len(metas), metas)
 	}
 	m := metas[0]
-	if m.Me != "Me" || m.Zone != "4300" || m.LootCount != 1 {
+	if m.Me != "Me" || m.Zone != "Arthur's Rest" || m.LootCount != 1 {
 		t.Fatalf("session meta = %+v", m)
 	}
 
