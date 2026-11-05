@@ -16,6 +16,7 @@ import type {
   RouteView,
   SessionMeta,
   SessionDetail,
+  SessionInfo,
   PriceRegion,
 } from '@/wails.d'
 
@@ -57,6 +58,7 @@ export type {
   RouteEdge,
   SessionMeta,
   SessionDetail,
+  SessionInfo,
   CodesInfo,
   ItemDBInfo,
   Stats,
@@ -102,6 +104,9 @@ export const api = {
   setLootGuardConfig: (cfg: GuardConfig): Promise<void> => app().SetLootGuardConfig(cfg),
   exportLootGuardCSV: (): Promise<string> => app().ExportLootGuardCSV(),
   knownPlayers: (): Promise<string[]> => app().KnownPlayers(),
+  sessionInfo: (): Promise<SessionInfo> => app().SessionInfo(),
+  setSessionInfo: (label: string, type: string): Promise<void> => app().SetSessionInfo(label, type),
+  startSession: (label: string, type: string): Promise<void> => app().StartSession(label, type),
   chestLogView: (recent = 200): Promise<ChestLogView> => app().ChestLogView(recent),
   resetChestLog: (): Promise<void> => app().ResetChestLog(),
   routeView: (recent = 500): Promise<RouteView> => app().RouteView(recent),
