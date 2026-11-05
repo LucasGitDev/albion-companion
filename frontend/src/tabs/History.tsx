@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { Package, Coins, Sparkles, Swords, Clock, MapPin, Download, Trash2, ChevronRight } from 'lucide-react'
+import { Package, Coins, Sparkles, Swords, Clock, MapPin, Download, Trash2, ChevronRight, FileUp, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Loading, ErrorState } from '@/components/ui/states'
 import { ItemIcon } from '@/components/ItemIcon'
@@ -20,36 +20,99 @@ export function History() {
 
   const sessions = data ?? []
 
-  if (sessions.length === 0) {
-    return (
-      <div className="flex flex-col items-center gap-2 rounded-xl border border-border bg-surface/60 px-3 py-16 text-center">
-        <div className="grid size-10 place-items-center rounded-full bg-elevated text-muted-foreground">
-          <Clock className="size-5" />
-        </div>
-        <div className="text-sm font-medium text-foreground">No saved sessions yet</div>
-        <div className="max-w-sm text-xs text-muted-foreground">
-          Open the Loot tab and start a capture — each session is saved automatically when you stop it, and shows up here.
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="flex flex-col gap-2.5">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="font-display text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          {sessions.length > 0 ? `${sessions.length} saved session${sessions.length === 1 ? '' : 's'}` : 'Sessions'}
+        </h2>
+        <ReprocessButton />
+      </div>
+
       {status === 'error' && (
         <div role="status" className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
           Couldn't refresh the session list — showing the last known data.
         </div>
       )}
-      {sessions.map((s) => (
-        <SessionCard
-          key={s.id}
-          s={s}
-          open={openId === s.id}
-          onToggle={() => setOpenId((id) => (id === s.id ? null : s.id))}
-          onDeleted={() => setOpenId(null)}
-        />
-      ))}
+
+      {sessions.length === 0 ? (
+        <div className="flex flex-col items-center gap-2 rounded-xl border border-border bg-surface/60 px-3 py-16 text-center">
+          <div className="grid size-10 place-items-center rounded-full bg-elevated text-muted-foreground">
+            <Clock className="size-5" />
+          </div>
+          <div className="text-sm font-medium text-foreground">No saved sessions yet</div>
+          <div className="max-w-sm text-xs text-muted-foreground">
+            Start a capture — each session is saved automatically when you stop it. Or rebuild one from a saved{' '}
+            <code className="rounded bg-elevated px-1 font-mono text-[11px]">.aorec</code> recording with{' '}
+            <b className="font-medium text-foreground">Reprocess recording</b> above.
+          </div>
+        </div>
+      ) : (
+        sessions.map((s) => (
+          <SessionCard
+            key={s.id}
+            s={s}
+            open={openId === s.id}
+            onToggle={() => setOpenId((id) => (id === s.id ? null : s.id))}
+            onDeleted={() => setOpenId(null)}
+          />
+        ))
+      )}
+    </div>
+  )
+}
+
+// ReprocessButton replays a saved .aorec recording into a new History session.
+function ReprocessButton() {
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
+
+  // Success/error messages clear themselves so they don't linger in the header.
+  useEffect(() => {
+    if (!msg) return
+    const t = setTimeout(() => setMsg(null), 5000)
+    return () => clearTimeout(t)
+  }, [msg])
+
+  const run = () => {
+    if (busy) return // aria-disabled, not disabled — so the button keeps focus
+    setBusy(true)
+    setMsg(null)
+    api
+      .reprocessAorec()
+      .then((name) => setMsg(name ? { kind: 'ok', text: `Rebuilt from ${name}` } : null))
+      .catch(() => setMsg({ kind: 'error', text: 'Reprocess failed. Check the file and try again.' }))
+      .finally(() => setBusy(false))
+  }
+
+  const isErr = msg?.kind === 'error'
+  return (
+    <div className="flex items-center gap-2">
+      {/* Two always-mounted live regions: polite for busy/success, assertive
+          alert for errors. Icon carries the error color so the text stays on a
+          high-contrast foreground token. */}
+      <span role="status" aria-live="polite" className="text-xs text-muted-foreground">
+        {busy ? 'Reprocessing…' : isErr ? '' : (msg?.text ?? '')}
+      </span>
+      <span role="alert" className="flex items-center gap-1 text-xs text-foreground empty:hidden">
+        {isErr && (
+          <>
+            <AlertTriangle className="size-3.5 shrink-0 text-destructive" />
+            {msg?.text}
+          </>
+        )}
+      </span>
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={run}
+        aria-disabled={busy}
+        title="Replay a saved .aorec recording into a new session"
+        className="aria-disabled:cursor-progress aria-disabled:hover:bg-transparent"
+      >
+        <FileUp />
+        {busy ? 'Reprocessing…' : 'Reprocess recording'}
+      </Button>
     </div>
   )
 }

@@ -275,6 +275,26 @@ func (a *App) ExportLootGuardCSV() (string, error) {
 	return path, nil
 }
 
+// ReprocessAorec opens a native file picker for an .aorec recording and replays
+// it into a new History session. Returns the chosen file's base name (or "" if
+// cancelled). Label/type are optional; an empty label defaults to the file name.
+func (a *App) ReprocessAorec(label, typ string) (string, error) {
+	path, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+		Title:   "Reprocess a recording",
+		Filters: []runtime.FileFilter{{DisplayName: "Albion recording (*.aorec)", Pattern: "*.aorec"}},
+	})
+	if err != nil {
+		return "", err
+	}
+	if path == "" {
+		return "", nil // cancelled
+	}
+	if err := a.svc.ReprocessAorec(path, label, typ); err != nil {
+		return "", err
+	}
+	return filepath.Base(path), nil
+}
+
 // ExportSessionCSV opens a native save dialog and writes a saved session's loot
 // as CSV. Returns the saved path, or "" if the user cancelled.
 func (a *App) ExportSessionCSV(id string) (string, error) {

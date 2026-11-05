@@ -426,6 +426,7 @@ declare global {
           RouteView(recent: number): Promise<RouteView>
           ResetRoute(): Promise<void>
           HistoryList(): Promise<SessionMeta[] | null>
+          ReprocessAorec(label: string, type: string): Promise<string>
           HistoryLoad(id: string): Promise<SessionDetail>
           DeleteSession(id: string): Promise<void>
           ExportSessionCSV(id: string): Promise<string>
