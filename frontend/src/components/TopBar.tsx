@@ -34,11 +34,11 @@ export function TopBar({
   }
 
   return (
-    <header className="flex items-center gap-3 border-b border-border bg-surface/40 px-4 py-2.5">
+    <header className="flex min-w-0 items-center gap-3 border-b border-border bg-surface/40 px-4 py-2.5">
       <button
         onClick={toggleCapture}
         className={cn(
-          'inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+          'inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
           running
             ? 'bg-elevated text-foreground hover:bg-accent'
             : 'bg-primary text-primary-foreground hover:bg-primary/90',
@@ -69,7 +69,7 @@ export function TopBar({
       <Chip icon={User} value={party?.me} empty="No player" />
 
       <span
-        className="ml-auto inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary"
+        className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-md bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary"
         title={`Fame this session · ${Math.round(fame?.perHour ?? 0).toLocaleString()}/h · premium bonus ${Math.round(fame?.premium ?? 0).toLocaleString()}`}
       >
         <Sparkles className="size-3.5" />
@@ -77,7 +77,7 @@ export function TopBar({
         <span className="text-primary/60">fame</span>
       </span>
 
-      <div className="relative">
+      <div className="relative shrink-0">
         <button
           onClick={() => setDiagOpen((v) => !v)}
           className={cn(
@@ -112,7 +112,7 @@ export function TopBar({
         aria-checked={partyMode}
         onClick={() => onPartyModeChange(!partyMode)}
         title="Party only: count loot and damage from your party members and hide everyone else. Turn off to see all nearby players."
-        className="flex items-center gap-2 text-xs font-medium text-muted-foreground"
+        className="flex shrink-0 items-center gap-2 text-xs font-medium text-muted-foreground"
       >
         <span className={cn(partyMode && 'text-foreground')}>Party only</span>
         <span className={cn('relative h-5 w-9 rounded-full transition-colors', partyMode ? 'bg-primary' : 'bg-secondary')}>
@@ -170,7 +170,7 @@ function SessionControl() {
 
   const current = info?.label?.trim()
   return (
-    <div className="relative">
+    <div className="relative min-w-0 shrink">
       <button
         ref={chipRef}
         onClick={() => setOpen((v) => !v)}
@@ -178,7 +178,7 @@ function SessionControl() {
         aria-expanded={open}
         title={current ? `Session: ${current}` : 'Name and tag this session (for history / evidence)'}
         className={cn(
-          'inline-flex max-w-[28ch] items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition-colors hover:bg-accent',
+          'inline-flex min-w-0 max-w-[28ch] items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition-colors hover:bg-accent',
           current ? 'bg-elevated text-foreground' : 'text-muted-foreground',
         )}
       >
@@ -363,12 +363,12 @@ function Chip({ icon: Icon, value, empty }: { icon: typeof MapPin; value?: strin
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs',
+        'inline-flex min-w-0 items-center gap-1.5 rounded-md px-2.5 py-1 text-xs',
         has ? 'bg-elevated text-foreground' : 'text-muted-foreground',
       )}
     >
-      <Icon className={cn('size-3.5', has ? 'text-primary/80' : 'text-muted-foreground')} />
-      <span className="max-w-[18ch] truncate">{value || empty}</span>
+      <Icon className={cn('size-3.5 shrink-0', has ? 'text-primary/80' : 'text-muted-foreground')} />
+      <span className="max-w-[18ch] truncate" title={value || undefined}>{value || empty}</span>
     </span>
   )
 }
