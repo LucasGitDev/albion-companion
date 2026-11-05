@@ -245,6 +245,67 @@ function combatView(): CombatView {
 const devState = new URLSearchParams(location.search).get('state')
 if (devState === 'noprices') pricesAvailable = false
 
+// ---- Loot Guard (anti-theft) mock -----------------------------------------
+// The local player (L0rdCap) is the scout/collector; everyone else grabbing
+// *items* (not silver) is flagged. Canned to mirror a real capture: two heavy
+// offenders, one incidental.
+let guardCfg = { collectors: [] as string[], scoutMe: true, includeSilver: false }
+const guardMe = 'L0rdCap'
+const guardSeed = (() => {
+  const base = new Date(Date.now() - 95 * 60_000).getTime()
+  type G = { at: string; looter: string; looterGuild: string; itemId: string; itemName: string; quantity: number; source: string; isSilver: boolean; silver: number }
+  const grabs: G[] = []
+  const g = (minOff: number, looter: string, itemId: string, itemName: string, qty: number, mob: string) =>
+    grabs.push({ at: new Date(base + minOff * 60_000).toISOString(), looter, looterGuild: 'Elevate', itemId, itemName, quantity: qty, source: mob, isSilver: false, silver: 0 })
+  // teolando — 3 incidents across 7 min (deliberate)
+  g(3.0, 'teolando', 'T6_RUNE', 'Runa do Perito', 2, '@MOB_T6_MOB_RD_AVALON_MINION_ELITE')
+  g(3.1, 'teolando', 'T6_RUNE', 'Runa do Adepto', 3, '@MOB_T6_MOB_RD_AVALON_MINION_ELITE')
+  g(3.2, 'teolando', 'T6_SOUL', 'Alma do Adepto', 1, '@MOB_T6_MOB_RD_AVALON_MINION_ELITE')
+  g(7.9, 'teolando', 'T6_RUNE', 'Runa do Adepto', 8, '@MOB_T6_MOB_RD_AVALON_BOWMAN_ELITE')
+  g(10.1, 'teolando', 'T6_SOUL', 'Alma do Perito', 3, '@MOB_T6_MOB_RD_AVALON_BOWMAN_ELITE')
+  // dragonplot — one bag grabbed whole (single incident)
+  g(3.5, 'dragonplot', 'T6_RUNE', 'Runa do Adepto', 10, '@MOB_T6_MOB_RD_AVALON_MAGE_ELITE')
+  g(3.5, 'dragonplot', 'T6_RUNE', 'Runa do Perito', 5, '@MOB_T6_MOB_RD_AVALON_MAGE_ELITE')
+  g(3.5, 'dragonplot', 'T6_SOUL', 'Alma do Mestre', 1, '@MOB_T6_MOB_RD_AVALON_MAGE_ELITE')
+  // ThalisDON — one incidental token
+  g(21.4, 'ThalisDON', 'T8_TOKEN', 'Random Dungeon Token', 1, '@MOB_T6_MOB_RD_AVALON_CLERIC_ELITE')
+  return grabs
+})()
+
+function lootGuardView(recent: number) {
+  if (devState === 'empty') {
+    return { config: guardCfg, me: guardMe, suspects: [], feed: [], flaggedGrabs: 0, flaggedItemQty: 0 }
+  }
+  const collectors = new Set(guardCfg.collectors.map((c) => c.toLowerCase()))
+  if (guardCfg.scoutMe) collectors.add(guardMe.toLowerCase())
+  const flagged = guardSeed.filter((x) => !collectors.has(x.looter.toLowerCase()) && (guardCfg.includeSilver || !x.isSilver))
+  const byP: Record<string, { name: string; guild: string; grabs: number; itemQty: number; silver: number; first: string; last: string; items: Record<string, { itemId: string; itemName: string; quantity: number }> }> = {}
+  for (const x of flagged) {
+    const s = (byP[x.looter] ??= { name: x.looter, guild: x.looterGuild, grabs: 0, itemQty: 0, silver: 0, first: x.at, last: x.at, items: {} })
+    s.grabs++
+    if (x.at < s.first) s.first = x.at
+    if (x.at > s.last) s.last = x.at
+    if (x.isSilver) s.silver += x.silver
+    else {
+      s.itemQty += x.quantity
+      const li = (s.items[x.itemId] ??= { itemId: x.itemId, itemName: x.itemName, quantity: 0 })
+      li.quantity += x.quantity
+    }
+  }
+  const suspects = Object.values(byP)
+    .map((s) => ({ ...s, items: Object.values(s.items).sort((a, b) => b.quantity - a.quantity) }))
+    .sort((a, b) => b.itemQty - a.itemQty || b.grabs - a.grabs)
+  const feed = [...flagged].sort((a, b) => (a.at < b.at ? 1 : -1)).slice(0, recent).map((x) => ({ ...x, fromMob: x.source.includes('@MOB'), location: '@RANDOMDUNGEON@AVALON' }))
+  return {
+    config: guardCfg,
+    me: guardMe,
+    suspects,
+    feed,
+    flaggedGrabs: flagged.length,
+    flaggedItemQty: suspects.reduce((n, s) => n + s.itemQty, 0),
+  }
+}
+
 function status(): CaptureStatus {
   if (devState === 'permission') {
     return {
@@ -408,6 +469,13 @@ export function installMock() {
         ResetGather: async () => {
           emit('gather:changed')
         },
+        LootGuardView: async (recent: number) => lootGuardView(recent),
+        LootGuardConfig: async () => guardCfg,
+        SetLootGuardConfig: async (cfg: typeof guardCfg) => {
+          guardCfg = { ...cfg, collectors: cfg.collectors ?? [] }
+          emit('guard:changed')
+        },
+        ExportLootGuardCSV: async () => '/Users/you/Downloads/albion-loot-guard-dev.csv',
         HistoryList: async () =>
           devState === 'empty'
             ? []

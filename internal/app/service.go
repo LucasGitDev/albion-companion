@@ -54,6 +54,7 @@ type Options struct {
 	Recorder       *capture.Recorder // optional: record every captured packet to an .aorec
 	SessionsDir    string            // optional: persist finished sessions here (empty = no history)
 	PricesCacheDir string            // optional: persist the price cache here (empty = memory only)
+	ConfigDir      string            // optional: persist user config (Loot Guard roster) here (empty = memory only)
 }
 
 type CaptureStatus struct {
@@ -82,6 +83,8 @@ type Service struct {
 
 	store        *store.Store // nil when SessionsDir is unset
 	sessionStart time.Time    // start of the current capture session (for persistence)
+
+	guardCfg GuardConfig // Loot Guard anti-theft roster (loaded from ConfigDir)
 }
 
 func NewService(opts Options) *Service {
@@ -98,6 +101,7 @@ func NewService(opts Options) *Service {
 	if opts.SessionsDir != "" {
 		s.store = store.New(opts.SessionsDir)
 	}
+	s.guardCfg = loadGuardConfig(opts.ConfigDir)
 	s.prices = opts.Prices
 	if s.prices == nil {
 		// Prices land asynchronously; nudge the UI to re-pull the loot view so

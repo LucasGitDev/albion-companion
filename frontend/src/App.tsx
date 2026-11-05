@@ -3,6 +3,7 @@ import { AlertTriangle } from 'lucide-react'
 import { Sidebar, type Tab } from '@/components/Sidebar'
 import { TopBar } from '@/components/TopBar'
 import { Loot } from '@/tabs/Loot'
+import { LootGuard } from '@/tabs/LootGuard'
 import { Dps } from '@/tabs/Dps'
 import { Party } from '@/tabs/Party'
 import { Dungeon } from '@/tabs/Dungeon'
@@ -52,6 +53,7 @@ export default function App() {
           ) : (
             <>
               {tab === 'loot' && <Loot filter={filter} setFilter={setFilter} />}
+              {tab === 'guard' && <LootGuard />}
               {tab === 'dps' && (
                 <Dps
                   partyOnly={filter.PartyOnly}

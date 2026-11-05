@@ -62,6 +62,7 @@ func (a *App) startup(ctx context.Context) {
 		Combat:         combat.Options{PartyOnly: true},
 		SessionsDir:    sessionsDir(),
 		PricesCacheDir: itemsCacheDir(),
+		ConfigDir:      configDir(),
 		Emit:           func(event string, payload any) { runtime.EventsEmit(a.ctx, event, payload) },
 	}
 	// ALBION_COMPANION_RECORD=<path|dir> records every captured packet to a
@@ -163,6 +164,17 @@ func sessionsDir() string {
 	return filepath.Join(d, "albion-companion", "sessions")
 }
 
+// configDir is where user config (the Loot Guard roster) is persisted
+// (<config dir>/albion-companion). Empty when the OS config dir is unavailable,
+// which disables persistence (roster stays in-memory for the session).
+func configDir() string {
+	d, err := os.UserConfigDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(d, "albion-companion")
+}
+
 func itemsCacheDir() string {
 	if d, err := os.UserCacheDir(); err == nil {
 		return filepath.Join(d, "albion-companion")
@@ -188,6 +200,9 @@ func (a *App) RatesView() app.RatesView                  { return a.svc.RatesVie
 func (a *App) ResetRates()                               { a.svc.ResetRates() }
 func (a *App) GatherView() app.GatherView                { return a.svc.GatherView() }
 func (a *App) ResetGather()                              { a.svc.ResetGather() }
+func (a *App) LootGuardView(recent int) app.GuardView    { return a.svc.LootGuardView(recent) }
+func (a *App) LootGuardConfig() app.GuardConfig          { return a.svc.LootGuardConfig() }
+func (a *App) SetLootGuardConfig(cfg app.GuardConfig)    { a.svc.SetLootGuardConfig(cfg) }
 func (a *App) ChestLogView(recent int) chestlog.Snapshot { return a.svc.ChestLogView(recent) }
 func (a *App) ResetChestLog()                            { a.svc.ResetChestLog() }
 func (a *App) RouteView(recent int) route.Snapshot       { return a.svc.RouteView(recent) }
@@ -225,6 +240,32 @@ func (a *App) ExportLootCSV() (string, error) {
 	}
 	defer f.Close()
 	if err := a.svc.ExportLootCSV(f); err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
+// ExportLootGuardCSV opens a native save dialog and writes the flagged
+// (non-collector) loot feed as CSV for evidence. Returns the saved path, or ""
+// if the user cancelled.
+func (a *App) ExportLootGuardCSV() (string, error) {
+	path, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		Title:           "Export loot guard evidence",
+		DefaultFilename: "albion-loot-guard-" + time.Now().Format("2006-01-02-150405") + ".csv",
+		Filters:         []runtime.FileFilter{{DisplayName: "CSV (*.csv)", Pattern: "*.csv"}},
+	})
+	if err != nil {
+		return "", err
+	}
+	if path == "" {
+		return "", nil // cancelled
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	if err := a.svc.ExportLootGuardCSV(f); err != nil {
 		return "", err
 	}
 	return path, nil
