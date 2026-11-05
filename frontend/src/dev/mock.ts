@@ -248,6 +248,23 @@ function combatView(): CombatView {
 const devState = new URLSearchParams(location.search).get('state')
 if (devState === 'noprices') pricesAvailable = false
 
+async function fullSessionDetail(id: string) {
+  return {
+    meta: { id, startedAt: '2026-11-01T10:15:00Z', endedAt: '2026-11-01T11:02:00Z', zone: 'Morgana Dungeon (T6)', me: 'L0rdCap', label: 'Morgana farm', type: 'group', recordingPath: '/recordings/albion.aorec', lootCount: 184, silver: 412000, fame: 1_240_000, damage: 3_200_000 },
+    loot: await window.go.main.App.LootView(1000),
+    combat: await window.go.main.App.CombatView(),
+    rates: await window.go.main.App.RatesView(),
+    gather: await window.go.main.App.GatherView(),
+    fame: await window.go.main.App.FameView(),
+    timeline: await window.go.main.App.TimelineView(1000),
+    chestLog: await window.go.main.App.ChestLogView(1000),
+    dungeon: await window.go.main.App.DungeonView(),
+    chestContents: await window.go.main.App.ChestContentsView(),
+    aggregated: false,
+    detailAvailable: true,
+  }
+}
+
 function chestContentsMock() {
   if (devState === 'empty') return { containers: [], total: 0 }
   const mk = (id: string, name: string, qty: number, taken: boolean) => ({ itemId: id, itemName: name, quantity: qty, taken })
@@ -638,18 +655,23 @@ export function installMock() {
                 { id: '20261031-203000', startedAt: '2026-10-31T20:30:00Z', endedAt: '2026-10-31T21:48:00Z', zone: 'Avalon · Roads', me: 'L0rdCap', label: 'Avalon run', type: 'avalon', recordingPath: '/recordings/albion-20261031-203000.aorec', lootCount: 96, silver: 180500, fame: 640_000, damage: 1_050_000 },
                 { id: '20261030-190000', startedAt: '2026-10-30T19:00:00Z', endedAt: '2026-10-30T19:22:00Z', zone: 'Lymhurst', me: 'L0rdCap', lootCount: 12, silver: 9800, fame: 40_000, damage: 0 },
               ],
-        HistoryLoad: async (id: string) => ({
-          meta: { id, startedAt: '2026-11-01T10:15:00Z', endedAt: '2026-11-01T11:02:00Z', zone: 'Morgana Dungeon (T6)', me: 'L0rdCap', label: 'Morgana farm', type: 'group', lootCount: 184, silver: 412000, fame: 1_240_000, damage: 3_200_000 },
-          loot: await window.go.main.App.LootView(1000),
-          combat: await window.go.main.App.CombatView(),
-          rates: await window.go.main.App.RatesView(),
-          gather: await window.go.main.App.GatherView(),
-          fame: await window.go.main.App.FameView(),
-          timeline: await window.go.main.App.TimelineView(1000),
-          chestLog: await window.go.main.App.ChestLogView(1000),
-          dungeon: await window.go.main.App.DungeonView(),
-          chestContents: await window.go.main.App.ChestContentsView(),
-        }),
+        // Slim (aggregated) load — heavy forensic detail omitted; derived on
+        // demand via HistoryDetail. Mirrors the aorec-first backend.
+        HistoryLoad: async (id: string) => {
+          const full = await fullSessionDetail(id)
+          return {
+            ...full,
+            aggregated: true,
+            detailAvailable: false,
+            timeline: { events: [], total: 0 },
+            chestLog: { entries: [], total: 0, withdrawn: 0, deposited: 0, containers: 0 },
+            chestContents: { containers: [], total: 0 },
+          }
+        },
+        HistoryDetail: async (id: string) => {
+          await new Promise((r) => setTimeout(r, 500)) // simulate the reprocess
+          return { ...(await fullSessionDetail(id)), aggregated: true, detailAvailable: true }
+        },
         DeleteSession: async () => {
           emit('history:changed')
         },

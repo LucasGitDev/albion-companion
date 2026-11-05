@@ -136,6 +136,7 @@ export const api = {
   historyList: (): Promise<SessionMeta[] | null> => app().HistoryList(),
   reprocessAorec: (label = '', type = ''): Promise<string> => app().ReprocessAorec(label, type),
   historyLoad: (id: string): Promise<SessionDetail> => app().HistoryLoad(id),
+  historyDetail: (id: string): Promise<SessionDetail> => app().HistoryDetail(id),
   deleteSession: (id: string): Promise<void> => app().DeleteSession(id),
   exportSessionCSV: (id: string): Promise<string> => app().ExportSessionCSV(id),
   interfaces: () => app().Interfaces(),

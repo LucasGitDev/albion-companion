@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -837,6 +838,15 @@ type SessionDetail struct {
 	ChestLog      chestlog.Snapshot `json:"chestLog"`
 	Dungeon       DungeonView       `json:"dungeon"`
 	ChestContents ChestContentsView `json:"chestContents"`
+
+	// Aggregated marks a slim session whose heavy forensic detail (full loot
+	// feed, timeline, chest log, chest contents) was NOT persisted and must be
+	// derived from the recording on demand (see HistoryDetail). Old/full
+	// sessions have it false.
+	Aggregated bool `json:"aggregated,omitempty"`
+	// DetailAvailable reports whether the heavy detail is present (inline or
+	// derived). False for a slim session whose recording is missing/pruned.
+	DetailAvailable bool `json:"detailAvailable"`
 }
 
 // SessionInfo is the user-facing label/type of the current session plus whether
@@ -972,17 +982,43 @@ func (s *Service) persistSession(start, end time.Time, label, typ, recordingPath
 		Fame:          fv.Total,
 		Damage:        cv.Total,
 	}
-	// Persist the full forensic views too (timeline/chest log/dungeons were
-	// previously live-only and lost on save).
-	detail, err := json.Marshal(SessionDetail{
+	d := SessionDetail{
 		Meta: meta, Loot: lv, Combat: cv, Rates: rv, Gather: gv, Fame: fv,
 		Timeline: s.TimelineView(0), ChestLog: s.eng.ChestLog().Snapshot(0), Dungeon: s.DungeonView(),
-		ChestContents: s.ChestContentsView(),
-	})
+		ChestContents:   s.ChestContentsView(),
+		DetailAvailable: true,
+	}
+	// Aorec-first: when a usable recording was kept, persist only the aggregates
+	// and derive the heavy detail from the .aorec on demand (HistoryDetail). With
+	// no recording, keep the full detail inline so proof is never lost.
+	if recordingPath != "" && fileExists(recordingPath) {
+		d = slimDetail(d)
+	}
+	detail, err := json.Marshal(d)
 	if err != nil {
 		return
 	}
 	_ = st.Save(meta, detail) // best-effort; a write error must not crash capture
+}
+
+func fileExists(p string) bool {
+	if p == "" {
+		return false
+	}
+	fi, err := os.Stat(p)
+	return err == nil && !fi.IsDir()
+}
+
+// slimDetail strips the heavy per-event detail, keeping only the aggregates. The
+// dropped parts are rebuilt from the recording by HistoryDetail.
+func slimDetail(d SessionDetail) SessionDetail {
+	d.Aggregated = true
+	d.Loot.Recent = nil
+	d.Gather.Timeline = nil
+	d.Timeline = TimelineView{}
+	d.ChestLog = chestlog.Snapshot{}
+	d.ChestContents = ChestContentsView{}
+	return d
 }
 
 // ReprocessAorec replays a saved .aorec recording through a throwaway engine and
@@ -1058,6 +1094,58 @@ func (s *Service) HistoryLoad(id string) (SessionDetail, error) {
 		return d, err
 	}
 	return d, nil
+}
+
+// HistoryDetail returns a session with its full forensic detail. For an older or
+// recording-less session the detail is already inline. For an aggregated
+// (aorec-first) session the heavy views (full loot feed, timeline, chest log,
+// chest contents) are rebuilt by headless-replaying its .aorec; if the recording
+// is missing/pruned, the aggregates are returned with DetailAvailable=false.
+func (s *Service) HistoryDetail(id string) (SessionDetail, error) {
+	d, err := s.HistoryLoad(id)
+	if err != nil {
+		return d, err
+	}
+	if !d.Aggregated {
+		d.DetailAvailable = true
+		return d, nil // inline full detail (old or no-recording session)
+	}
+	path := d.Meta.RecordingPath
+	if !fileExists(path) {
+		d.DetailAvailable = false
+		return d, nil // recording gone — only aggregates remain
+	}
+	sub, err := s.runHeadless(path)
+	if err != nil {
+		d.DetailAvailable = false
+		return d, nil // best-effort: still return aggregates
+	}
+	// Overlay the heavy views derived from the recording onto the stored meta +
+	// aggregates.
+	d.Loot.Recent = sub.lootViewFull().Recent
+	d.Timeline = sub.TimelineView(0)
+	d.ChestLog = sub.eng.ChestLog().Snapshot(0)
+	d.ChestContents = sub.ChestContentsView()
+	d.Gather = sub.GatherView()
+	d.DetailAvailable = true
+	return d, nil
+}
+
+// runHeadless replays an .aorec through a throwaway engine to completion and
+// returns the sub-service, for deriving detail without touching live state.
+func (s *Service) runHeadless(path string) (*Service, error) {
+	sub := NewService(Options{
+		Codes:          s.opts.Codes,
+		Items:          s.opts.Items,
+		Prices:         s.prices,
+		PricesCacheDir: s.opts.PricesCacheDir,
+		Throttle:       time.Hour,
+		Emit:           func(string, any) {},
+	})
+	if err := sub.eng.Run(context.Background(), capture.ReplaySource{Path: path}); err != nil {
+		return nil, err
+	}
+	return sub, nil
 }
 
 // DeleteSession removes one saved session.
