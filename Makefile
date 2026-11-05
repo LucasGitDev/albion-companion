@@ -43,6 +43,10 @@ codes: refs
 itemnames:
 	go run ./tools/genlocalized -out internal/itemdb/localized.tsv
 
+## zonenames: regenerate internal/world/clusters.tsv from ao-bin-dumps world.json (after a game patch)
+zonenames:
+	go run ./tools/genworld -out internal/world/clusters.tsv
+
 tidy:
 	go mod tidy
 

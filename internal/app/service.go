@@ -37,6 +37,7 @@ import (
 	"github.com/LucasGitDev/albion-companion/internal/route"
 	"github.com/LucasGitDev/albion-companion/internal/store"
 	"github.com/LucasGitDev/albion-companion/internal/timeline"
+	"github.com/LucasGitDev/albion-companion/internal/world"
 )
 
 // Emitter pushes an event to the frontend (Wails: runtime.EventsEmit).
@@ -532,7 +533,7 @@ type PartyView struct {
 
 func (s *Service) PartyView() PartyView {
 	st := s.eng.State()
-	return PartyView{Me: st.LocalPlayer().Name, Location: st.Location(), Members: st.PartyMembers()}
+	return PartyView{Me: st.LocalPlayer().Name, Location: world.Name(st.Location()), Members: st.PartyMembers()}
 }
 
 // ---- actions --------------------------------------------------------------
@@ -623,7 +624,20 @@ func (s *Service) RouteView(recent int) route.Snapshot {
 	if recent <= 0 {
 		recent = 500
 	}
-	return s.eng.Route().Snapshot(recent)
+	snap := s.eng.Route().Snapshot(recent)
+	// Resolve cluster ids to display names (display only; the tracker aggregates
+	// by raw id, so names never affect graph keying).
+	for i := range snap.Path {
+		snap.Path[i].Zone = world.Name(snap.Path[i].Zone)
+	}
+	for i := range snap.Nodes {
+		snap.Nodes[i].Zone = world.Name(snap.Nodes[i].Zone)
+	}
+	for i := range snap.Edges {
+		snap.Edges[i].From = world.Name(snap.Edges[i].From)
+		snap.Edges[i].To = world.Name(snap.Edges[i].To)
+	}
+	return snap
 }
 
 // ChestLogView is the local player's container-activity log (withdrawals), newest
@@ -726,7 +740,15 @@ type TimelineView struct {
 // TimelineView returns the most recent timeline events (newest first).
 func (s *Service) TimelineView(recent int) TimelineView {
 	tl := s.eng.Timeline()
-	return TimelineView{Events: tl.Recent(recent), Total: tl.Len()}
+	evs := tl.Recent(recent)
+	// Resolve cluster ids to display names for the zone events (display only;
+	// the tracker keeps raw ids).
+	for i := range evs {
+		if evs[i].Zone != "" {
+			evs[i].Zone = world.Name(evs[i].Zone)
+		}
+	}
+	return TimelineView{Events: evs, Total: tl.Len()}
 }
 
 // ---- dungeon tracker ------------------------------------------------------
@@ -757,6 +779,7 @@ func (s *Service) DungeonView() DungeonView {
 		if end.IsZero() {
 			end = now
 		}
+		r.Cluster = world.Name(r.Cluster) // display name (no-op for instanced dungeon ids)
 		out[len(recs)-1-i] = DungeonRecord{
 			Record:      r,
 			DurationSec: end.Sub(r.EnteredAt).Seconds(),
@@ -936,7 +959,7 @@ func (s *Service) persistSession(start, end time.Time, label, typ, recordingPath
 		ID:            store.NewID(start),
 		StartedAt:     start,
 		EndedAt:       end,
-		Zone:          gs.Location(),
+		Zone:          world.Name(gs.Location()),
 		Me:            gs.LocalPlayer().Name,
 		Label:         label,
 		Type:          typ,
