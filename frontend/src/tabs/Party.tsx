@@ -11,10 +11,10 @@ export function Party() {
     'capture:status',
   ])
 
-  if (status === 'loading') return <Loading rows={4} className="max-w-2xl" />
+  if (status === 'loading') return <Loading rows={4} className="mx-auto max-w-2xl" />
   if (status === 'error')
     return (
-      <div className="max-w-2xl">
+      <div className="mx-auto max-w-2xl">
         <ErrorState message="Couldn't load party." onRetry={retry} />
       </div>
     )
@@ -22,7 +22,7 @@ export function Party() {
   const members = view?.members ?? []
 
   return (
-    <div className="flex max-w-2xl flex-col gap-5">
+    <div className="mx-auto flex max-w-2xl flex-col gap-5">
       <div className="flex items-center gap-2 rounded-xl border border-border bg-surface/60 px-4 py-3 text-sm">
         <MapPin className="size-4 text-primary/80" />
         <span className="text-muted-foreground">Zone</span>
