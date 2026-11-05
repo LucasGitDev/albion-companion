@@ -320,6 +320,52 @@ export interface GatherView {
   value: GatherValue
 }
 
+export interface GuardConfig {
+  collectors: string[] | null
+  scoutMe: boolean
+  includeSilver: boolean
+}
+
+export interface GuardGrab {
+  at: string
+  looter: string
+  looterGuild: string
+  itemId: string
+  itemName: string
+  quantity: number
+  source: string
+  fromMob: boolean
+  isSilver: boolean
+  silver: number
+  location: string
+}
+
+export interface GuardItemLine {
+  itemId: string
+  itemName: string
+  quantity: number
+}
+
+export interface GuardSuspect {
+  name: string
+  guild: string
+  grabs: number
+  itemQty: number
+  silver: number
+  first: string
+  last: string
+  items: GuardItemLine[] | null
+}
+
+export interface GuardView {
+  config: GuardConfig
+  me: string
+  suspects: GuardSuspect[] | null
+  feed: GuardGrab[] | null
+  flaggedGrabs: number
+  flaggedItemQty: number
+}
+
 export interface CodesInfo {
   source: string
   events: number
@@ -356,6 +402,10 @@ declare global {
           ResetDungeons(): Promise<void>
           GatherView(): Promise<GatherView>
           ResetGather(): Promise<void>
+          LootGuardView(recent: number): Promise<GuardView>
+          LootGuardConfig(): Promise<GuardConfig>
+          SetLootGuardConfig(cfg: GuardConfig): Promise<void>
+          ExportLootGuardCSV(): Promise<string>
           ChestLogView(recent: number): Promise<ChestLogView>
           ResetChestLog(): Promise<void>
           RouteView(recent: number): Promise<RouteView>

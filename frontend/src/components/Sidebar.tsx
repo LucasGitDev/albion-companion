@@ -1,10 +1,11 @@
-import { Package, Swords, Users, ScrollText, Castle, Pickaxe, Archive, Route, History, Settings } from 'lucide-react'
+import { Package, Swords, Users, ScrollText, Castle, Pickaxe, Archive, Route, History, Settings, ShieldAlert } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-export type Tab = 'loot' | 'dps' | 'party' | 'dungeon' | 'gather' | 'chestlog' | 'route' | 'timeline' | 'history' | 'settings'
+export type Tab = 'loot' | 'guard' | 'dps' | 'party' | 'dungeon' | 'gather' | 'chestlog' | 'route' | 'timeline' | 'history' | 'settings'
 
 const items: { id: Tab; label: string; icon: typeof Package }[] = [
   { id: 'loot', label: 'Loot', icon: Package },
+  { id: 'guard', label: 'Loot Guard', icon: ShieldAlert },
   { id: 'dps', label: 'DPS', icon: Swords },
   { id: 'party', label: 'Party', icon: Users },
   { id: 'dungeon', label: 'Dungeons', icon: Castle },
