@@ -57,6 +57,7 @@ type Options struct {
 	SessionsDir    string            // optional: persist finished sessions here (empty = no history)
 	PricesCacheDir string            // optional: persist the price cache here (empty = memory only)
 	ConfigDir      string            // optional: persist user config (Loot Guard roster) here (empty = memory only)
+	RecordingsDir  string            // optional: auto-record per-capture .aorec here (empty = disabled)
 }
 
 type CaptureStatus struct {
@@ -90,6 +91,9 @@ type Service struct {
 
 	guardCfg GuardConfig   // Loot Guard anti-theft roster (loaded from ConfigDir)
 	known    *knownPlayers // accumulating registry of observed player nicks
+
+	recCfg RecordConfig      // auto-record settings (loaded from ConfigDir)
+	curRec *capture.Recorder // current per-capture recording (nil when not recording)
 }
 
 func NewService(opts Options) *Service {
@@ -108,6 +112,7 @@ func NewService(opts Options) *Service {
 	}
 	s.guardCfg = loadGuardConfig(opts.ConfigDir)
 	s.known = newKnownPlayers(opts.ConfigDir)
+	s.recCfg = loadRecordConfig(opts.ConfigDir)
 	s.prices = opts.Prices
 	if s.prices == nil {
 		// Prices land asynchronously; nudge the UI to re-pull the loot view so
@@ -131,6 +136,7 @@ func NewService(opts Options) *Service {
 			s.opts.Emit("loot:new", e)
 		},
 	})
+	go s.pruneRecordings() // enforce retention caps on startup
 	return s
 }
 
@@ -160,12 +166,16 @@ func (s *Service) StartCapture() (CaptureStatus, error) {
 	for _, src := range sources {
 		s.status.Sources = append(s.status.Sources, src.Name())
 	}
+	start := s.sessionStart
 	s.mu.Unlock()
+
+	s.startRecording(start) // auto-record this capture (no-op when disabled)
 
 	go func() {
 		err := s.eng.Run(ctx, sources...)
 		// Persist the finished session before clearing state, so History keeps it.
 		s.saveSession()
+		s.stopRecording() // close + prune the per-capture recording
 		s.mu.Lock()
 		s.cancel = nil
 		s.status.Running = false
@@ -739,11 +749,18 @@ func (s *Service) SetSessionInfo(label, typ string) {
 func (s *Service) StartSession(label, typ string) {
 	s.saveSession() // flush whatever was captured under the previous label
 	s.resetAll()
+	now := time.Now()
 	s.mu.Lock()
-	s.sessionStart = time.Now()
+	s.sessionStart = now
 	s.sessionLabel = strings.TrimSpace(label)
 	s.sessionType = strings.TrimSpace(typ)
+	recording := s.curRec != nil
 	s.mu.Unlock()
+	// Rotate the recording so each labeled session is its own replayable file.
+	if recording {
+		s.stopRecording()
+		s.startRecording(now)
+	}
 	s.opts.Emit("session:changed", nil)
 	s.opts.Emit("history:changed", nil)
 }

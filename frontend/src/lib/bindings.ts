@@ -17,6 +17,8 @@ import type {
   SessionMeta,
   SessionDetail,
   SessionInfo,
+  RecordConfig,
+  RecordingsInfo,
   PriceRegion,
 } from '@/wails.d'
 
@@ -59,6 +61,8 @@ export type {
   SessionMeta,
   SessionDetail,
   SessionInfo,
+  RecordConfig,
+  RecordingsInfo,
   CodesInfo,
   ItemDBInfo,
   Stats,
@@ -107,6 +111,10 @@ export const api = {
   sessionInfo: (): Promise<SessionInfo> => app().SessionInfo(),
   setSessionInfo: (label: string, type: string): Promise<void> => app().SetSessionInfo(label, type),
   startSession: (label: string, type: string): Promise<void> => app().StartSession(label, type),
+  recordConfig: (): Promise<RecordConfig> => app().RecordConfig(),
+  setRecordConfig: (cfg: RecordConfig): Promise<void> => app().SetRecordConfig(cfg),
+  recordingsInfo: (): Promise<RecordingsInfo> => app().RecordingsInfo(),
+  openRecordingsDir: (): Promise<void> => app().OpenRecordingsDir(),
   chestLogView: (recent = 200): Promise<ChestLogView> => app().ChestLogView(recent),
   resetChestLog: (): Promise<void> => app().ResetChestLog(),
   routeView: (recent = 500): Promise<RouteView> => app().RouteView(recent),

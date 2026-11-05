@@ -19,9 +19,10 @@ const recMagic = "AOREC1\n"
 
 // Recorder appends packets to an .aorec file. Safe for concurrent use.
 type Recorder struct {
-	mu sync.Mutex
-	f  *os.File
-	w  *bufio.Writer
+	mu   sync.Mutex
+	f    *os.File
+	w    *bufio.Writer
+	path string
 }
 
 func NewRecorder(path string) (*Recorder, error) {
@@ -34,8 +35,11 @@ func NewRecorder(path string) (*Recorder, error) {
 		f.Close()
 		return nil, err
 	}
-	return &Recorder{f: f, w: w}, nil
+	return &Recorder{f: f, w: w, path: path}, nil
 }
+
+// Path is the file the recorder writes to.
+func (r *Recorder) Path() string { return r.path }
 
 func (r *Recorder) Write(p Packet) error {
 	r.mu.Lock()
