@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { Package, Coins, Sparkles, Swords, Clock, MapPin, Download, Trash2, ChevronRight, FileUp, AlertTriangle, PlayCircle } from 'lucide-react'
+import { Package, Coins, Sparkles, Swords, Clock, MapPin, Download, Trash2, ChevronRight, FileUp, AlertTriangle, PlayCircle, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Loading, ErrorState } from '@/components/ui/states'
 import { ItemIcon } from '@/components/ItemIcon'
@@ -171,10 +171,36 @@ function SessionDetailPanel({ id, sessionId, canReplay, onDeleted }: { id: strin
   const [confirmDel, setConfirmDel] = useState(false)
   const [actionMsg, setActionMsg] = useState<{ kind: 'error' | 'ok'; text: string } | null>(null)
   const cancelRef = useRef<HTMLButtonElement>(null)
+  // Aorec-first: aggregates load instantly; the heavy forensic detail
+  // (full loot feed, timeline, chest log, chest drops) is derived on demand.
+  const [full, setFull] = useState<SessionDetail | null>(null)
+  const [detailStatus, setDetailStatus] = useState<'idle' | 'loading' | 'error'>('idle')
 
   useEffect(() => {
     if (confirmDel) cancelRef.current?.focus()
   }, [confirmDel])
+
+  const loadDetail = () => {
+    setDetailStatus('loading')
+    api
+      .historyDetail(sessionId)
+      .then((d) => {
+        setFull(d)
+        setDetailStatus('idle')
+      })
+      .catch(() => setDetailStatus('error'))
+  }
+  useEffect(() => {
+    setFull(null)
+    if (!data) return
+    if (!data.aggregated) {
+      setFull(data) // detail is inline (old / no-recording session)
+      setDetailStatus('idle')
+      return
+    }
+    loadDetail()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, sessionId])
 
   if (status === 'loading' && !data)
     return (
@@ -194,9 +220,12 @@ function SessionDetailPanel({ id, sessionId, canReplay, onDeleted }: { id: strin
   const items = data.loot.items ?? []
   const dps = (data.combat.rows ?? []).filter((r) => r.damage > 0)
   const dungeons = data.dungeon?.records ?? []
-  const chestEntries = data.chestLog?.entries ?? []
-  const chestDrops = data.chestContents?.containers ?? []
-  const timelineEvents = data.timeline?.events ?? []
+  // Heavy forensic detail comes from the derived `full` (or inline data).
+  const chestEntries = full?.chestLog?.entries ?? []
+  const chestDrops = full?.chestContents?.containers ?? []
+  const timelineEvents = full?.timeline?.events ?? []
+  const detailUnavailable = !!data.aggregated && full != null && !full.detailAvailable
+  const showDetailLoading = !!data.aggregated && full == null && detailStatus !== 'error'
   const shownPlayers = players.slice(0, 8)
   const shownItems = items.slice(0, 12)
   const shownDps = dps.slice(0, 6)
@@ -285,6 +314,35 @@ function SessionDetailPanel({ id, sessionId, canReplay, onDeleted }: { id: strin
           </Button>
         )}
       </div>
+
+      {/* Aorec-first: heavy detail derives on demand; status near the top so the
+          sections below don't jump as they fill in. */}
+      {showDetailLoading && (
+        <div role="status" className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="size-3.5 motion-safe:animate-spin" aria-hidden />
+          Rebuilding full detail from the recording…
+        </div>
+      )}
+      {detailStatus === 'error' && (
+        <div role="alert" className="flex items-center justify-between gap-3 rounded-lg border border-border bg-elevated/40 px-3 py-2 text-xs text-foreground">
+          <span className="flex items-center gap-1.5">
+            <AlertTriangle className="size-3.5 shrink-0 text-destructive" /> Couldn't rebuild the full detail.
+          </span>
+          <button
+            onClick={loadDetail}
+            aria-label="Retry rebuilding full detail"
+            className="inline-flex min-h-6 shrink-0 items-center rounded px-2 underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+      {detailUnavailable && (
+        <div role="status" className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+          <AlertTriangle className="mt-px size-3.5 shrink-0" />
+          <span>Full detail (loot feed, timeline, chest log, chest drops) isn't available — this session's recording was off or has been pruned. Showing aggregates only.</span>
+        </div>
+      )}
 
       <div className={cn('grid gap-4', twoCol && 'lg:grid-cols-2')}>
         {shownPlayers.length > 0 && (
@@ -436,7 +494,10 @@ function SessionDetailPanel({ id, sessionId, canReplay, onDeleted }: { id: strin
         </Section>
       )}
 
-      {shownPlayers.length === 0 &&
+      {!showDetailLoading &&
+        detailStatus !== 'error' &&
+        !detailUnavailable &&
+        shownPlayers.length === 0 &&
         shownDps.length === 0 &&
         shownItems.length === 0 &&
         dungeons.length === 0 &&

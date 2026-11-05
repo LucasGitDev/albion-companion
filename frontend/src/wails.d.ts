@@ -317,6 +317,8 @@ export interface SessionDetail {
   chestLog: ChestLogView
   dungeon: DungeonView
   chestContents: ChestContentsView
+  aggregated?: boolean
+  detailAvailable: boolean
 }
 
 export interface GatherItem {
@@ -485,6 +487,7 @@ declare global {
           HistoryList(): Promise<SessionMeta[] | null>
           ReprocessAorec(label: string, type: string): Promise<string>
           HistoryLoad(id: string): Promise<SessionDetail>
+          HistoryDetail(id: string): Promise<SessionDetail>
           DeleteSession(id: string): Promise<void>
           ExportSessionCSV(id: string): Promise<string>
           SetLootFilter(f: { PartyOnly: boolean; Player: string; IncludeTrash: boolean }): Promise<void>

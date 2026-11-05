@@ -280,6 +280,9 @@ func (a *App) HistoryList() ([]store.Meta, error)        { return a.svc.HistoryL
 func (a *App) HistoryLoad(id string) (app.SessionDetail, error) {
 	return a.svc.HistoryLoad(id)
 }
+func (a *App) HistoryDetail(id string) (app.SessionDetail, error) {
+	return a.svc.HistoryDetail(id)
+}
 func (a *App) DeleteSession(id string) error            { return a.svc.DeleteSession(id) }
 func (a *App) TimelineView(recent int) app.TimelineView { return a.svc.TimelineView(recent) }
 func (a *App) ResetTimeline()                           { a.svc.ResetTimeline() }
