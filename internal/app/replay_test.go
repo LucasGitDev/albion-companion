@@ -65,6 +65,31 @@ func TestReplayLifecycle(t *testing.T) {
 	}
 }
 
+func TestSeekReplay(t *testing.T) {
+	svc := NewService(Options{Codes: protocol.DefaultCodes(), SessionsDir: t.TempDir()})
+	if err := svc.StartReplay(fixtureAorec(), "seek"); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	// Seek to a point; playback restarts fast-forwarding there (race-checked).
+	svc.SeekReplay(1.0)
+	if st := svc.Status(); !st.Replay {
+		t.Fatalf("still replaying after seek, got %+v", st)
+	}
+	// Seeking past the end clamps and stays valid.
+	svc.SeekReplay(1e9)
+	if metas, _ := svc.HistoryList(); len(metas) != 0 {
+		t.Fatalf("seek must not persist a session, got %d", len(metas))
+	}
+	svc.StopReplay()
+	deadline := time.Now().Add(10 * time.Second)
+	for svc.Status().Replay {
+		if time.Now().After(deadline) {
+			t.Fatal("replay did not stop after seek")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+}
+
 func TestClampSpeed(t *testing.T) {
 	if clampSpeed(0) != maxReplaySpeed || clampSpeed(-5) != maxReplaySpeed {
 		t.Fatal("0/negative should clamp to the bounded max (never unbounded)")

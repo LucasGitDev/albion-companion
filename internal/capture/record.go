@@ -136,6 +136,12 @@ type ReplaySource struct {
 	Path    string
 	Speed   float64
 	Control *ReplayControl
+	// SkipUntil fast-forwards (no pacing) through packets whose time is before
+	// it, then paces normally from there — used to seek. Zero = play from start.
+	SkipUntil time.Time
+	// OnReachLive fires once, when playback crosses SkipUntil into paced mode
+	// (so the caller can resume UI emits suppressed during the skip).
+	OnReachLive func()
 }
 
 func (s ReplaySource) Name() string { return "replay:" + s.Path }
@@ -153,6 +159,7 @@ func (s ReplaySource) Run(ctx context.Context, out chan<- Packet) error {
 	}
 	var prev time.Time
 	sinceSleep := 0 // packets processed since the last time we yielded
+	live := s.SkipUntil.IsZero()
 	for {
 		p, err := readRecord(r)
 		if errors.Is(err, io.EOF) {
@@ -160,6 +167,14 @@ func (s ReplaySource) Run(ctx context.Context, out chan<- Packet) error {
 		}
 		if err != nil {
 			return fmt.Errorf("%s: %w", s.Path, err)
+		}
+		// Seek: skip (no pacing) until we reach the target time, then go live.
+		if !live && !p.At.Before(s.SkipUntil) {
+			live = true
+			prev = time.Time{} // don't pace the first live packet off a skipped one
+			if s.OnReachLive != nil {
+				s.OnReachLive()
+			}
 		}
 		if s.Control != nil && !s.Control.wait() {
 			return nil // stopped while paused
@@ -169,7 +184,7 @@ func (s ReplaySource) Run(ctx context.Context, out chan<- Packet) error {
 			speed = s.Control.Speed()
 		}
 		slept := false
-		if speed > 0 && !prev.IsZero() {
+		if live && speed > 0 && !prev.IsZero() {
 			if d := time.Duration(float64(p.At.Sub(prev)) / speed); d > 0 {
 				select {
 				case <-time.After(d):

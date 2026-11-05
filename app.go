@@ -222,6 +222,7 @@ func (a *App) ReplaySession(id string) error            { return a.svc.ReplaySes
 func (a *App) PauseReplay()                             { a.svc.PauseReplay() }
 func (a *App) ResumeReplay()                            { a.svc.ResumeReplay() }
 func (a *App) SetReplaySpeed(speed float64)             { a.svc.SetReplaySpeed(speed) }
+func (a *App) SeekReplay(elapsedSec float64)            { a.svc.SeekReplay(elapsedSec) }
 func (a *App) StopReplay()                              { a.svc.StopReplay() }
 
 // ReplayRecording opens a native .aorec picker and plays it back as a replay.

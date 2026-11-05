@@ -7,6 +7,7 @@
  */
 @layer base {
   :root {
+    color-scheme: dark; /* native controls (select popups, scrollbars) follow the dark theme */
     --background: 222 20% 6.5%;
     --surface: 222 17% 9%;
     --elevated: 222 15% 12%;

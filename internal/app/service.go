@@ -111,9 +111,12 @@ type Service struct {
 	replayCtl       *capture.ReplayControl
 	replayCancel    context.CancelFunc
 	replayLabel     string
+	replayPath      string
 	replayFirstNano int64
 	replayLastNano  int64
 	replayAtNano    atomic.Int64
+	replaySilent    atomic.Bool   // drop UI emits while seeking (fast-forward)
+	replayDone      chan struct{} // closed when the current replay goroutine exits
 }
 
 func NewService(opts Options) *Service {
@@ -1081,6 +1084,12 @@ func (s *Service) WriteSessionCSV(w io.Writer, id string) error {
 func (s *Service) onChange(t engine.Topic) {
 	s.mu.Lock()
 	s.pending[t] = true
+	// While seeking we fast-forward the engine to rebuild state; suppress emits
+	// so the UI doesn't churn through every intermediate frame.
+	if s.replaySilent.Load() {
+		s.mu.Unlock()
+		return
+	}
 	throttle := s.opts.Throttle
 	if s.replaying {
 		// Coalesce harder during replay: at high speed thousands of packets fly
