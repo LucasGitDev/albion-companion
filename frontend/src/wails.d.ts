@@ -377,6 +377,21 @@ export interface GuardView {
   flaggedItemQty: number
 }
 
+export interface RecordConfig {
+  autoRecord: boolean
+  maxMB: number
+  maxDays: number
+}
+
+export interface RecordingsInfo {
+  dir: string
+  enabled: boolean
+  override: boolean
+  count: number
+  bytes: number
+  config: RecordConfig
+}
+
 export interface CodesInfo {
   source: string
   events: number
@@ -419,6 +434,10 @@ declare global {
           ExportLootGuardCSV(): Promise<string>
           KnownPlayers(): Promise<string[]>
           SessionInfo(): Promise<SessionInfo>
+          RecordConfig(): Promise<RecordConfig>
+          SetRecordConfig(cfg: RecordConfig): Promise<void>
+          RecordingsInfo(): Promise<RecordingsInfo>
+          OpenRecordingsDir(): Promise<void>
           SetSessionInfo(label: string, type: string): Promise<void>
           StartSession(label: string, type: string): Promise<void>
           ChestLogView(recent: number): Promise<ChestLogView>

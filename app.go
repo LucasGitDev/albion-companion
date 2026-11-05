@@ -63,6 +63,7 @@ func (a *App) startup(ctx context.Context) {
 		SessionsDir:    sessionsDir(),
 		PricesCacheDir: itemsCacheDir(),
 		ConfigDir:      configDir(),
+		RecordingsDir:  recordingsDir(),
 		Emit:           func(event string, payload any) { runtime.EventsEmit(a.ctx, event, payload) },
 	}
 	// ALBION_COMPANION_RECORD=<path|dir> records every captured packet to a
@@ -175,6 +176,16 @@ func configDir() string {
 	return filepath.Join(d, "albion-companion")
 }
 
+// recordingsDir is where per-capture .aorec recordings are auto-saved
+// (<config dir>/albion-companion/recordings). Empty disables auto-recording.
+func recordingsDir() string {
+	d, err := os.UserConfigDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(d, "albion-companion", "recordings")
+}
+
 func itemsCacheDir() string {
 	if d, err := os.UserCacheDir(); err == nil {
 		return filepath.Join(d, "albion-companion")
@@ -184,26 +195,42 @@ func itemsCacheDir() string {
 
 // --- Bindings exposed to the frontend (JSON-friendly signatures only) ---
 
-func (a *App) Status() app.CaptureStatus                 { return a.svc.Status() }
-func (a *App) StartCapture() (app.CaptureStatus, error)  { return a.svc.StartCapture() }
-func (a *App) StopCapture() app.CaptureStatus            { return a.svc.StopCapture() }
-func (a *App) LootView(recent int) app.LootView          { return a.svc.LootView(recent) }
-func (a *App) CombatView() app.CombatView                { return a.svc.CombatView() }
-func (a *App) PartyView() app.PartyView                  { return a.svc.PartyView() }
-func (a *App) SetLootFilter(f loot.Filter)               { a.svc.SetLootFilter(f) }
-func (a *App) SetCombatOptions(o combat.Options)         { a.svc.SetCombatOptions(o) }
-func (a *App) ResetLoot()                                { a.svc.ResetLoot() }
-func (a *App) ResetCombat()                              { a.svc.ResetCombat() }
-func (a *App) ResetFame()                                { a.svc.ResetFame() }
-func (a *App) FameView() fame.Snapshot                   { return a.svc.FameView() }
-func (a *App) RatesView() app.RatesView                  { return a.svc.RatesView() }
-func (a *App) ResetRates()                               { a.svc.ResetRates() }
-func (a *App) GatherView() app.GatherView                { return a.svc.GatherView() }
-func (a *App) ResetGather()                              { a.svc.ResetGather() }
-func (a *App) LootGuardView(recent int) app.GuardView    { return a.svc.LootGuardView(recent) }
-func (a *App) LootGuardConfig() app.GuardConfig          { return a.svc.LootGuardConfig() }
-func (a *App) SetLootGuardConfig(cfg app.GuardConfig)    { a.svc.SetLootGuardConfig(cfg) }
-func (a *App) KnownPlayers() []string                    { return a.svc.KnownPlayers() }
+func (a *App) Status() app.CaptureStatus                { return a.svc.Status() }
+func (a *App) StartCapture() (app.CaptureStatus, error) { return a.svc.StartCapture() }
+func (a *App) StopCapture() app.CaptureStatus           { return a.svc.StopCapture() }
+func (a *App) LootView(recent int) app.LootView         { return a.svc.LootView(recent) }
+func (a *App) CombatView() app.CombatView               { return a.svc.CombatView() }
+func (a *App) PartyView() app.PartyView                 { return a.svc.PartyView() }
+func (a *App) SetLootFilter(f loot.Filter)              { a.svc.SetLootFilter(f) }
+func (a *App) SetCombatOptions(o combat.Options)        { a.svc.SetCombatOptions(o) }
+func (a *App) ResetLoot()                               { a.svc.ResetLoot() }
+func (a *App) ResetCombat()                             { a.svc.ResetCombat() }
+func (a *App) ResetFame()                               { a.svc.ResetFame() }
+func (a *App) FameView() fame.Snapshot                  { return a.svc.FameView() }
+func (a *App) RatesView() app.RatesView                 { return a.svc.RatesView() }
+func (a *App) ResetRates()                              { a.svc.ResetRates() }
+func (a *App) GatherView() app.GatherView               { return a.svc.GatherView() }
+func (a *App) ResetGather()                             { a.svc.ResetGather() }
+func (a *App) LootGuardView(recent int) app.GuardView   { return a.svc.LootGuardView(recent) }
+func (a *App) LootGuardConfig() app.GuardConfig         { return a.svc.LootGuardConfig() }
+func (a *App) SetLootGuardConfig(cfg app.GuardConfig)   { a.svc.SetLootGuardConfig(cfg) }
+func (a *App) KnownPlayers() []string                   { return a.svc.KnownPlayers() }
+func (a *App) RecordConfig() app.RecordConfig           { return a.svc.RecordConfig() }
+func (a *App) SetRecordConfig(cfg app.RecordConfig)     { a.svc.SetRecordConfig(cfg) }
+func (a *App) RecordingsInfo() app.RecordingsInfo       { return a.svc.RecordingsInfo() }
+
+// OpenRecordingsDir reveals the recordings folder in the OS file manager.
+func (a *App) OpenRecordingsDir() error {
+	dir := recordingsDir()
+	if dir == "" {
+		return nil
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	runtime.BrowserOpenURL(a.ctx, "file://"+dir)
+	return nil
+}
 func (a *App) SessionInfo() app.SessionInfo              { return a.svc.SessionInfo() }
 func (a *App) SetSessionInfo(label, typ string)          { a.svc.SetSessionInfo(label, typ) }
 func (a *App) StartSession(label, typ string)            { a.svc.StartSession(label, typ) }

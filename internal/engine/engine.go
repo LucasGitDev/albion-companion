@@ -83,7 +83,8 @@ type Engine struct {
 	tl       *timeline.Ring
 
 	packets, messages, unknown, decodeErrors atomic.Uint64
-	serverIP                                 atomic.Value // string: last game-server IP seen (for region detection)
+	serverIP                                 atomic.Value                     // string: last game-server IP seen (for region detection)
+	recorder                                 atomic.Pointer[capture.Recorder] // rotatable per-session recorder
 
 	mu      sync.Mutex
 	running bool
@@ -110,8 +111,18 @@ func New(cfg Config) *Engine {
 	if cfg.Items != nil {
 		e.gather.SetItems(cfg.Items)
 	}
+	if cfg.Recorder != nil {
+		e.recorder.Store(cfg.Recorder)
+	}
 	e.dec = protocol.NewDecoder(cfg.Codes, e.handle)
 	return e
+}
+
+// SetRecorder swaps the packet recorder (nil disables recording). Safe to call
+// while Run is active; the next packet uses the new recorder. Returns the
+// previous recorder so the caller can close it.
+func (e *Engine) SetRecorder(r *capture.Recorder) *capture.Recorder {
+	return e.recorder.Swap(r)
 }
 
 func (e *Engine) State() *game.State      { return e.state }
@@ -215,8 +226,8 @@ func (e *Engine) Feed(p capture.Packet) {
 	if _, ok := prices.RegionFromIP(p.SrcIP); ok {
 		e.serverIP.Store(p.SrcIP)
 	}
-	if e.cfg.Recorder != nil {
-		_ = e.cfg.Recorder.Write(p)
+	if r := e.recorder.Load(); r != nil {
+		_ = r.Write(p)
 	}
 	e.dec.Feed(p.Payload, p.At)
 }

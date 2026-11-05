@@ -38,6 +38,7 @@ const itemPool = [
 ]
 
 let sessionInfo = { label: 'Avalonian Dungeon', type: 'avalon', active: true }
+let recordCfg = { autoRecord: true, maxMB: 2048, maxDays: 30 }
 let priceRegion = 'west'
 let priceRegionSource: 'default' | 'detected' | 'manual' = 'detected'
 let pricesAvailable = true // toggle via ?state=noprices to preview the offline value state
@@ -477,6 +478,20 @@ export function installMock() {
           emit('guard:changed')
         },
         ExportLootGuardCSV: async () => '/Users/you/Downloads/albion-loot-guard-dev.csv',
+        RecordConfig: async () => recordCfg,
+        SetRecordConfig: async (cfg: typeof recordCfg) => {
+          recordCfg = { ...cfg }
+          emit('recording:changed')
+        },
+        RecordingsInfo: async () => ({
+          dir: '/Users/you/Library/Application Support/albion-companion/recordings',
+          enabled: recordCfg.autoRecord,
+          override: false,
+          count: 7,
+          bytes: 486_000_000,
+          config: recordCfg,
+        }),
+        OpenRecordingsDir: async () => {},
         SessionInfo: async () => sessionInfo,
         SetSessionInfo: async (label: string, type: string) => {
           sessionInfo = { ...sessionInfo, label, type }
