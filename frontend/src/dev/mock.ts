@@ -39,6 +39,7 @@ const itemPool = [
 
 let sessionInfo = { label: 'Avalonian Dungeon', type: 'avalon', active: true }
 let recordCfg = { autoRecord: true, maxMB: 2048, maxDays: 30 }
+let recDirOverride = ''
 let priceRegion = 'west'
 let priceRegionSource: 'default' | 'detected' | 'manual' = 'detected'
 let pricesAvailable = true // toggle via ?state=noprices to preview the offline value state
@@ -568,14 +569,24 @@ export function installMock() {
           emit('recording:changed')
         },
         RecordingsInfo: async () => ({
-          dir: '/Users/you/Library/Application Support/albion-companion/recordings',
+          dir: recDirOverride || '/Users/you/Library/Application Support/albion-companion/recordings',
           enabled: recordCfg.autoRecord,
           override: false,
+          custom: !!recDirOverride,
           count: 7,
           bytes: 486_000_000,
           config: recordCfg,
         }),
         OpenRecordingsDir: async () => {},
+        ChooseRecordingsDir: async () => {
+          recDirOverride = '/Users/you/Albion/recordings'
+          emit('recording:changed')
+          return recDirOverride
+        },
+        ResetRecordingsDir: async () => {
+          recDirOverride = ''
+          emit('recording:changed')
+        },
         ReplaySession: async (id: string) => startReplayMock(id === '20261031-203000' ? 'Avalon run' : 'Morgana farm'),
         ReplayRecording: async () => {
           startReplayMock('albion-20261103-192657.aorec')

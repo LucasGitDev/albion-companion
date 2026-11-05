@@ -38,6 +38,7 @@ type RecordingsInfo struct {
 	Dir      string       `json:"dir"`
 	Enabled  bool         `json:"enabled"`  // auto-record on AND a dir is available
 	Override bool         `json:"override"` // ALBION_COMPANION_RECORD is set (auto-record disabled)
+	Custom   bool         `json:"custom"`   // the folder is a user override (not the app default)
 	Count    int          `json:"count"`
 	Bytes    int64        `json:"bytes"`
 	Config   RecordConfig `json:"config"`
@@ -47,7 +48,16 @@ type RecordingsInfo struct {
 func (s *Service) RecordConfig() RecordConfig {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.recCfg
+	return s.prefs.Recording
+}
+
+// effectiveRecordingsDir is where recordings are written: the user override from
+// preferences, else the app default passed in Options. Caller holds s.mu.
+func (s *Service) effectiveRecordingsDirLocked() string {
+	if d := strings.TrimSpace(s.prefs.RecordingsDir); d != "" {
+		return d
+	}
+	return s.opts.RecordingsDir
 }
 
 // SetRecordConfig updates and persists the auto-record settings. It does not
@@ -60,24 +70,34 @@ func (s *Service) SetRecordConfig(cfg RecordConfig) {
 		cfg.MaxDays = 0
 	}
 	s.mu.Lock()
-	s.recCfg = cfg
-	dir := s.opts.ConfigDir
+	s.prefs.Recording = cfg
+	p, dir := s.prefs, s.opts.ConfigDir
 	s.mu.Unlock()
-	if dir != "" {
-		_ = saveRecordConfig(dir, cfg)
-	}
+	_ = savePreferences(dir, p)
 	go s.pruneRecordings() // apply new caps immediately, off the UI thread
+	s.opts.Emit("recording:changed", nil)
+}
+
+// SetRecordingsDir sets (or clears, with "") the user's recordings folder. Takes
+// effect on the next capture; existing recordings are not moved.
+func (s *Service) SetRecordingsDir(dir string) {
+	s.mu.Lock()
+	s.prefs.RecordingsDir = strings.TrimSpace(dir)
+	p, cfgDir := s.prefs, s.opts.ConfigDir
+	s.mu.Unlock()
+	_ = savePreferences(cfgDir, p)
 	s.opts.Emit("recording:changed", nil)
 }
 
 // RecordingsInfo lists the recordings directory usage.
 func (s *Service) RecordingsInfo() RecordingsInfo {
 	s.mu.Lock()
-	cfg := s.recCfg
-	dir := s.opts.RecordingsDir
+	cfg := s.prefs.Recording
+	dir := s.effectiveRecordingsDirLocked()
 	override := s.opts.Recorder != nil
+	custom := strings.TrimSpace(s.prefs.RecordingsDir) != ""
 	s.mu.Unlock()
-	info := RecordingsInfo{Dir: dir, Override: override, Config: cfg, Enabled: cfg.AutoRecord && dir != "" && !override}
+	info := RecordingsInfo{Dir: dir, Override: override, Custom: custom, Config: cfg, Enabled: cfg.AutoRecord && dir != "" && !override}
 	for _, f := range listRecordings(dir) {
 		info.Count++
 		info.Bytes += f.size
@@ -90,8 +110,8 @@ func (s *Service) RecordingsInfo() RecordingsInfo {
 // recorder (env override) is in use. Caller holds no lock.
 func (s *Service) startRecording(start time.Time) {
 	s.mu.Lock()
-	cfg := s.recCfg
-	dir := s.opts.RecordingsDir
+	cfg := s.prefs.Recording
+	dir := s.effectiveRecordingsDirLocked()
 	override := s.opts.Recorder != nil
 	s.mu.Unlock()
 	if !cfg.AutoRecord || dir == "" || override {
@@ -164,8 +184,8 @@ func listRecordings(dir string) []recFile {
 // in-progress recording (curRec) is never deleted.
 func (s *Service) pruneRecordings() {
 	s.mu.Lock()
-	cfg := s.recCfg
-	dir := s.opts.RecordingsDir
+	cfg := s.prefs.Recording
+	dir := s.effectiveRecordingsDirLocked()
 	var keepPath string
 	if s.curRec != nil {
 		keepPath = s.curRec.Path()

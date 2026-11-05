@@ -29,7 +29,7 @@ func TestPruneRecordings_SizeCap(t *testing.T) {
 	dir := t.TempDir()
 	svc := NewService(Options{RecordingsDir: dir})
 	svc.mu.Lock()
-	svc.recCfg = RecordConfig{MaxMB: 1, MaxDays: 0} // 1 MB cap, no age cap
+	svc.prefs.Recording = RecordConfig{MaxMB: 1, MaxDays: 0} // 1 MB cap, no age cap
 	svc.mu.Unlock()
 
 	old := mkRec(t, dir, "albion-20260101-000000.aorec", 700*1024, 48*time.Hour)
@@ -53,7 +53,7 @@ func TestPruneRecordings_AgeCap(t *testing.T) {
 	dir := t.TempDir()
 	svc := NewService(Options{RecordingsDir: dir})
 	svc.mu.Lock()
-	svc.recCfg = RecordConfig{MaxMB: 0, MaxDays: 7} // age cap only
+	svc.prefs.Recording = RecordConfig{MaxMB: 0, MaxDays: 7} // age cap only
 	svc.mu.Unlock()
 
 	stale := mkRec(t, dir, "albion-20260101-000000.aorec", 1024, 10*24*time.Hour)
@@ -73,7 +73,7 @@ func TestPruneRecordings_NeverDeletesInProgress(t *testing.T) {
 	dir := t.TempDir()
 	svc := NewService(Options{RecordingsDir: dir})
 	svc.mu.Lock()
-	svc.recCfg = RecordConfig{MaxMB: 0, MaxDays: 1} // age cap would delete old files
+	svc.prefs.Recording = RecordConfig{MaxMB: 0, MaxDays: 1} // age cap would delete old files
 	svc.mu.Unlock()
 
 	other := mkRec(t, dir, "albion-20250101-000000.aorec", 1024, 100*24*time.Hour)
