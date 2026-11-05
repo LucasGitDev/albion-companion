@@ -92,7 +92,7 @@ export function RouteTab() {
           <div className="text-xs text-muted-foreground">Travel between zones and your path — Avalon roads included — appears here.</div>
         </div>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,42rem)_20rem]">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
           <Journey path={path} />
           {edges.length > 0 && <MostTraveled edges={edges} />}
         </div>

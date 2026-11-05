@@ -50,7 +50,7 @@ export function Settings() {
   const regionValue = priceState?.regionSource === 'manual' ? priceState.region : ''
 
   return (
-    <div className="flex max-w-2xl flex-col gap-4">
+    <div className="mx-auto flex max-w-2xl flex-col gap-4">
       <Card>
         <CardHeader>
           <CardTitle>Capture interfaces</CardTitle>

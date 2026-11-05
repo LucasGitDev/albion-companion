@@ -48,6 +48,9 @@ export default function App() {
           </div>
         )}
         <main className="min-h-0 flex-1 overflow-auto p-4">
+          {/* Constrain content width so the app stays intentional at fullscreen /
+              ultrawide instead of sprawling edge to edge. */}
+          <div className="mx-auto w-full max-w-[1600px]">
           {firstRun && tab !== 'settings' && tab !== 'history' ? (
             <StartScreen />
           ) : (
@@ -72,6 +75,7 @@ export default function App() {
               {tab === 'settings' && <Settings />}
             </>
           )}
+          </div>
         </main>
       </div>
     </div>
